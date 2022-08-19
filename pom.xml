@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>elastos.carrier</groupId>
+  <artifactId>carrier-parent</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <name>Elastos Carrier</name>
+  <url>https://github.com/elastos/Elastos.NET.Carrier2.Java</url>
+
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <scm>
+    <connection>scm:git:git@github.com:elastos/Elastos.NET.Carrier.Java.git</connection>
+    <developerConnection>scm:git:git@github.com:elastos/Elastos.NET.Carrier.Java.git</developerConnection>
+    <url>git@github.com:elastos/Elastos.NET.Carrier.Java.git</url>
+  </scm>
+
+  <properties>
+    <maven.compiler.source>1.9</maven.compiler.source>
+    <maven.compiler.target>1.9</maven.compiler.target>
+
+	<guava.version>31.1-jre</guava.version>
+    <jackson.version>2.13.1</jackson.version>
+    <vertx.version>4.2.3</vertx.version>
+	<tuweni.version>2.2.0</tuweni.version>
+    <mapdb.version>3.0.8</mapdb.version>
+    <slf4j.version>1.7.33</slf4j.version>
+    <logback.version>1.2.10</logback.version>
+    <picocli.version>4.6.3</picocli.version>
+    <jline.version>3.21.0</jline.version>
+    <junit.version>5.4.0</junit.version>
+  </properties>
+
+  <modules>
+    <module>core</module>
+  </modules>
+
+  <build>
+    <defaultGoal>package</defaultGoal>
+  </build>
+</project>
