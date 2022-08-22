@@ -100,7 +100,6 @@ public abstract class LookupRequest extends Message {
 		while (parser.nextToken() != JsonToken.END_OBJECT) {
 			String name = parser.getCurrentName();
 			parser.nextToken();
-			System.out.println(parser.currentToken());
 
 			switch (name) {
 			case "t":

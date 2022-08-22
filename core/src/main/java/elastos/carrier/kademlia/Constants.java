@@ -50,6 +50,7 @@ public final class Constants {
 	// DHT maintenance constants
 	///////////////////////////////////////////////////////////////////////////
 	public static final int		DHT_UPDATE_INTERVAL						= 1000;
+	public static final	int		BOOTSTRAP_MIN_INTERVAL					= 4 * 60 * 1000;
 	public static final int		BOOTSTRAP_IF_LESS_THAN_X_PEERS			= 30;
 	public static final int		SELF_LOOKUP_INTERVAL					= 30 * 60 * 1000; 	// 30 minutes
 	public static final int		RANDOM_LOOKUP_INTERVAL					= 10 * 60 * 1000; 	// 10 minutes
@@ -84,4 +85,12 @@ public final class Constants {
 	public static final String 	NODE_NAME								= "Orca";
 	public static final int 	NODE_VERSION							= 1;
 	public static final int		VERSION									= Version.build(NODE_NAME, NODE_VERSION);
+
+
+	///////////////////////////////////////////////////////////////////////////
+	// Development environment
+	///////////////////////////////////////////////////////////////////////////
+	public static final String	ENVIRONMENT_PROPERTY					= "elastos.carrier.enviroment";
+	public static final boolean	DEVELOPMENT_ENVIRONMENT					= System.getProperty(ENVIRONMENT_PROPERTY, "")
+																				.equals("development");
 }

@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -73,6 +74,7 @@ import elastos.carrier.kademlia.tasks.PeerAnnounce;
 import elastos.carrier.kademlia.tasks.PeerLookup;
 import elastos.carrier.kademlia.tasks.PingRefreshTask;
 import elastos.carrier.kademlia.tasks.Task;
+import elastos.carrier.kademlia.tasks.TaskListener;
 import elastos.carrier.kademlia.tasks.TaskManager;
 import elastos.carrier.kademlia.tasks.ValueAnnounce;
 import elastos.carrier.kademlia.tasks.ValueLookup;
@@ -91,6 +93,7 @@ public class DHT {
 	private File persistFile;
 
 	private List<NodeInfo> bootstrapNodes;
+	private AtomicBoolean bootstrapping;
 	private long lastBootstrap;
 
 	private RoutingTable routingTable;
@@ -160,6 +163,7 @@ public class DHT {
 		this.scheduledActions = new ArrayList<>();
 		this.routingTable = new RoutingTable(this);
 		this.bootstrapNodes = new ArrayList<>();
+		this.bootstrapping = new AtomicBoolean(false);
 
 		this.knownNodes = CacheBuilder.newBuilder().initialCapacity(256).expireAfterAccess(5, TimeUnit.MINUTES)
 				.concurrencyLevel(4).build();
@@ -200,12 +204,21 @@ public class DHT {
 	}
 
 	public void bootstrap() {
+		if (!isRunning() || System.currentTimeMillis() - lastBootstrap < Constants.BOOTSTRAP_MIN_INTERVAL)
+			return;
+
+		if (!bootstrapping.compareAndSet(false, true))
+			return;
+
 		List<CompletableFuture<List<NodeInfo>>> futures = new ArrayList<>(bootstrapNodes.size());
 
 		for (NodeInfo node : bootstrapNodes) {
 			CompletableFuture<List<NodeInfo>> future = new CompletableFuture<>();
 
 			FindNodeRequest request = new FindNodeRequest(Id.random());
+			request.setWant4(type == Type.IPV4);
+			request.setWant6(type == Type.IPV6);
+
 			RPCCall call = new RPCCall(node, request).addListener(new RPCCallListener() {
 				@Override
 				public void onStateChange(RPCCall c, RPCCall.State previous, RPCCall.State current) {
@@ -225,6 +238,7 @@ public class DHT {
 			getServer().sendCall(call);
 		}
 
+		System.out.println("====================");
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenAccept((x) -> {
 			Set<NodeInfo> nodes = futures.stream().map(f -> {
 				List<NodeInfo> l;
@@ -236,8 +250,9 @@ public class DHT {
 				return l;
 			}).flatMap(l -> l.stream()).collect(Collectors.toSet());
 
+			System.out.println("--------------------");
 			lastBootstrap = System.currentTimeMillis();
-			routingTable.fillHomeBucket(nodes);
+			fillHomeBucket(nodes);
 		});
 	}
 
@@ -245,39 +260,42 @@ public class DHT {
 		if (!type.canUseAddress(bootstrapNode.getInetAddress()))
 			return;
 
-		this.bootstrapNodes.add(bootstrapNode);
+		if (!this.bootstrapNodes.contains(bootstrapNode)) {
+			this.bootstrapNodes.add(bootstrapNode);
+			lastBootstrap = 0;
+			bootstrap();
+		}
+	}
 
-		CompletableFuture<List<NodeInfo>> future = new CompletableFuture<>();
+	private void fillHomeBucket(Collection<NodeInfo> nodes) {
+		if (routingTable.getNumBucketEntries() == 0 && nodes.isEmpty()) {
+			bootstrapping.set(false);
+			return;
+		}
 
-		FindNodeRequest request = new FindNodeRequest(Id.random());
-		RPCCall call = new RPCCall(bootstrapNode, request).addListener(new RPCCallListener() {
-			@Override
-			public void onStateChange(RPCCall c, RPCCall.State previous, RPCCall.State current) {
-				if (current == RPCCall.State.RESPONDED || current == RPCCall.State.ERROR
-						|| current == RPCCall.State.TIMEOUT) {
-					if (c.getResponse() instanceof FindNodeResponse) {
-						FindNodeResponse r = (FindNodeResponse) c.getResponse();
-						future.complete(r.getNodes(getType()));
-					} else {
-						future.complete(Collections.emptyList());
-					}
-				}
-			}
-		});
+		TaskListener bootstrapListener = t -> {
+			bootstrapping.set(false);
 
-		getServer().sendCall(call);
+			if (!isRunning())
+				return;
 
-		future.thenAccept(l -> {
-			lastBootstrap = System.currentTimeMillis();
-			routingTable.fillHomeBucket(l);
-		});
+			if (routingTable.getNumBucketEntries() > Constants.MAX_ENTRIES_PER_BUCKET + 2)
+				routingTable.fillBuckets();
+		};
+
+
+		NodeLookup task = new NodeLookup(this, getNode().getId(), true);
+		task.setName("Bootstrap: filling home bucket");
+		task.injectCandidates(nodes);
+		task.addListener(bootstrapListener);
+		getTaskManager().add(task, true);
 	}
 
 	private void update () {
 		if (!isRunning())
 			return;
 
-		log.trace("DHT {} regularly update...", type);
+		// log.trace("DHT {} regularly update...", type);
 
 		long now = System.currentTimeMillis();
 
@@ -319,6 +337,8 @@ public class DHT {
 
 		server = new RPCServer(this, addr);
 		server.start();
+
+		running = true;
 
 		scheduledActions.add(getNode().getScheduler().scheduleWithFixedDelay(() -> {
 			// tasks maintenance that should run all the time, before the first queries
@@ -363,8 +383,6 @@ public class DHT {
 			task.setName(type + ":Random Refresh Lookup");
 			taskMan.add(task);
 		}, Constants.RANDOM_LOOKUP_INTERVAL, Constants.RANDOM_LOOKUP_INTERVAL, TimeUnit.MILLISECONDS));
-
-		running = true;
 	}
 
 	public void stop() {

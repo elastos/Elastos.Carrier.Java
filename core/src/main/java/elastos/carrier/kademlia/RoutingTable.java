@@ -50,10 +50,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 
-import elastos.carrier.kademlia.tasks.NodeLookup;
 import elastos.carrier.kademlia.tasks.PingRefreshTask;
 import elastos.carrier.kademlia.tasks.Task;
-import elastos.carrier.kademlia.tasks.TaskListener;
 import elastos.carrier.utils.ThreadLocals;
 
 /**
@@ -431,26 +429,6 @@ public final class RoutingTable {
 		}
 	}
 
-	void fillHomeBucket(Collection<NodeInfo> nodes) {
-		if (getNumBucketEntries() == 0 && nodes.isEmpty())
-			return;
-
-		TaskListener bootstrapListener = t -> {
-			if (!getDHT().isRunning())
-				return;
-
-			if (getNumBucketEntries() > Constants.MAX_ENTRIES_PER_BUCKET + 2)
-				fillBuckets();
-		};
-
-
-		NodeLookup task = new NodeLookup(getDHT(), getDHT().getNode().getId(), true);
-		task.setName("Bootstrap: filling home bucket");
-		task.injectCandidates(nodes);
-		task.addListener(bootstrapListener);
-		getDHT().getTaskManager().add(task, true);
-	}
-
 	/**
 	 * Check if a buckets needs to be refreshed, and refresh if necesarry
 	 *
@@ -533,6 +511,11 @@ public final class RoutingTable {
 	void save(File file) throws IOException {
 		if (file.isDirectory())
 			return;
+
+		if (this.getNumBucketEntries() == 0) {
+			log.trace("Skip to save the empty routing table.");
+			return;
+		}
 
 		Path tempFile = Files.createTempFile(file.getParentFile().toPath(), "saveTable", String.valueOf(System.currentTimeMillis()));
 		try (FileOutputStream out = new FileOutputStream(tempFile.toFile())) {

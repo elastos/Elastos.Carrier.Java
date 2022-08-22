@@ -54,6 +54,7 @@ import elastos.carrier.kademlia.exceptions.NotValueOwner;
 import elastos.carrier.kademlia.exceptions.ValueNotExists;
 import elastos.carrier.kademlia.tasks.Task;
 import elastos.carrier.kademlia.tasks.TaskFuture;
+import elastos.carrier.utils.AddressUtils;
 
 public class Node {
 	private Configuration config;
@@ -91,6 +92,9 @@ public class Node {
 			log.error("No valid IPv4 or IPv6 address specified");
 			throw new IOError("No listening address");
 		}
+
+		if (Constants.DEVELOPMENT_ENVIRONMENT)
+			log.info("Carrier node running in development environment.");
 
 		persistent = checkPersistence(config.storagePath());
 
@@ -257,7 +261,7 @@ public class Node {
 			return;
 
 		setStatus(Status.Stopped, Status.Initializing);
-		log.info("Carrier Kademlia node {} is starting...", id);
+		log.info("Carrier node {} is starting...", id);
 
 		try {
 			networkEngine = new NetworkEngine();
@@ -268,6 +272,10 @@ public class Node {
 			storage = MapDBStorage.open(storageFile);
 
 			if (config.IPv4Address() != null) {
+				System.out.println(config.IPv4Address());
+				if (AddressUtils.isLocalUnicast(config.IPv4Address()))
+					throw new IOError("Invalid DHT/IPv4 address: " + config.IPv4Address());
+
 				InetSocketAddress addr = new InetSocketAddress(config.IPv4Address(), getPort());
 				dht4 = new DHT(DHT.Type.IPV4, this, addr);
 				if (persistent)
@@ -278,6 +286,9 @@ public class Node {
 			}
 
 			if (config.IPv6Address() != null) {
+				if (AddressUtils.isLocalUnicast(config.IPv6Address()))
+					throw new IOError("Invalid DHT/IPv6 address: " + config.IPv6Address());
+
 				InetSocketAddress addr = new InetSocketAddress(config.IPv6Address(), getPort());
 				dht6 = new DHT(DHT.Type.IPV6, this, addr);
 				if (persistent)

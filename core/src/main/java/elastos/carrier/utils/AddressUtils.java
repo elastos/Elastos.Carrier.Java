@@ -40,9 +40,11 @@ import java.util.Collections;
 import java.util.stream.Stream;
 
 public class AddressUtils {
-	private final static NetMask V4_MAPPED;
+	private static final NetMask V4_MAPPED;
 	// private final static NetMask V4_COMPAT = NetMask.fromString("0000::/96");
 	private final static byte[] LOCAL_BROADCAST = new byte[] { (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff };
+
+	private static final boolean devEnv = System.getProperty("elastos.carrier.enviroment", "").equals("development");
 
 	static {
 		try {
@@ -98,7 +100,8 @@ public class AddressUtils {
 	}
 
 	public static boolean isBogon(InetAddress addr, int port) {
-		return !(port > 0 && port <= 0xFFFF && isGlobalUnicast(addr));
+		return !(port > 0 && port <= 0xFFFF &&
+				devEnv ? !isLocalUnicast(addr) : isGlobalUnicast(addr));
 	}
 
 	// https://datatracker.ietf.org/doc/html/rfc4380
@@ -124,8 +127,25 @@ public class AddressUtils {
 			return false;
 		if (addr instanceof Inet6Address && (V4_MAPPED.contains(addr) || ((Inet6Address) addr).isIPv4CompatibleAddress()))
 			return false;
+
 		return !(addr.isAnyLocalAddress() || addr.isLinkLocalAddress() || addr.isLoopbackAddress()
 				|| addr.isMulticastAddress() || addr.isSiteLocalAddress());
+	}
+
+	public static boolean isLocalUnicast(InetAddress addr) {
+		// local identification block
+		if (addr instanceof Inet4Address && addr.getAddress()[0] == 0)
+			return true;
+		// this would be rejected by a socket with broadcast disabled anyway, but filter
+		// it to reduce exceptions
+		if (addr instanceof Inet4Address && java.util.Arrays.equals(addr.getAddress(), LOCAL_BROADCAST))
+			return true;
+		if (addr instanceof Inet6Address && (addr.getAddress()[0] & 0xfe) == 0xfc) // fc00::/7
+			return true;
+		if (addr instanceof Inet6Address && (V4_MAPPED.contains(addr) || ((Inet6Address) addr).isIPv4CompatibleAddress()))
+			return true;
+
+		return addr.isLinkLocalAddress() || addr.isLoopbackAddress() || addr.isMulticastAddress();
 	}
 
 	public static InetAddress fromBytesVerbatim(byte[] raw) throws UnknownHostException {

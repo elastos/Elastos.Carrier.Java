@@ -57,6 +57,7 @@ import picocli.shell.jline3.PicocliCommands.PicocliCommandsFactory;
 		description = "Elastos Carrier command line launcher.",
 		subcommands = {
 			IdCommand.class,
+			BootstrapCommand.class,
 			FindValueCommand.class,
 			StoreValueCommand.class,
 			FindPeerCommand.class,
