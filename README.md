@@ -4,7 +4,7 @@ Elastos Carrier Super Node in Java
 
 ## Dependencies
 
-- java ≥ 9
+- java ≥ 11
 - maven 3.8 (building)
 - libsoduium runtime (shared object)
 

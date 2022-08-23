@@ -26,8 +26,6 @@ import java.util.Arrays;
 
 import javax.security.auth.Destroyable;
 
-import org.apache.tuweni.crypto.sodium.Signature.SecretKey;
-import org.apache.tuweni.crypto.sodium.Signature.Seed;
 import org.apache.tuweni.crypto.sodium.Sodium;
 
 public class Signature {
@@ -203,7 +201,7 @@ public class Signature {
 		}
 
 		public static KeyPair fromPrivateKey(byte[] privateKey) {
-			SecretKey sk = SecretKey.fromBytes(privateKey);
+			org.apache.tuweni.crypto.sodium.Signature.SecretKey sk = org.apache.tuweni.crypto.sodium.Signature.SecretKey.fromBytes(privateKey);
 			return new KeyPair(org.apache.tuweni.crypto.sodium.Signature.KeyPair.forSecretKey(sk));
 		}
 
@@ -213,7 +211,7 @@ public class Signature {
 
 		/* 32 bytes seed */
 		public static KeyPair fromSeed(byte[] seed) {
-			Seed sd = Seed.fromBytes(seed);
+			org.apache.tuweni.crypto.sodium.Signature.Seed sd = org.apache.tuweni.crypto.sodium.Signature.Seed.fromBytes(seed);
 			return new KeyPair(org.apache.tuweni.crypto.sodium.Signature.KeyPair.fromSeed(sd));
 		}
 

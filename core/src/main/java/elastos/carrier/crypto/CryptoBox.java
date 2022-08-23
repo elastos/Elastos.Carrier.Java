@@ -27,8 +27,6 @@ import java.util.Arrays;
 import javax.security.auth.Destroyable;
 
 import org.apache.tuweni.crypto.sodium.Box;
-import org.apache.tuweni.crypto.sodium.Box.SecretKey;
-import org.apache.tuweni.crypto.sodium.Box.Seed;
 import org.apache.tuweni.crypto.sodium.Sodium;
 
 public class CryptoBox implements AutoCloseable {
@@ -206,7 +204,7 @@ public class CryptoBox implements AutoCloseable {
 		}
 
 		public static KeyPair fromPrivateKey(byte[] privateKey) {
-			SecretKey sk = SecretKey.fromBytes(privateKey);
+			Box.SecretKey sk = Box.SecretKey.fromBytes(privateKey);
 			return new KeyPair(Box.KeyPair.forSecretKey(sk));
 		}
 
@@ -215,7 +213,7 @@ public class CryptoBox implements AutoCloseable {
 		}
 
 		public static KeyPair fromSeed(byte[] seed) {
-			Seed sd = Seed.fromBytes(seed);
+			Box.Seed sd = Box.Seed.fromBytes(seed);
 			return new KeyPair(Box.KeyPair.fromSeed(sd));
 		}
 

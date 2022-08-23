@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import elastos.carrier.kademlia.Id;
@@ -75,7 +76,7 @@ public class ClosestCandidates {
 			if (closest.size() > capacity) {
 				List<Id> toRemove = closest.values().stream()
 						.sorted(this::candidateOrder).skip(capacity)
-						.map(cn -> cn.getId()).toList();
+						.map(cn -> cn.getId()).collect(Collectors.toList());
 				for (Id id : toRemove)
 					closest.remove(id);
 			}
