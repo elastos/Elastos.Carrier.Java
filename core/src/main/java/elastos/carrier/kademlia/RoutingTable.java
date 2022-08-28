@@ -512,12 +512,13 @@ public final class RoutingTable {
 		if (file.isDirectory())
 			return;
 
+
 		if (this.getNumBucketEntries() == 0) {
 			log.trace("Skip to save the empty routing table.");
 			return;
 		}
 
-		Path tempFile = Files.createTempFile(file.getParentFile().toPath(), "saveTable", String.valueOf(System.currentTimeMillis()));
+		Path tempFile = Files.createTempFile(file.getParentFile().toPath(), file.getName() + "-", String.valueOf(System.currentTimeMillis()));
 		try (FileOutputStream out = new FileOutputStream(tempFile.toFile())) {
 			CBORGenerator gen = ThreadLocals.CBORFactory().createGenerator(out);
 			gen.writeStartObject();
@@ -528,16 +529,34 @@ public final class RoutingTable {
 			gen.writeFieldName("entries");
 			gen.writeStartArray();
 			for (KBucket bucket : getBuckets()) {
-				for (KBucketEntry entry : bucket.entries())
-					gen.writeObject(entry.toMap());
+				for (KBucketEntry entry : bucket.entries()) {
+					gen.writeStartObject();
+
+					Map<String, Object> map = entry.toMap();
+					for (Map.Entry<String, Object> kv : map.entrySet()) {
+						gen.writeFieldName(kv.getKey());
+						gen.writeObject(kv.getValue());
+					}
+
+					gen.writeEndObject();
+				}
 			}
 			gen.writeEndArray();
 
 			gen.writeFieldName("cache");
 			gen.writeStartArray();
 			for (KBucket bucket : getBuckets()) {
-				for (KBucketEntry entry : bucket.cacheEntries())
-					gen.writeObject(entry.toMap());
+				for (KBucketEntry entry : bucket.cacheEntries()) {
+					gen.writeStartObject();
+
+					Map<String, Object> map = entry.toMap();
+					for (Map.Entry<String, Object> kv : map.entrySet()) {
+						gen.writeFieldName(kv.getKey());
+						gen.writeObject(kv.getValue());
+					}
+
+					gen.writeEndObject();
+				}
 			}
 			gen.writeEndArray();
 
@@ -545,6 +564,9 @@ public final class RoutingTable {
 			gen.close();
 			out.close();
 			Files.move(tempFile, file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+		} finally {
+			// Force delete the tempFile if error occurred
+			Files.deleteIfExists(tempFile);
 		}
 	}
 

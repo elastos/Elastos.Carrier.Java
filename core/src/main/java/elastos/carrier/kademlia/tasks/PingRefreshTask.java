@@ -115,11 +115,11 @@ public class PingRefreshTask extends Task {
 			}
 
 			PingRequest pr = new PingRequest();
-			boolean success = sendCall(e, pr, c -> {
+			boolean sent = sendCall(e, pr, c -> {
 				todo.remove(e);
 			});
 
-			if (!success) // in flight call queue full
+			if (!sent) // in flight call queue full
 				break;
 		}
 	}

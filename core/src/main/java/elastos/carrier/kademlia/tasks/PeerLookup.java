@@ -74,7 +74,7 @@ public class PeerLookup extends TargetedTask {
 			q.setWant4(getDHT().getType() == DHT.Type.IPV4);
 			q.setWant6(getDHT().getType() == DHT.Type.IPV6);
 
-			boolean sent = !sendCall(cn, q, (c) -> {
+			boolean sent = sendCall(cn, q, (c) -> {
 				cn.setSent();
 			});
 

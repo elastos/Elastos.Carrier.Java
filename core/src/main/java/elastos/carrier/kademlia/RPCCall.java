@@ -64,6 +64,7 @@ public class RPCCall {
 
 		this.target = target;
 		this.request = request;
+		this.listeners = new ArrayList<>(8);
 
 		request.setRemote(target.getAddress());
 		if (target instanceof KBucketEntry) {
@@ -96,9 +97,6 @@ public class RPCCall {
 		assert(listener != null) : "Invalid listener";
 		if(state != RPCCall.State.UNSENT)
 			throw new IllegalStateException("Can not attach listeners after the call is started");
-
-		if (listeners == null)
-			listeners = new ArrayList<>(4);
 
 		listeners.add(listener);
 		return this;

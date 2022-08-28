@@ -6,6 +6,7 @@
   </appender>
 
   <logger name="elastos.carrier.kademlia.NetworkEngine" level="INFO"/>
+  <logger name="elastos.carrier.kademlia.RPCServer" level="INFO"/>
 
   <root level="trace">
     <appender-ref ref="STDOUT" />

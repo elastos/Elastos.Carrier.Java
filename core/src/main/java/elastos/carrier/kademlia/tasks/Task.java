@@ -76,7 +76,8 @@ public abstract class Task implements Comparable<Task> {
 	}
 
 	public final class CallListener implements RPCCallListener {
-		public void stateTransition(RPCCall call, RPCCall.State previous, RPCCall.State current) {
+		@Override
+		public void onStateChange(RPCCall call, RPCCall.State previous, RPCCall.State current) {
 			switch (current) {
 			case SENT:
 				callSent(call);
@@ -198,6 +199,8 @@ public abstract class Task implements Comparable<Task> {
 		if(current > 1)
 			return;
 
+		getLogger().trace("Task update: {}", toString());
+
 		try {
 			do {
 				if(isDone())
@@ -267,7 +270,7 @@ public abstract class Task implements Comparable<Task> {
 	}
 
 	protected boolean canDoRequest() {
-		return inFlight.size() >= Constants.MAX_CONCURRENT_TASK_REQUESTS;
+		return inFlight.size() < Constants.MAX_CONCURRENT_TASK_REQUESTS;
 	}
 
 	protected boolean sendCall(NodeInfo node, Message request) {

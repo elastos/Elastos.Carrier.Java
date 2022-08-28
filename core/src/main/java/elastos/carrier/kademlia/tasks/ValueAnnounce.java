@@ -61,11 +61,11 @@ public class ValueAnnounce extends Task {
 			q.setValue(value.getData());
 			q.setToken(cn.getToken());
 
-			boolean success = sendCall(cn, q, c -> {
+			boolean sent = sendCall(cn, q, c -> {
 				todo.remove(cn);
 			});
 
-			if (!success) // in flight call queue full
+			if (!sent) // in flight call queue full
 				break;
 		}
 	}

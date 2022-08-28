@@ -272,7 +272,6 @@ public class Node {
 			storage = MapDBStorage.open(storageFile);
 
 			if (config.IPv4Address() != null) {
-				System.out.println(config.IPv4Address());
 				if (AddressUtils.isLocalUnicast(config.IPv4Address()))
 					throw new IOError("Invalid DHT/IPv4 address: " + config.IPv4Address());
 

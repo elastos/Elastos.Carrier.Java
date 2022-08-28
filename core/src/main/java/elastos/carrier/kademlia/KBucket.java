@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
@@ -599,13 +600,14 @@ public class KBucket implements Comparable<KBucket> {
 
 		List<KBucketEntry> entries = getEntries();
 		if (!entries.isEmpty()) {
-			repr.append("  entries[").append(entries.size()).append("]: ").append(entries);
-			repr.append('\n');
+			repr.append("  entries[").append(entries.size()).append("]:\n");
+			repr.append(entries.stream().map(KBucketEntry::toString).collect(Collectors.joining(",\n    ", "    ", "\n")));
 		}
 
 		entries = getCache();
 		if (!entries.isEmpty()) {
-			repr.append("  cache[").append(entries.size()).append("]  : ").append(entries);
+			repr.append("  cache[").append(entries.size()).append("]:\n");
+			repr.append(entries.stream().map(KBucketEntry::toString).collect(Collectors.joining(",\n    ", "    ", "\n")));
 		}
 
 		return repr.toString();

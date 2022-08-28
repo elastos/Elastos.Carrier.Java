@@ -210,6 +210,8 @@ public class DHT {
 		if (!bootstrapping.compareAndSet(false, true))
 			return;
 
+		log.info("DHT {} bootstraping...", type);
+
 		List<CompletableFuture<List<NodeInfo>>> futures = new ArrayList<>(bootstrapNodes.size());
 
 		for (NodeInfo node : bootstrapNodes) {
@@ -238,7 +240,6 @@ public class DHT {
 			getServer().sendCall(call);
 		}
 
-		System.out.println("====================");
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenAccept((x) -> {
 			Set<NodeInfo> nodes = futures.stream().map(f -> {
 				List<NodeInfo> l;
@@ -250,7 +251,6 @@ public class DHT {
 				return l;
 			}).flatMap(l -> l.stream()).collect(Collectors.toSet());
 
-			System.out.println("--------------------");
 			lastBootstrap = System.currentTimeMillis();
 			fillHomeBucket(nodes);
 		});
@@ -491,7 +491,7 @@ public class DHT {
 
 	private void onPing(PingRequest q) {
 		PingResponse r = new PingResponse(q.getTxid());
-		r.setRemote(r.getOrigin());
+		r.setRemote(q.getOrigin());
 		server.sendMessage(r);
 	}
 

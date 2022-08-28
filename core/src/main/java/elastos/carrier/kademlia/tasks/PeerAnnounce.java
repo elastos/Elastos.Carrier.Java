@@ -55,11 +55,11 @@ public class PeerAnnounce extends Task {
 			CandidateNode cn = todo.peekFirst();
 
 			AnnouncePeerRequest q = new AnnouncePeerRequest(peerId, port, cn.getToken());
-			boolean success = sendCall(cn, q, c -> {
+			boolean sent = sendCall(cn, q, c -> {
 				todo.remove(cn);
 			});
 
-			if (!success) // in flight call queue full
+			if (!sent) // in flight call queue full
 				break;
 		}
 	}

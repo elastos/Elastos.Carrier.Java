@@ -85,7 +85,7 @@ public class NodeLookup extends TargetedTask {
 			r.setWant4(getDHT().getType() == DHT.Type.IPV4);
 			r.setWant6(getDHT().getType() == DHT.Type.IPV6);
 
-			boolean sent = !sendCall(cn, r, (c) -> {
+			boolean sent = sendCall(cn, r, (c) -> {
 				cn.setSent();
 			});
 
@@ -115,7 +115,10 @@ public class NodeLookup extends TargetedTask {
 		if (nodes == null)
 			return;
 
-		Set<NodeInfo> cands = nodes.stream().filter(e -> !AddressUtils.isBogon(e.getAddress()) && !getDHT().getNode().isLocalId(e.getId())).collect(Collectors.toSet());
+		Set<NodeInfo> cands = nodes.stream()
+				.filter(n -> !getClosestSet().contains(n.getId()))
+				.filter(n -> !AddressUtils.isBogon(n.getAddress()) && !getDHT().getNode().isLocalId(n.getId()))
+				.collect(Collectors.toSet());
 		addCandidates(cands);
 	}
 

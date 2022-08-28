@@ -56,6 +56,10 @@ public class ClosestSet {
 		return closest.get(id);
 	}
 
+	public boolean contains(Id id) {
+		return closest.containsKey(id);
+	}
+
 	void add(CandidateNode cn) {
 		synchronized (closest) {
 			closest.put(cn.getId(), cn);

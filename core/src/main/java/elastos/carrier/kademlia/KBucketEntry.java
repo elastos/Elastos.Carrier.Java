@@ -22,8 +22,10 @@
 
 package elastos.carrier.kademlia;
 
+import java.math.RoundingMode;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.text.DecimalFormat;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -355,8 +357,12 @@ public class KBucketEntry extends NodeInfo {
 			repr.append(";verified");
 
 		double rtt = avgRTT.getAverage();
-		if (!Double.isNaN(rtt))
-			repr.append(";rtt:").append(rtt);
+		if (!Double.isNaN(rtt)) {
+			DecimalFormat df = new DecimalFormat();
+			df.setMaximumFractionDigits(2);
+			df.setRoundingMode(RoundingMode.HALF_UP);
+			repr.append(";rtt:").append(df.format(rtt));
+		}
 
 		if (getVersion() != 0)
 			repr.append(";ver:").append(Version.toString(getVersion()));
