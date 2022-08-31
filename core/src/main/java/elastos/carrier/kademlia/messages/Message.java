@@ -302,11 +302,20 @@ public abstract class Message {
 		Message msg = null;
 
 		try {
-			CBORParser parser = ps.get();
-
 			int typeCode = Integer.MAX_VALUE;
 
-			while (parser.nextToken() != JsonToken.END_OBJECT) {
+			CBORParser parser = ps.get();
+			int depth = 0;
+			while (true) {
+				JsonToken tok = parser.nextToken();
+
+				if (tok == JsonToken.START_OBJECT) {
+					depth++;
+				} else if (tok == JsonToken.END_OBJECT) {
+					if (--depth == 0)
+						break;
+				}
+
 				String name = parser.getCurrentName();
 				if (name != null && name.equals("y")) {
 					parser.nextToken();
@@ -335,7 +344,7 @@ public abstract class Message {
 			msg = createMessage(type, method);
 
 			parser = ps.get();
-			int depth = 0;
+			depth = 0;
 			while (true) {
 				JsonToken tok = parser.nextToken();
 
