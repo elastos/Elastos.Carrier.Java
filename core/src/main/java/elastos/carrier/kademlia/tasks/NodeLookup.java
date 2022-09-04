@@ -24,8 +24,6 @@ package elastos.carrier.kademlia.tasks;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +38,6 @@ import elastos.carrier.kademlia.RPCCall;
 import elastos.carrier.kademlia.messages.FindNodeRequest;
 import elastos.carrier.kademlia.messages.FindNodeResponse;
 import elastos.carrier.kademlia.messages.Message;
-import elastos.carrier.utils.AddressUtils;
 
 
 public class NodeLookup extends TargetedTask {
@@ -75,10 +72,15 @@ public class NodeLookup extends TargetedTask {
 
 	@Override
 	protected void update() {
+		CandidateNode start = null;
+
 		for(;;) {
 			CandidateNode cn = getNextCandidate();
-			if(cn == null)
+			if(cn == null || cn == start) // no candidates or finish a loop
 				return;
+
+			if (start == null)
+				start = cn;
 
 			// send a findNode to the node
 			FindNodeRequest r = new FindNodeRequest(getTarget());
@@ -115,11 +117,7 @@ public class NodeLookup extends TargetedTask {
 		if (nodes == null)
 			return;
 
-		Set<NodeInfo> cands = nodes.stream()
-				.filter(n -> !getClosestSet().contains(n.getId()))
-				.filter(n -> !AddressUtils.isBogon(n.getAddress()) && !getDHT().getNode().isLocalId(n.getId()))
-				.collect(Collectors.toSet());
-		addCandidates(cands);
+		addCandidates(nodes);
 	}
 
 	@Override

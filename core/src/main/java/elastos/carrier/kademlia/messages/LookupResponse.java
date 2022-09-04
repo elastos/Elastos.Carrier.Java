@@ -50,7 +50,7 @@ public abstract class LookupResponse extends Message {
 	}
 
 	public List<NodeInfo> getNodes4() {
-		return nodes4 != null ? nodes4 : Collections.emptyList();
+		return nodes4 != null ? Collections.unmodifiableList(nodes4) : Collections.emptyList();
 	}
 
 	public void setNodes6(List<NodeInfo> nodes6) {
@@ -58,7 +58,7 @@ public abstract class LookupResponse extends Message {
 	}
 
 	public List<NodeInfo> getNodes6() {
-		return nodes6 != null ? nodes6 : Collections.emptyList();
+		return nodes6 != null ? Collections.unmodifiableList(nodes6) : Collections.emptyList();
 	}
 
 	public List<NodeInfo> getNodes(DHT.Type type) {
@@ -66,7 +66,6 @@ public abstract class LookupResponse extends Message {
 			return getNodes4();
 		else
 			return getNodes6();
-
 	}
 
 	@Override

@@ -264,15 +264,14 @@ public class KBucketEntry extends NodeInfo {
 	 * Should be called to signal that a request to this peer has timed out;
 	 */
 	public void signalRequestTimeout() {
-		if (failedRequests < 0)
+		if (failedRequests <= 0)
 			failedRequests = 1;
 		else
 			failedRequests++;
 	}
 
-	void setReachable(boolean ver) {
-		reachable = ver;
-
+	void setReachable(boolean reachable) {
+		this.reachable = reachable;
 	}
 
 	public boolean match(KBucketEntry entry) {
@@ -354,7 +353,7 @@ public class KBucketEntry extends NodeInfo {
 		if (failedRequests != 0)
 			repr.append(";fail:" + failedRequests);
 		if (reachable)
-			repr.append(";verified");
+			repr.append(";reachable");
 
 		double rtt = avgRTT.getAverage();
 		if (!Double.isNaN(rtt)) {

@@ -204,7 +204,7 @@ public class DHT {
 	}
 
 	public void bootstrap() {
-		if (!isRunning() || System.currentTimeMillis() - lastBootstrap < Constants.BOOTSTRAP_MIN_INTERVAL)
+		if (!isRunning() || bootstrapNodes.isEmpty() || System.currentTimeMillis() - lastBootstrap < Constants.BOOTSTRAP_MIN_INTERVAL)
 			return;
 
 		if (!bootstrapping.compareAndSet(false, true))
@@ -307,7 +307,7 @@ public class DHT {
 			// Regularly search for our id to update routing table
 			bootstrap();
 
-		if (persistFile != null && now - lastSave > Constants.ROUTING_TABLE_PERSIST_INTERVAL) {
+		if (persistFile != null && (now - lastSave) > Constants.ROUTING_TABLE_PERSIST_INTERVAL) {
 			try {
 				log.info("Persisting routing table ...");
 				routingTable.save(persistFile);
@@ -325,8 +325,6 @@ public class DHT {
 		if (persistFile != null && persistFile.exists() && persistFile.isFile()) {
 			log.info("Loading routing table from {} ...", persistFile);
 			routingTable.load(persistFile);
-			// fix the first time to persist the routing table: 2 min
-			lastSave = System.currentTimeMillis() - Constants.ROUTING_TABLE_PERSIST_INTERVAL + 120 * 1000;
 		}
 
 		Set<NodeInfo> bns = bootstrapNodes.stream().filter(n -> type.canUseAddress(n.getInetAddress()))
@@ -347,12 +345,18 @@ public class DHT {
 
 		// Ping check if the routing table loaded from cache
 		for (KBucket bucket : routingTable.buckets()) {
+			if (bucket.size() == 0)
+				continue;
+
 			Task task = new PingRefreshTask(this, bucket, EnumSet.of(PingRefreshTask.Options.removeOnTimeout));
 			task.setName("Bootstrap cached table ping for " + bucket.prefix());
 			taskMan.add(task);
 		}
 
 		bootstrap();
+
+		// fix the first time to persist the routing table: 2 min
+		lastSave = System.currentTimeMillis() - Constants.ROUTING_TABLE_PERSIST_INTERVAL + (120 * 1000);
 
 		// Regularly DHT update
 		scheduledActions.add(getNode().getScheduler().scheduleWithFixedDelay(() -> {
@@ -693,20 +697,15 @@ public class DHT {
 		if (call != null) {
 			newEntry.signalResponse(call.getRTT());
 			newEntry.mergeRequestTime(call.getSentTime());
+		} else if (old == null) {
+			// Verify the node, speedup the bootstrap process
+			PingRequest q = new PingRequest();
+			RPCCall c = new RPCCall(newEntry, q);
+			// Maybe we are in the RPCSever's callback
+			getNode().getScheduler().execute(() -> server.sendCall(c));
 		}
 
 		routingTable.put(newEntry);
-
-
-		// TODO: CHECKME!!!
-		// we already should have the bucket. might be an old one by now due to
-		// splitting
-		// but it doesn't matter, we just need to update the entry, which should stay
-		// the same object across bucket splits
-		// if(msg.getType() == Message.Type.RESPONSE) {
-		// bucket.notifyOfResponse(msg);
-		// }
-
 	}
 
 	private void populateClosestNodes(LookupResponse r, Id target, int v4, int v6) {

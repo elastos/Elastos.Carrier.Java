@@ -95,7 +95,7 @@ public class RPCServer implements Selectable {
 	private static final ThreadLocal<ByteBuffer> writeBuffer = ThreadLocal.withInitial(() -> ByteBuffer.allocateDirect(1500));
 	private static final ThreadLocal<ByteBuffer> readBuffer = ThreadLocal.withInitial(() -> ByteBuffer.allocateDirect(Constants.RECEIVE_BUFFER_SIZE));
 
-	private int nextTxid = 1; // ThreadLocalRandom.current().nextInt();
+	private int nextTxid = ThreadLocalRandom.current().nextInt(1, 32768);
 
 	private static final Logger log = LoggerFactory.getLogger(RPCServer.class);
 

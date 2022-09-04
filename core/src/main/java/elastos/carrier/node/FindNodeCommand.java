@@ -46,7 +46,7 @@ public class FindNodeCommand implements Callable<Integer> {
 	public Integer call() throws Exception {
 		LookupOption option = null;
 		try {
-			option = LookupOption.valueOf(mode.toLowerCase());
+			option = LookupOption.valueOf(mode.toUpperCase());
 		} catch (Exception e) {
 			System.out.println("Unknown mode: " + mode);
 			return -1;

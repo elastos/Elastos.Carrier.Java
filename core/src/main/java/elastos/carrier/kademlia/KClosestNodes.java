@@ -136,12 +136,12 @@ public class KClosestNodes {
 			}
 		}
 
-		shave();
-
 		if (includeSelf && entries.size() < maxEntries) {
 			InetSocketAddress sockAddr = dht.getServer().getAddress();
 			entries.add(new KBucketEntry(dht.getNode().getId(), sockAddr));
 		}
+
+		shave();
 	}
 
 	public boolean isFull() {

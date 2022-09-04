@@ -23,12 +23,15 @@
 package elastos.carrier.kademlia.tasks;
 
 import java.util.Collection;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import elastos.carrier.kademlia.Constants;
 import elastos.carrier.kademlia.DHT;
 import elastos.carrier.kademlia.Id;
 import elastos.carrier.kademlia.NodeInfo;
 import elastos.carrier.kademlia.RPCCall;
+import elastos.carrier.utils.AddressUtils;
 
 public abstract class TargetedTask extends Task {
 	private Id target;
@@ -56,7 +59,13 @@ public abstract class TargetedTask extends Task {
 	}
 
 	protected void addCandidates(Collection<? extends NodeInfo> nodes) {
-		candidates.add(nodes);
+		Set<NodeInfo> cands = nodes.stream()
+				.filter(n -> !closest.contains(n.getId()))
+				.filter(n -> !AddressUtils.isBogon(n.getAddress()) && !getDHT().getNode().isLocalId(n.getId()))
+				.collect(Collectors.toSet());
+
+		if (!cands.isEmpty())
+			candidates.add(cands);
 	}
 
 	protected CandidateNode removeCandidate(Id id) {
@@ -91,5 +100,23 @@ public abstract class TargetedTask extends Task {
 	protected void callTimeout(RPCCall call) {
 		// TODO: move to cached search nodes?
 		candidates.remove(call.getTargetId());
+	}
+
+	protected String getStatus() {
+		StringBuilder status = new StringBuilder();
+
+		status.append(toString()).append('\n');
+		status.append("Closest: \n");
+		if (closest.size() > 0)
+			status.append(closest.entriesStream().map(NodeInfo::toString).collect(Collectors.joining("\n    ", "    ", "\n")));
+		else
+			status.append("    <empty>\n");
+		status.append("Candidates: \n");
+		if (candidates.size() > 0)
+			status.append(candidates.entries().map(NodeInfo::toString).collect(Collectors.joining("\n    ", "    ", "\n")));
+		else
+			status.append("    <empty>\n");
+
+		return status.toString();
 	}
 }

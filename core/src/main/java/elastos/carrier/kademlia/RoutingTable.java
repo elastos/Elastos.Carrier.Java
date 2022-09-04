@@ -86,7 +86,9 @@ public final class RoutingTable {
 	private static class Operation {
 		public static final int PUT = 1;
 		public static final int REMOVE = 2;
-		public static final int MAINTENANCE = 3;
+		public static final int ON_SEND = 3;
+		public static final int ON_TIMEOUT = 4;
+		public static final int MAINTENANCE = 5;
 
 		public final int code;
 		public final Id id;
@@ -104,6 +106,14 @@ public final class RoutingTable {
 
 		public static Operation remove(Id id) {
 			return new Operation(REMOVE, id, null);
+		}
+
+		public static Operation onSend(Id id) {
+			return new Operation(ON_SEND, id, null);
+		}
+
+		public static Operation onTimeout(Id id) {
+			return new Operation(ON_TIMEOUT, id, null);
 		}
 
 		public static Operation maintenance() {
@@ -220,6 +230,16 @@ public final class RoutingTable {
 		processPipeline();
 	}
 
+	public void onSend(Id id) {
+		pipeline.add(Operation.onSend(id));
+		processPipeline();
+	}
+
+	public void onTimeout(Id id) {
+		pipeline.add(Operation.onTimeout(id));
+		processPipeline();
+	}
+
 	void maintenance() {
 		pipeline.add(Operation.maintenance());
 		processPipeline();
@@ -242,6 +262,14 @@ public final class RoutingTable {
 
 			case Operation.REMOVE:
 				_remove(op.id);
+				break;
+
+			case Operation.ON_SEND:
+				_onSend(op.id);
+				break;
+
+			case Operation.ON_TIMEOUT:
+				_onTimeout(op.id);
 				break;
 
 			case Operation.MAINTENANCE:
@@ -279,12 +307,12 @@ public final class RoutingTable {
 		return toRemove;
 	}
 
-	void onTimeout(Id id) {
+	void _onTimeout(Id id) {
 		KBucket bucket = bucketOf(id);
 		bucket._onTimeout(id);
 	}
 
-	void onSend(Id id) {
+	void _onSend(Id id) {
 		KBucket bucket = bucketOf(id);
 		bucket._onSend(id);
 	}
