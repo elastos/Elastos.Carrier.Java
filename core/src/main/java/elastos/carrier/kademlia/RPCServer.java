@@ -463,14 +463,20 @@ public class RPCServer implements Selectable {
 				break;
 
 			readBuffer.flip();
+			if (readBuffer.limit() == 0)
+				break;
+
 			stats.receivedBytes(readBuffer.limit() + dht.getType().protocolHeaderSize());
 
 			// - no conceivable DHT message is smaller than MIN_SIZE bytes
-			// - all DHT messages start with a 0xbf for CBOR header
+			// - all DHT messages start with
+			//   - 0xbf for CBOR Indefinite-length map
+			//   - 0xa4 or 0xa5 for 4 or 5 entries map
 			// - port 0 is reserved
 			// - address family may mismatch due to autoconversion from v4-mapped v6 addresses to Inet4Address
 			// immediately discard junk on the read loop, don't even allocate a buffer for it
-			if(readBuffer.limit() < Message.MIN_SIZE || readBuffer.get(0) != (byte)0xbf ||
+			byte b = readBuffer.get(0);
+			if(readBuffer.limit() < Message.MIN_SIZE || (b != (byte)0xbf && b != (byte)0xa4 && b != (byte)0xa5) ||
 					sa.getPort() == 0 || !dht.getType().canUseSocketAddress(sa)) {
 				log.warn("Dropped an invalid packet from {}.", AddressUtils.toString(sa));
 				stats.droppedPacket(readBuffer.limit() + dht.getType().protocolHeaderSize());

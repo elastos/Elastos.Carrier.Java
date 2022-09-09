@@ -100,7 +100,7 @@ public class KClosestNodes {
 			if (low > 0)
 				lowBucket = buckets.get(low - 1);
 
-			if (high < entries.size() - 1)
+			if (high < buckets.size() - 1)
 				highBucket = buckets.get(high + 1);
 
 			if (lowBucket == null && highBucket == null)
