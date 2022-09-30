@@ -60,7 +60,7 @@ public class Id implements Comparable<Id> {
 	/**
 	 * Construct a random kademlia Id.
 	 */
-	protected Id() {
+	public Id() {
 		bytes = new byte[BYTE_LENGTH];
 	}
 

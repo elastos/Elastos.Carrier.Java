@@ -31,7 +31,6 @@ import elastos.carrier.kademlia.Id;
 import elastos.carrier.utils.Hex;
 
 public class FindValueResponse extends LookupResponse {
-	private int token;
 	private Id publicKey;
 	private Id recipient;
 	private byte[] nonce;
@@ -45,14 +44,6 @@ public class FindValueResponse extends LookupResponse {
 
 	protected FindValueResponse() {
 		this(0);
-	}
-
-	public int getToken() {
-		return token;
-	}
-
-	public void setToken(int token) {
-		this.token = token;
 	}
 
 	public Id getPublicKey() {
@@ -105,34 +96,29 @@ public class FindValueResponse extends LookupResponse {
 
 	@Override
 	protected void _serialize(JsonGenerator gen) throws IOException {
-		if (token != 0) {
-			gen.writeFieldName("tok");
-			gen.writeNumber(token);
-		}
-
 		if (publicKey != null) {
 			gen.writeFieldName("k");
 			gen.writeBinary(publicKey.getBytes());
+		}
 
-			if (recipient != null) {
-				gen.writeFieldName("rec");
-				gen.writeBinary(recipient.getBytes());
-			}
+		if (recipient != null) {
+			gen.writeFieldName("rec");
+			gen.writeBinary(recipient.getBytes());
+		}
 
-			if (nonce != null) {
-				gen.writeFieldName("n");
-				gen.writeBinary(nonce);
-			}
+		if (nonce != null) {
+			gen.writeFieldName("n");
+			gen.writeBinary(nonce);
+		}
 
-			if (signature != null) {
-				gen.writeFieldName("sig");
-				gen.writeBinary(signature);
-			}
+		if (signature != null) {
+			gen.writeFieldName("sig");
+			gen.writeBinary(signature);
+		}
 
-			if (sequenceNumber >= 0) {
-				gen.writeFieldName("seq");
-				gen.writeNumber(sequenceNumber);
-			}
+		if (sequenceNumber >= 0) {
+			gen.writeFieldName("seq");
+			gen.writeNumber(sequenceNumber);
 		}
 
 		if (value != null) {
@@ -144,10 +130,6 @@ public class FindValueResponse extends LookupResponse {
 	@Override
 	protected void _parse(String fieldName, CBORParser parser) throws MessageException, IOException {
 		switch (fieldName) {
-		case "tok":
-			token = parser.getIntValue();
-			break;
-
 		case "k":
 			publicKey = new Id(parser.getBinaryValue());
 			break;
@@ -185,24 +167,20 @@ public class FindValueResponse extends LookupResponse {
 
 	@Override
 	protected void _toString(StringBuilder b) {
-		if (token != 0)
-			b.append(",tok:").append(token);
-
-		if (publicKey != null) {
+		if (publicKey != null)
 			b.append(",k:").append(publicKey.toString());
 
-			if (recipient != null)
-				b.append(",rec:").append(recipient.toString());
+		if (recipient != null)
+			b.append(",rec:").append(recipient.toString());
 
-			if (nonce != null)
-				b.append(",n:").append(Hex.encode(nonce));
+		if (nonce != null)
+			b.append(",n:").append(Hex.encode(nonce));
 
-			if (signature != null)
-				b.append(",sig:").append(Hex.encode(signature));
+		if (signature != null)
+			b.append(",sig:").append(Hex.encode(signature));
 
-			if (sequenceNumber >= 0)
-				b.append(",seq:").append(sequenceNumber);
-		}
+		if (sequenceNumber >= 0)
+			b.append(",seq:").append(sequenceNumber);
 
 		if (value != null)
 			b.append(",v:").append(Hex.encode(value));

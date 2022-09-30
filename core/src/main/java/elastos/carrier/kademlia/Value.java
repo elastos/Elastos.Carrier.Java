@@ -32,6 +32,7 @@ import elastos.carrier.crypto.Signature;
 import elastos.carrier.kademlia.exceptions.CryptoError;
 import elastos.carrier.kademlia.messages.FindValueResponse;
 import elastos.carrier.kademlia.messages.StoreValueRequest;
+import elastos.carrier.utils.Hex;
 import elastos.carrier.utils.ThreadLocals;
 
 public class Value {
@@ -43,18 +44,18 @@ public class Value {
 	private int sequenceNumber;
 	private byte[] data;
 
-	Value() {
+	protected Value() {
 	}
 
-	Value(byte[] data) {
+	protected Value(byte[] data) {
 		this(null, null, null, null, null, 0, data);
 	}
 
-	Value(Id publicKey, Id recipient, byte[] nonce, byte[] signature, int sequenceNumber, byte[] data) {
+	protected Value(Id publicKey, Id recipient, byte[] nonce, byte[] signature, int sequenceNumber, byte[] data) {
 		this(publicKey, null, recipient, nonce, signature, sequenceNumber, data);
 	}
 
-	Value(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, byte[] signature, int sequenceNumber, byte[] data) {
+	protected Value(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, byte[] signature, int sequenceNumber, byte[] data) {
 		this.publicKey = publicKey;
 		this.privateKey = privateKey;
 		this.recipient = recipient;
@@ -64,11 +65,11 @@ public class Value {
 		this.data = data;
 	}
 
-	Value(Signature.KeyPair keypair ,CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoError {
+	protected Value(Signature.KeyPair keypair ,CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoError {
 		this(keypair, null, nonce, sequenceNumber, data);
 	}
 
-	Value(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoError {
+	protected Value(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoError {
 		this.publicKey = new Id(keypair.publicKey().bytes());
 		this.privateKey = keypair.privateKey().bytes();
 		this.recipient = recipient;
@@ -118,7 +119,7 @@ public class Value {
 		return publicKey;
 	}
 
-	boolean hasPrivateKey() {
+	public boolean hasPrivateKey() {
 		return privateKey != null;
 	}
 
@@ -208,5 +209,30 @@ public class Value {
 		}
 		return false;
 
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder repr = new StringBuilder();
+		repr.append("id:").append(getId());
+
+		if (publicKey != null)
+			repr.append(",publicKey:").append(publicKey);
+
+		if (recipient != null)
+			repr.append(",recipient:").append(recipient);
+
+		if (nonce != null)
+			repr.append(",nonce: ").append(Hex.encode(nonce));
+
+		if (publicKey != null)
+			repr.append(",seq:").append(sequenceNumber);
+
+		if (signature != null)
+			repr.append(",sig:").append(Hex.encode(signature));
+
+		repr.append(",data:").append(Hex.encode(data));
+
+		return repr.toString();
 	}
 }

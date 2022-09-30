@@ -24,12 +24,13 @@ package elastos.carrier.kademlia.messages;
 
 import elastos.carrier.kademlia.Id;
 
-public class FindPeersRequest extends LookupRequest {
-	public FindPeersRequest(Id target) {
-		super(Method.FIND_PEERS, target);
+public class FindPeerRequest extends LookupRequest {
+	public FindPeerRequest(Id target) {
+		super(Method.FIND_PEER, target);
+		setWantToken(true);
 	}
 
-	protected FindPeersRequest() {
+	protected FindPeerRequest() {
 		this(null);
 	}
 }

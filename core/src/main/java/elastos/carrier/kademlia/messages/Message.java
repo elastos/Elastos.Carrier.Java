@@ -65,7 +65,7 @@ public abstract class Message {
 		PING(0x01),
 		FIND_NODE(0x02),
 		ANNOUNCE_PEER(0x03),
-		FIND_PEERS(0x04),
+		FIND_PEER(0x04),
 		STORE_VALUE(0x05),
 		FIND_VALUE(0x06);
 
@@ -96,7 +96,7 @@ public abstract class Message {
 				return ANNOUNCE_PEER;
 
 			case 0x04:
-				return FIND_PEERS;
+				return FIND_PEER;
 
 			case 0x05:
 				return STORE_VALUE;
@@ -419,8 +419,8 @@ public abstract class Message {
 				return new FindNodeRequest();
 			case ANNOUNCE_PEER:
 				return new AnnouncePeerRequest();
-			case FIND_PEERS:
-				return new FindPeersRequest();
+			case FIND_PEER:
+				return new FindPeerRequest();
 			case STORE_VALUE:
 				return new StoreValueRequest();
 			case FIND_VALUE:
@@ -437,8 +437,8 @@ public abstract class Message {
 				return new FindNodeResponse();
 			case ANNOUNCE_PEER:
 				return new AnnouncePeerResponse();
-			case FIND_PEERS:
-				return new FindPeersResponse();
+			case FIND_PEER:
+				return new FindPeerResponse();
 			case STORE_VALUE:
 				return new StoreValueResponse();
 			case FIND_VALUE:

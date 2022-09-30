@@ -22,6 +22,7 @@
 
 package elastos.carrier.kademlia.tasks;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -37,13 +38,13 @@ import elastos.carrier.kademlia.KClosestNodes;
 import elastos.carrier.kademlia.NodeInfo;
 import elastos.carrier.kademlia.PeerInfo;
 import elastos.carrier.kademlia.RPCCall;
-import elastos.carrier.kademlia.messages.FindPeersRequest;
-import elastos.carrier.kademlia.messages.FindPeersResponse;
+import elastos.carrier.kademlia.messages.FindPeerRequest;
+import elastos.carrier.kademlia.messages.FindPeerResponse;
 import elastos.carrier.kademlia.messages.Message;
 import elastos.carrier.utils.AddressUtils;
 
 public class PeerLookup extends TargetedTask {
-	Consumer<PeerInfo> resultHandler;
+	Consumer<Collection<PeerInfo>> resultHandler;
 
 	private static final Logger log = LoggerFactory.getLogger(PeerLookup.class);
 
@@ -51,7 +52,7 @@ public class PeerLookup extends TargetedTask {
 		super(dht, target);
 	}
 
-	public void setReultHandler(Consumer<PeerInfo> resultHandler) {
+	public void setReultHandler(Consumer<Collection<PeerInfo>> resultHandler) {
 		this.resultHandler = resultHandler;
 	}
 
@@ -69,7 +70,7 @@ public class PeerLookup extends TargetedTask {
 			if (cn == null)
 				return;
 
-			FindPeersRequest q = new FindPeersRequest(getTarget());
+			FindPeerRequest q = new FindPeerRequest(getTarget());
 
 			q.setWant4(getDHT().getType() == DHT.Type.IPV4);
 			q.setWant6(getDHT().getType() == DHT.Type.IPV6);
@@ -88,20 +89,31 @@ public class PeerLookup extends TargetedTask {
 		if (!call.matchesId())
 			return; // Ignore
 
-		if (response.getType() != Message.Type.RESPONSE || response.getMethod() != Message.Method.FIND_VALUE)
+		if (response.getType() != Message.Type.RESPONSE || response.getMethod() != Message.Method.FIND_PEER)
 			return;
 
-		FindPeersResponse r = (FindPeersResponse)response;
+		FindPeerResponse r = (FindPeerResponse)response;
 
-		List<PeerInfo> peers = r.getPeers();
+		boolean hasPeers = false;
+		List<PeerInfo> peers = r.getPeers4();
 		if (peers != null && !peers.isEmpty()) {
-			if (resultHandler != null) {
-				for (PeerInfo peer : peers)
-					resultHandler.accept(peer);
-			}
-		} else {
+			if (resultHandler != null)
+				resultHandler.accept(peers);
+
+			hasPeers = true;
+		}
+
+		peers = r.getPeers6();
+		if (peers != null && !peers.isEmpty()) {
+			if (resultHandler != null)
+				resultHandler.accept(peers);
+
+			hasPeers = true;
+		}
+
+		if (!hasPeers) {
 			List<NodeInfo> nodes = r.getNodes(getDHT().getType());
-			if (nodes == null)
+			if (nodes == null || nodes.isEmpty())
 				return;
 
 			Set<NodeInfo> cands = nodes.stream().filter(e -> !AddressUtils.isBogon(e.getAddress()) && !getDHT().getNode().isLocalId(e.getId())).collect(Collectors.toSet());

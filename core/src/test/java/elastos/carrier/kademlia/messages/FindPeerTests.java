@@ -40,10 +40,10 @@ import elastos.carrier.kademlia.messages.Message.Method;
 import elastos.carrier.kademlia.messages.Message.Type;
 import elastos.carrier.utils.ThreadLocals;
 
-public class FindPeersTests extends MessageTests {
+public class FindPeerTests extends MessageTests {
 	@Test
 	public void testFindPeerRequestSize() throws Exception {
-		FindPeersRequest msg = new FindPeersRequest(Id.random());
+		FindPeerRequest msg = new FindPeerRequest(Id.random());
 		msg.setId(Id.random());
 		msg.setTxid(0x87654321);
 		msg.setVersion(VERSION);
@@ -60,7 +60,7 @@ public class FindPeersTests extends MessageTests {
 		Id target = Id.random();
 		int txid = ThreadLocals.random().nextInt();
 
-		FindPeersRequest msg = new FindPeersRequest(target);
+		FindPeerRequest msg = new FindPeerRequest(target);
 		msg.setId(id);
 		msg.setTxid(txid);
 		msg.setVersion(VERSION);
@@ -73,11 +73,11 @@ public class FindPeersTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
-		assertTrue(pm instanceof FindPeersRequest);
-		FindPeersRequest m = (FindPeersRequest)pm;
+		assertTrue(pm instanceof FindPeerRequest);
+		FindPeerRequest m = (FindPeerRequest)pm;
 
 		assertEquals(Type.REQUEST, m.getType());
-		assertEquals(Method.FIND_PEERS, m.getMethod());
+		assertEquals(Method.FIND_PEER, m.getMethod());
 		assertEquals(id, m.getId());
 		assertEquals(txid, m.getTxid());
 		assertEquals(VERSION_STR, m.getReadableVersion());
@@ -92,7 +92,7 @@ public class FindPeersTests extends MessageTests {
 		Id target = Id.random();
 		int txid = ThreadLocals.random().nextInt();
 
-		FindPeersRequest msg = new FindPeersRequest(target);
+		FindPeerRequest msg = new FindPeerRequest(target);
 		msg.setId(id);
 		msg.setTxid(txid);
 		msg.setWant4(false);
@@ -104,11 +104,11 @@ public class FindPeersTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
-		assertTrue(pm instanceof FindPeersRequest);
-		FindPeersRequest m = (FindPeersRequest)pm;
+		assertTrue(pm instanceof FindPeerRequest);
+		FindPeerRequest m = (FindPeerRequest)pm;
 
 		assertEquals(Type.REQUEST, m.getType());
-		assertEquals(Method.FIND_PEERS, m.getMethod());
+		assertEquals(Method.FIND_PEER, m.getMethod());
 		assertEquals(id, m.getId());
 		assertEquals(txid, m.getTxid());
 		assertEquals(target, m.getTarget());
@@ -122,7 +122,7 @@ public class FindPeersTests extends MessageTests {
 		Id target = Id.random();
 		int txid = ThreadLocals.random().nextInt();
 
-		FindPeersRequest msg = new FindPeersRequest(target);
+		FindPeerRequest msg = new FindPeerRequest(target);
 		msg.setId(id);
 		msg.setTxid(txid);
 		msg.setWant4(true);
@@ -134,11 +134,11 @@ public class FindPeersTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
-		assertTrue(pm instanceof FindPeersRequest);
-		FindPeersRequest m = (FindPeersRequest)pm;
+		assertTrue(pm instanceof FindPeerRequest);
+		FindPeerRequest m = (FindPeerRequest)pm;
 
 		assertEquals(Type.REQUEST, m.getType());
-		assertEquals(Method.FIND_PEERS, m.getMethod());
+		assertEquals(Method.FIND_PEER, m.getMethod());
 		assertEquals(id, m.getId());
 		assertEquals(txid, m.getTxid());
 		assertEquals(target, m.getTarget());
@@ -176,25 +176,25 @@ public class FindPeersTests extends MessageTests {
 		for (int i = 0; i < 16; i++)
 			peers6.add(new PeerInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65535 - i));
 
-		FindPeersResponse msg = new FindPeersResponse(0xF7654321);
+		FindPeerResponse msg = new FindPeerResponse(0xF7654321);
 		msg.setId(Id.random());
 		msg.setVersion(VERSION);
 		msg.setNodes4(nodes4);
 		msg.setNodes6(nodes6);
 		msg.setToken(0x87654321);
-		msg.setPeers(peers4);
+		msg.setPeers4(peers4);
 
 		byte[] bin = msg.serialize();
 		printMessage(msg, bin);
 		assertTrue(bin.length <= msg.estimateSize());
 
-		msg = new FindPeersResponse(0xF7654321);
+		msg = new FindPeerResponse(0xF7654321);
 		msg.setId(Id.random());
 		msg.setVersion(VERSION);
 		msg.setNodes4(nodes4);
 		msg.setNodes6(nodes6);
 		msg.setToken(0x87654321);
-		msg.setPeers(peers6);
+		msg.setPeers6(peers6);
 
 		bin = msg.serialize();
 		printMessage(msg, bin);
@@ -218,12 +218,12 @@ public class FindPeersTests extends MessageTests {
 		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++)
 			peers4.add(new PeerInfo(Id.random(), "251.251.251.251", 65535 - i));
 
-		FindPeersResponse msg = new FindPeersResponse(txid);
+		FindPeerResponse msg = new FindPeerResponse(txid);
 		msg.setId(id);
 		msg.setVersion(VERSION);
 		msg.setNodes4(nodes4);
 		msg.setToken(token);
-		msg.setPeers(peers4);
+		msg.setPeers4(peers4);
 
 		byte[] bin = msg.serialize();
 		assertTrue(bin.length <= msg.estimateSize());
@@ -231,23 +231,23 @@ public class FindPeersTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
-		assertTrue(pm instanceof FindPeersResponse);
-		FindPeersResponse m = (FindPeersResponse)pm;
+		assertTrue(pm instanceof FindPeerResponse);
+		FindPeerResponse m = (FindPeerResponse)pm;
 
 		assertEquals(Type.RESPONSE, m.getType());
-		assertEquals(Method.FIND_PEERS, m.getMethod());
+		assertEquals(Method.FIND_PEER, m.getMethod());
 		assertEquals(id, m.getId());
 		assertEquals(txid, m.getTxid());
 		assertEquals(VERSION_STR, m.getReadableVersion());
 		assertEquals(token, m.getToken());
 		assertTrue(m.getNodes6().isEmpty());
 		assertFalse(m.getNodes4().isEmpty());
-		assertFalse(m.getPeers().isEmpty());
+		assertFalse(m.getPeers4().isEmpty());
 
 		List<NodeInfo> nodes = m.getNodes4();
 		assertArrayEquals(nodes4.toArray(), nodes.toArray());
 
-		List<PeerInfo> peers = m.getPeers();
+		List<PeerInfo> peers = m.getPeers4();
 		assertArrayEquals(peers4.toArray(), peers.toArray());
 	}
 
@@ -268,12 +268,12 @@ public class FindPeersTests extends MessageTests {
 		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++)
 			peers6.add(new PeerInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7335", 65535 - i));
 
-		FindPeersResponse msg = new FindPeersResponse(txid);
+		FindPeerResponse msg = new FindPeerResponse(txid);
 		msg.setId(id);
 		msg.setVersion(VERSION);
 		msg.setNodes6(nodes6);
 		msg.setToken(token);
-		msg.setPeers(peers6);
+		msg.setPeers6(peers6);
 
 		byte[] bin = msg.serialize();
 		assertTrue(bin.length <= msg.estimateSize());
@@ -281,23 +281,23 @@ public class FindPeersTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
-		assertTrue(pm instanceof FindPeersResponse);
-		FindPeersResponse m = (FindPeersResponse)pm;
+		assertTrue(pm instanceof FindPeerResponse);
+		FindPeerResponse m = (FindPeerResponse)pm;
 
 		assertEquals(Type.RESPONSE, m.getType());
-		assertEquals(Method.FIND_PEERS, m.getMethod());
+		assertEquals(Method.FIND_PEER, m.getMethod());
 		assertEquals(id, m.getId());
 		assertEquals(txid, m.getTxid());
 		assertEquals(VERSION_STR, m.getReadableVersion());
 		assertEquals(token, m.getToken());
 		assertTrue(m.getNodes4().isEmpty());
 		assertFalse(m.getNodes6().isEmpty());
-		assertFalse(m.getPeers().isEmpty());
+		assertFalse(m.getPeers6().isEmpty());
 
 		List<NodeInfo> nodes = m.getNodes6();
 		assertArrayEquals(nodes6.toArray(), nodes.toArray());
 
-		List<PeerInfo> peers = m.getPeers();
+		List<PeerInfo> peers = m.getPeers6();
 		assertArrayEquals(peers6.toArray(), peers.toArray());
 	}
 
@@ -321,20 +321,23 @@ public class FindPeersTests extends MessageTests {
 		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7334", 1234));
 		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7335", 1235));
 
-		List<PeerInfo> peers46 = new ArrayList<>();
+		List<PeerInfo> peers4 = new ArrayList<>();
 		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++) {
-			if (i % 2 == 0)
-				peers46.add(new PeerInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7335", 65535 - i));
-			else
-				peers46.add(new PeerInfo(Id.random(), "192.168.1.2", 65535 - i));
+			peers4.add(new PeerInfo(Id.random(), "192.168.1.2", 65535 - i));
 		}
 
-		FindPeersResponse msg = new FindPeersResponse(txid);
+		List<PeerInfo> peers6 = new ArrayList<>();
+		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++) {
+			peers6.add(new PeerInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7335", 65535 - i));
+		}
+
+		FindPeerResponse msg = new FindPeerResponse(txid);
 		msg.setId(id);
 		msg.setNodes4(nodes4);
 		msg.setNodes6(nodes6);
 		msg.setToken(token);
-		msg.setPeers(peers46);
+		msg.setPeers4(peers4);
+		msg.setPeers6(peers6);
 
 		byte[] bin = msg.serialize();
 		assertTrue(bin.length <= msg.estimateSize());
@@ -342,18 +345,19 @@ public class FindPeersTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
-		assertTrue(pm instanceof FindPeersResponse);
-		FindPeersResponse m = (FindPeersResponse)pm;
+		assertTrue(pm instanceof FindPeerResponse);
+		FindPeerResponse m = (FindPeerResponse)pm;
 
 		assertEquals(Type.RESPONSE, m.getType());
-		assertEquals(Method.FIND_PEERS, m.getMethod());
+		assertEquals(Method.FIND_PEER, m.getMethod());
 		assertEquals(id, m.getId());
 		assertEquals(txid, m.getTxid());
 		assertEquals(0, m.getVersion());
 		assertEquals(token, m.getToken());
 		assertNotNull(m.getNodes4());
 		assertNotNull(m.getNodes6());
-		assertNotNull(m.getPeers());
+		assertNotNull(m.getPeers4());
+		assertNotNull(m.getPeers6());
 
 		List<NodeInfo> nodes = m.getNodes4();
 		assertArrayEquals(nodes4.toArray(), nodes.toArray());
@@ -361,7 +365,10 @@ public class FindPeersTests extends MessageTests {
 		nodes = m.getNodes6();
 		assertArrayEquals(nodes6.toArray(), nodes.toArray());
 
-		List<PeerInfo> peers = m.getPeers();
-		assertArrayEquals(peers46.toArray(), peers.toArray());
+		List<PeerInfo> peers = m.getPeers4();
+		assertArrayEquals(peers4.toArray(), peers.toArray());
+
+		peers = m.getPeers6();
+		assertArrayEquals(peers6.toArray(), peers.toArray());
 	}
 }

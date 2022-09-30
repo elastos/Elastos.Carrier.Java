@@ -64,10 +64,11 @@ public class TokenManager {
 		bb.put(sessionSecret);
 
 		byte[] digest = ThreadLocals.sha256().digest(tokData);
-		int token = ((digest[0] & 0xff) << 24) |
-				((digest[1] & 0xff) << 16) |
-				((digest[2] & 0xff) << 8) |
-				(digest[3] & 0xff);
+		int pos = (digest[0] & 0xff) & 0x1f; // mod 32
+		int token = ((digest[pos] & 0xff) << 24) |
+				((digest[(pos + 1) & 0x1f] & 0xff) << 16) |
+				((digest[(pos + 2) & 0x1f] & 0xff) << 8) |
+				(digest[(pos + 3) & 0x1f] & 0xff);
 
 		return token;
 	}

@@ -25,11 +25,26 @@ package elastos.carrier.kademlia.messages;
 import elastos.carrier.kademlia.Id;
 
 public class FindNodeRequest extends LookupRequest {
-	public FindNodeRequest(Id targetId) {
+	public FindNodeRequest(Id targetId, boolean wantToken) {
 		super(Method.FIND_NODE, targetId);
+		setWantToken(wantToken);
+	}
+
+	public FindNodeRequest(Id targetId) {
+		this(targetId, false);
 	}
 
 	protected FindNodeRequest() {
-		this(null);
+		this(null, false);
+	}
+
+    @Override
+	public void setWantToken(boolean wantToken) {
+		super.setWantToken(wantToken);
+	}
+
+    @Override
+	public boolean doesWantToken() {
+		return super.doesWantToken();
 	}
 }

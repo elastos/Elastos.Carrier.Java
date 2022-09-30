@@ -23,7 +23,6 @@
 package elastos.carrier.kademlia.messages;
 
 import java.io.IOException;
-import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,69 +33,76 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
+import elastos.carrier.kademlia.DHT;
 import elastos.carrier.kademlia.Id;
 import elastos.carrier.kademlia.PeerInfo;
 
-public class FindPeersResponse extends LookupResponse {
-	private int token;
-	private List<PeerInfo> peers;
+public class FindPeerResponse extends LookupResponse {
+	private List<PeerInfo> peers4;
+	private List<PeerInfo> peers6;
 
-	public FindPeersResponse(int txid) {
-		super(Method.FIND_PEERS, txid);
+	public FindPeerResponse(int txid) {
+		super(Method.FIND_PEER, txid);
 	}
 
-	protected FindPeersResponse() {
+	protected FindPeerResponse() {
 		this(0);
 	}
 
-	public int getToken() {
-		return token;
+	public void setPeers4(List<PeerInfo> peers) {
+		this.peers4 = peers;
 	}
 
-	public void setToken(int token) {
-		this.token = token;
+	public List<PeerInfo> getPeers4() {
+		return peers4 != null ? Collections.unmodifiableList(peers4) : Collections.emptyList();
 	}
 
-	public void setPeers(List<PeerInfo> peers) {
-		this.peers = peers;
+	public void setPeers6(List<PeerInfo> peers) {
+		this.peers6 = peers;
 	}
 
-	public List<PeerInfo> getPeers() {
-		return peers != null ? peers : Collections.emptyList();
+	public List<PeerInfo> getPeers6() {
+		return peers6 != null ? Collections.unmodifiableList(peers6) : Collections.emptyList();
+	}
+
+	public List<PeerInfo> getPeers(DHT.Type type) {
+		if (type == DHT.Type.IPV4)
+			return getPeers4();
+		else
+			return getPeers6();
 	}
 
 	@Override
 	protected void _serialize(JsonGenerator gen) throws IOException {
-		if (peers != null && !peers.isEmpty()) {
-			if (token != 0) {
-				gen.writeFieldName("tok");
-				gen.writeNumber(token);
-			}
+		if (peers4 != null && !peers4.isEmpty())
+			serializePeers(gen, "p4", peers4);
 
-			if (peers != null && !peers.isEmpty()) {
-				gen.writeFieldName("p");
-				gen.writeStartArray();
-				for (PeerInfo pi : peers) {
-					gen.writeStartArray();
-					gen.writeBinary(pi.getNodeId().getBytes());
-					gen.writeBinary(pi.getInetAddress().getAddress());
-					gen.writeNumber(pi.getPort());
-					gen.writeEndArray();
-				}
-				gen.writeEndArray();
-			}
+		if (peers6 != null && !peers6.isEmpty())
+			serializePeers(gen, "p6", peers6);
+	}
+
+	private void serializePeers(JsonGenerator gen, String fieldName, List<PeerInfo> peers) throws IOException {
+		gen.writeFieldName(fieldName);
+		gen.writeStartArray();
+		for (PeerInfo pi : peers) {
+			gen.writeStartArray();
+			gen.writeBinary(pi.getNodeId().getBytes());
+			gen.writeBinary(pi.getInetAddress().getAddress());
+			gen.writeNumber(pi.getPort());
+			gen.writeEndArray();
 		}
+		gen.writeEndArray();
 	}
 
 	@Override
 	protected void _parse(String fieldName, CBORParser parser) throws MessageException, IOException {
 		switch (fieldName) {
-		case "tok":
-			token = parser.getIntValue();
+		case "p4":
+			peers4 = parsePeers(fieldName, parser);
 			break;
 
-		case "p":
-			peers = parsePeers(fieldName, parser);
+		case "p6":
+			peers6 = parsePeers(fieldName, parser);
 			break;
 
 		default:
@@ -132,16 +138,27 @@ public class FindPeersResponse extends LookupResponse {
 
 	@Override
 	public int estimateSize() {
-		int tokSize = (token == 0) ? 0 : 9;
-		int piSize = (peers.get(0).getInetAddress() instanceof Inet4Address) ? 44 : 56;
-		return super.estimateSize() + tokSize + (peers == null ? 0 : piSize * peers.size() + 4);
+		int size = super.estimateSize();
+
+		if (peers4 != null && !peers4.isEmpty())
+			size += (44 * peers4.size() + 5);
+
+		if (peers6 != null && !peers6.isEmpty())
+			size += (56 * peers6.size() + 5);
+
+		return size;
 	}
 
 	@Override
 	protected void _toString(StringBuilder b) {
-		if (peers != null && !peers.isEmpty()) {
-			b.append("p:");
-			b.append(peers.stream().map(p -> p.toString()).collect(Collectors.joining(",", "[", "]")));
+		if (peers4 != null && !peers4.isEmpty()) {
+			b.append("p4:");
+			b.append(peers4.stream().map(p -> p.toString()).collect(Collectors.joining(",", "[", "]")));
+		}
+
+		if (peers4 != null && !peers4.isEmpty()) {
+			b.append("p4:");
+			b.append(peers4.stream().map(p -> p.toString()).collect(Collectors.joining(",", "[", "]")));
 		}
 	}
 }

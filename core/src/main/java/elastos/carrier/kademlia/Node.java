@@ -31,6 +31,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -269,7 +270,7 @@ public class Node {
 				this.scheduler = getDefaultScheduler();
 
 			File storageFile = persistent ? new File(config.storagePath(), "node.db") : null;
-			storage = MapDBStorage.open(storageFile);
+			storage = SQLiteStorage.open(storageFile, getScheduler());
 
 			if (config.IPv4Address() != null) {
 				if (AddressUtils.isLocalUnicast(config.IPv4Address()))
@@ -416,11 +417,11 @@ public class Node {
 		return future;
 	}
 
-	public CompletableFuture<Value> findValue(Id id) {
+	public CompletableFuture<Value> findValue(Id id) throws KadException {
 		return findValue(id, defaultLookupOption);
 	}
 
-	public CompletableFuture<Value> findValue(Id id, LookupOption option) {
+	public CompletableFuture<Value> findValue(Id id, LookupOption option) throws KadException {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid value id");
 		checkArgument(option != null, "Invalid lookup option");
@@ -455,7 +456,7 @@ public class Node {
 				Value value = valueRef.get();
 				if (value != null) {
 					try {
-						getStorage().putValue(value.getId(), value);
+						getStorage().putValue(value);
 					} catch (KadException ignore) {
 						log.error("Save value " + id + " failed", ignore);
 					}
@@ -484,7 +485,7 @@ public class Node {
 		checkArgument(value != null, "Invalue value");
 
 		try {
-			getStorage().putValue(id, value);
+			getStorage().putValue(value);
 		} catch(KadException e) {
 			CompletableFuture<Void> future = new CompletableFuture<>();
 			future.completeExceptionally(e);
@@ -514,12 +515,20 @@ public class Node {
 		return future;
 	}
 
-	public CompletableFuture<List<PeerInfo>> findPeers(Id id, int expected, LookupOption option) {
+	public CompletableFuture<List<PeerInfo>> findPeers(Id id, int expected, LookupOption option) throws KadException {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid peer id");
 		checkArgument(option != null, "Invalid lookup option");
 
-		List<PeerInfo> local = getStorage().getPeers(id, dht4 != null, dht6 != null, expected);
+		int family = 0;
+
+		if (dht4 != null)
+			family += 4;
+
+		if (dht6 != null)
+			family += 6;
+
+		List<PeerInfo> local = getStorage().getPeer(id, family, expected);
 		if (expected > 0 && local.size() >= expected && option == LookupOption.ARBITRARY)
 			return CompletableFuture.completedFuture(local);
 
@@ -536,20 +545,18 @@ public class Node {
 		List<PeerInfo> results = new ArrayList<>(local);
 
 		// TODO: improve the value handler
-		Consumer<List<PeerInfo>> completeHandler = (pl) -> {
+		Consumer<Collection<PeerInfo>> completeHandler = (ps) -> {
 			int c = completion.incrementAndGet();
 
-			results.addAll(pl);
+			results.addAll(ps);
 
-			for (PeerInfo peer : pl) {
-				try {
-					getStorage().putPeer(id, peer);
-				} catch (KadException ignore) {
-					log.error("Save peer " + id + " : " + peer + " failed", ignore);
-				}
+			try {
+				getStorage().putPeer(id, ps);
+			} catch (KadException ignore) {
+				log.error("Save peer " + id + " failed", ignore);
 			}
 
-			if ((option == LookupOption.OPTIMISTIC && expected > 0 && pl.size() >= expected) || c >= numDHTs) {
+			if ((option == LookupOption.OPTIMISTIC && expected > 0 && ps.size() >= expected) || c >= numDHTs) {
 				Collections.shuffle(results);
 				future.complete(results);
 			}
@@ -557,12 +564,12 @@ public class Node {
 
 		Task t4 = null, t6 = null;
 		if (dht4 != null) {
-			t4 = dht4.findPeers(id, expected, option, completeHandler);
+			t4 = dht4.findPeer(id, expected, option, completeHandler);
 			future.addTask(t4);
 		}
 
 		if (dht6 != null) {
-			t6 = dht6.findPeers(id, expected, option, completeHandler);
+			t6 = dht6.findPeer(id, expected, option, completeHandler);
 			future.addTask(t6);
 		}
 

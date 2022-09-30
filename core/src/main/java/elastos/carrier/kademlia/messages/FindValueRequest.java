@@ -35,6 +35,7 @@ public class FindValueRequest extends LookupRequest {
 
 	public FindValueRequest(Id targetId) {
 		super(Method.FIND_VALUE, targetId);
+		setWantToken(true);
 	}
 
 	public FindValueRequest() {

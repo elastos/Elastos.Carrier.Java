@@ -59,7 +59,7 @@ public class PeerInfo {
 		this.addr = new InetSocketAddress(addr, port);
 	}
 
-	public PeerInfo(Id nodeId, byte[] addr, int port) {
+	protected PeerInfo(Id nodeId, byte[] addr, int port) {
 		checkArgument(nodeId != null, "Invalid node id");
 		checkArgument(addr != null, "Invalid socket address");
 		checkArgument(addr.length == 4 || addr.length == 16, "Invalid address");
@@ -75,6 +75,10 @@ public class PeerInfo {
 
 	public Id getNodeId() {
 		return nodeId;
+	}
+
+	public int getInetFamily() {
+		return addr.getAddress() instanceof Inet4Address ? 4 : 6;
 	}
 
 	public InetSocketAddress getSocketAddress() {

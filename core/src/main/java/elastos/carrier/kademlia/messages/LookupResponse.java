@@ -41,6 +41,8 @@ public abstract class LookupResponse extends Message {
 	private List<NodeInfo> nodes4;
 	private List<NodeInfo> nodes6;
 
+	private int token;
+
 	public LookupResponse(Method method, int txid) {
 		super(Type.RESPONSE, method, txid);
 	}
@@ -68,6 +70,14 @@ public abstract class LookupResponse extends Message {
 			return getNodes6();
 	}
 
+	public int getToken() {
+		return token;
+	}
+
+	public void setToken(int token) {
+		this.token = token;
+	}
+
 	@Override
 	protected void serialize(JsonGenerator gen) throws IOException {
 		gen.writeFieldName(getType().toString());
@@ -78,6 +88,11 @@ public abstract class LookupResponse extends Message {
 
 		if (nodes6 != null && !nodes6.isEmpty()) {
 			serializeNodes(gen, "n6", nodes6);
+		}
+
+		if (token != 0) {
+			gen.writeFieldName("tok");
+			gen.writeNumber(token);
 		}
 
 		_serialize(gen);
@@ -116,6 +131,11 @@ public abstract class LookupResponse extends Message {
 			case "n6":
 				nodes6 = parseNodes(fieldName, parser);
 				break;
+
+			case "tok":
+				token = parser.getIntValue();
+				break;
+
 			default:
 				_parse(name, parser);
 				break;
@@ -161,6 +181,8 @@ public abstract class LookupResponse extends Message {
 		if (nodes6 != null && !nodes6.isEmpty())
 			size += (5 + 56 * nodes6.size());
 
+		size += (token == 0) ? 0 : 9;
+
 		return size;
 	}
 
@@ -180,6 +202,9 @@ public abstract class LookupResponse extends Message {
 			b.append("n6:");
 			b.append(nodes6.stream().map(n -> n.toString()).collect(Collectors.joining(",", "[", "]")));
 		}
+
+		if (token != 0)
+			b.append(",tok:").append(token);
 
 		_toString(b);
 		b.append("}");

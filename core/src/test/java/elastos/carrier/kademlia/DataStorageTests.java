@@ -29,27 +29,38 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
-import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.Signature;
 import elastos.carrier.kademlia.exceptions.CasFail;
-import elastos.carrier.kademlia.exceptions.KadException;
 import elastos.carrier.kademlia.exceptions.SequenceNotMonotonic;
 
-public class MapDBStorageTests {
-	private File getStorageFile(boolean clean) {
+public class DataStorageTests {
+	private static ScheduledExecutorService scheduler;
+
+	private File getStorageFile() {
 		File f = new File(System.getProperty("java.io.tmpdir") + "/carrier.db");
-		if (clean)
-			f.delete();
 
 		return f;
+	}
+
+	private ScheduledExecutorService getScheduler() {
+		if (scheduler == null)
+			scheduler = new ScheduledThreadPoolExecutor(4);
+
+		return scheduler;
 	}
 
 	private void increment(byte[] value) {
@@ -64,9 +75,24 @@ public class MapDBStorageTests {
 		}
 	}
 
-	@Test
-	public void testPutAndGetValue() throws KadException, IOException {
-		DataStorage ds = MapDBStorage.open(getStorageFile(true));
+	@BeforeEach
+	public void setup() {
+		File f = getStorageFile();
+		if (f.exists())
+			f.delete();
+	}
+
+	private DataStorage open(Class<? extends DataStorage> clazz) throws Exception {
+		Method open = clazz.getMethod("open", File.class, ScheduledExecutorService.class);
+
+		Object o= open.invoke(null, getStorageFile(), getScheduler());
+		return (DataStorage)o;
+	}
+
+	@ParameterizedTest
+	@ValueSource(classes = { MapDBStorage.class, SQLiteStorage.class })
+	public void testPutAndGetValue(Class<? extends DataStorage> clazz) throws Exception {
+		DataStorage ds = open(clazz);
 
 		Queue<Id> ids = new LinkedList<>();
 		byte[] data = new byte[1024];
@@ -77,7 +103,7 @@ public class MapDBStorageTests {
 			Value v = new Value(data);
 
 			ids.add(v.getId());
-			ds.putValue(v.getId(), v, -1);
+			ds.putValue(v, -1);
 
 			System.out.print(".");
 			if (i % 16 == 0)
@@ -100,9 +126,10 @@ public class MapDBStorageTests {
 		ds.close();
 	}
 
-	@Test
-	public void testUpdateSignedValue() throws KadException, IOException {
-		DataStorage ds = MapDBStorage.open(getStorageFile(true));
+	@ParameterizedTest
+	@ValueSource(classes = { MapDBStorage.class, SQLiteStorage.class })
+	public void testUpdateSignedValue(Class<? extends DataStorage> clazz) throws Exception {
+		DataStorage ds = open(clazz);
 
 		Signature.KeyPair keypair = Signature.KeyPair.random();
 
@@ -117,7 +144,7 @@ public class MapDBStorageTests {
 		Value v = new Value(keypair, nonce, seq, data);
 		Id valueId = v.getId();
 		System.out.println(valueId);
-		ds.putValue(valueId, v, 0);
+		ds.putValue(v, 0);
 
 		v = ds.getValue(valueId);
 		assertNotNull(v);
@@ -131,14 +158,14 @@ public class MapDBStorageTests {
 		Value v1 = new Value(keypair, nonce, seq - 1, newData);
 		assertEquals(valueId, v.getId());
 		assertThrows(SequenceNotMonotonic.class, () -> {
-			ds.putValue(v1.getId(), v1, 10);
+			ds.putValue(v1, 10);
 		});
 
 		// update: CAS fail
 		Value v2 = new Value(keypair, nonce, seq + 1, newData);
 		assertEquals(valueId, v.getId());
 		assertThrows(CasFail.class, () -> {
-			ds.putValue(v2.getId(), v2, 9);
+			ds.putValue(v2, 9);
 		});
 
 		// should be the original value
@@ -153,7 +180,7 @@ public class MapDBStorageTests {
 		// update: success
 		v = new Value(keypair, nonce, seq + 1, newData);
 		assertEquals(valueId, v.getId());
-		ds.putValue(v.getId(), v, 10);
+		ds.putValue(v, 10);
 
 		v = ds.getValue(valueId);
 		assertNotNull(v);
@@ -166,9 +193,10 @@ public class MapDBStorageTests {
 		ds.close();
 	}
 
-	@Test
-	public void testUpdateEncryptedValue() throws KadException, IOException {
-		DataStorage ds = MapDBStorage.open(getStorageFile(true));
+	@ParameterizedTest
+	@ValueSource(classes = { MapDBStorage.class, SQLiteStorage.class })
+	public void testUpdateEncryptedValue(Class<? extends DataStorage> clazz) throws Exception {
+		DataStorage ds = open(clazz);
 
 		Signature.KeyPair keypair = Signature.KeyPair.random();
 		Signature.KeyPair recKeypair = Signature.KeyPair.random();
@@ -185,7 +213,7 @@ public class MapDBStorageTests {
 		Value v = new Value(keypair, recipient, nonce, seq, data);
 		Id valueId = v.getId();
 		System.out.println(valueId);
-		ds.putValue(valueId, v, 0);
+		ds.putValue(v, 0);
 
 		v = ds.getValue(valueId);
 		assertNotNull(v);
@@ -200,14 +228,14 @@ public class MapDBStorageTests {
 		Value v1 = new Value(keypair, recipient, nonce, seq - 1, newData);
 		assertEquals(valueId, v.getId());
 		assertThrows(SequenceNotMonotonic.class, () -> {
-			ds.putValue(v1.getId(), v1, 10);
+			ds.putValue(v1, 10);
 		});
 
 		// update: CAS fail
 		Value v2 = new Value(keypair, recipient, nonce, seq + 1, newData);
 		assertEquals(valueId, v.getId());
 		assertThrows(CasFail.class, () -> {
-			ds.putValue(v2.getId(), v2, 9);
+			ds.putValue(v2, 9);
 		});
 
 		// should be the original value
@@ -223,7 +251,7 @@ public class MapDBStorageTests {
 		// update: success
 		v = new Value(keypair, recipient, nonce, seq + 1, newData);
 		assertEquals(valueId, v.getId());
-		ds.putValue(v.getId(), v, 10);
+		ds.putValue(v, 10);
 
 		v = ds.getValue(valueId);
 		assertNotNull(v);
@@ -237,9 +265,10 @@ public class MapDBStorageTests {
 		ds.close();
 	}
 
-	@Test
-	public void testPutAndGetPeers() throws KadException, IOException {
-		DataStorage ds = MapDBStorage.open(getStorageFile(true));
+	@ParameterizedTest
+	@ValueSource(classes = { MapDBStorage.class, SQLiteStorage.class })
+	public void testPutAndGetPeer(Class<? extends DataStorage> clazz) throws Exception {
+		DataStorage ds = open(clazz);
 
 		Queue<Id> ids = new LinkedList<>();
 
@@ -253,15 +282,18 @@ public class MapDBStorageTests {
 			Id id = Id.random();
 			ids.add(id);
 
+			List<PeerInfo> peers = new ArrayList<PeerInfo>();
 			for (int j = 0; j < i; j++) {
 				increment(ipv4Addr);
 				PeerInfo pi = new PeerInfo(Id.random(), ipv4Addr, basePort + i);
-				ds.putPeer(id, pi);
+				peers.add(pi);
 
 				increment(ipv6Addr);
 				pi = new PeerInfo(Id.random(),ipv6Addr, basePort + i);
-				ds.putPeer(id, pi);
+				peers.add(pi);
 			}
+			ds.putPeer(id, peers);
+
 			System.out.print(".");
 			if (i % 16 == 0)
 				System.out.println();
@@ -272,38 +304,38 @@ public class MapDBStorageTests {
 			Id id = ids.poll();
 
 			// all
-			List<PeerInfo> ps = ds.getPeers(id, true, true, 2 * i + 16);
+			List<PeerInfo> ps = ds.getPeer(id, 10, 2 * i + 16);
 			assertNotNull(ps);
 			assertEquals(2 * i, ps.size());
 			for (PeerInfo pi : ps)
 				assertEquals(basePort + i, pi.getPort());
 
-			ps = ds.getPeers(id, true, false, i + 16);
+			ps = ds.getPeer(id, 4, i + 16);
 			assertNotNull(ps);
 			assertEquals(i, ps.size());
 			for (PeerInfo pi : ps)
 				assertEquals(basePort + i, pi.getPort());
 
-			ps = ds.getPeers(id, false, true, i + 16);
+			ps = ds.getPeer(id, 6, i + 16);
 			assertNotNull(ps);
 			assertEquals(i, ps.size());
 			for (PeerInfo pi : ps)
 				assertEquals(basePort + i, pi.getPort());
 
 			// limited
-			ps = ds.getPeers(id, true, true, 32);
+			ps = ds.getPeer(id, 10, 32);
 			assertNotNull(ps);
-			assertEquals(Math.min(2 * i, 32), ps.size());
+			assertEquals(Math.min(2 * i, 64), ps.size());
 			for (PeerInfo pi : ps)
 				assertEquals(basePort + i, pi.getPort());
 
-			ps = ds.getPeers(id, true, false, 32);
+			ps = ds.getPeer(id, 4, 32);
 			assertNotNull(ps);
 			assertEquals(Math.min(i, 32), ps.size());
 			for (PeerInfo pi : ps)
 				assertEquals(basePort + i, pi.getPort());
 
-			ps = ds.getPeers(id, false, true, 32);
+			ps = ds.getPeer(id, 6, 32);
 			assertNotNull(ps);
 			assertEquals(Math.min(i, 32), ps.size());
 			for (PeerInfo pi : ps)

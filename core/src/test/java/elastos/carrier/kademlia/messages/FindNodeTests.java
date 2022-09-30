@@ -48,6 +48,7 @@ public class FindNodeTests extends MessageTests {
 		msg.setVersion(VERSION);
 		msg.setWant4(true);
 		msg.setWant6(true);
+		msg.setWantToken(true);
 		byte[] bin = msg.serialize();
 		printMessage(msg, bin);
 		assertTrue(bin.length <= msg.estimateSize());
@@ -83,6 +84,42 @@ public class FindNodeTests extends MessageTests {
 		assertEquals(target, m.getTarget());
 		assertTrue(m.doesWant4());
 		assertFalse(m.doesWant6());
+		assertFalse(m.doesWantToken());
+
+	}
+
+	@Test
+	public void testFindNodeRequest4WithAt() throws Exception {
+		Id id = Id.random();
+		Id target = Id.random();
+		int txid = ThreadLocals.random().nextInt();
+
+		FindNodeRequest msg = new FindNodeRequest(target);
+		msg.setId(id);
+		msg.setTxid(txid);
+		msg.setVersion(VERSION);
+		msg.setWant4(true);
+		msg.setWant6(false);
+		msg.setWantToken(true);
+
+		byte[] bin = msg.serialize();
+		assertTrue(bin.length <= msg.estimateSize());
+
+		printMessage(msg, bin);
+
+		Message pm = Message.parse(bin);
+		assertTrue(pm instanceof FindNodeRequest);
+		FindNodeRequest m = (FindNodeRequest)pm;
+
+		assertEquals(Type.REQUEST, m.getType());
+		assertEquals(Method.FIND_NODE, m.getMethod());
+		assertEquals(id, m.getId());
+		assertEquals(txid, m.getTxid());
+		assertEquals(VERSION_STR, m.getReadableVersion());
+		assertEquals(target, m.getTarget());
+		assertTrue(m.doesWant4());
+		assertFalse(m.doesWant6());
+		assertTrue(m.doesWantToken());
 	}
 
 	@Test
@@ -113,6 +150,39 @@ public class FindNodeTests extends MessageTests {
 		assertEquals(target, m.getTarget());
 		assertFalse(m.doesWant4());
 		assertTrue(m.doesWant6());
+		assertFalse(m.doesWantToken());
+	}
+
+	@Test
+	public void testFindNodeRequest6WithAt() throws Exception {
+		Id id = Id.random();
+		Id target = Id.random();
+		int txid = ThreadLocals.random().nextInt();
+
+		FindNodeRequest msg = new FindNodeRequest(target);
+		msg.setId(id);
+		msg.setTxid(txid);
+		msg.setWant4(false);
+		msg.setWant6(true);
+		msg.setWantToken(true);
+
+		byte[] bin = msg.serialize();
+		assertTrue(bin.length <= msg.estimateSize());
+
+		printMessage(msg, bin);
+
+		Message pm = Message.parse(bin);
+		assertTrue(pm instanceof FindNodeRequest);
+		FindNodeRequest m = (FindNodeRequest)pm;
+
+		assertEquals(Type.REQUEST, m.getType());
+		assertEquals(Method.FIND_NODE, m.getMethod());
+		assertEquals(id, m.getId());
+		assertEquals(txid, m.getTxid());
+		assertEquals(target, m.getTarget());
+		assertFalse(m.doesWant4());
+		assertTrue(m.doesWant6());
+		assertTrue(m.doesWantToken());
 	}
 
 	@Test
@@ -143,6 +213,39 @@ public class FindNodeTests extends MessageTests {
 		assertEquals(target, m.getTarget());
 		assertTrue(m.doesWant4());
 		assertTrue(m.doesWant6());
+		assertFalse(m.doesWantToken());
+	}
+
+	@Test
+	public void testFindNodeRequest46WithAt() throws Exception {
+		Id id = Id.random();
+		Id target = Id.random();
+		int txid = ThreadLocals.random().nextInt();
+
+		FindNodeRequest msg = new FindNodeRequest(target);
+		msg.setId(id);
+		msg.setTxid(txid);
+		msg.setWant4(true);
+		msg.setWant6(true);
+		msg.setWantToken(true);
+
+		byte[] bin = msg.serialize();
+		assertTrue(bin.length <= msg.estimateSize());
+
+		printMessage(msg, bin);
+
+		Message pm = Message.parse(bin);
+		assertTrue(pm instanceof FindNodeRequest);
+		FindNodeRequest m = (FindNodeRequest)pm;
+
+		assertEquals(Type.REQUEST, m.getType());
+		assertEquals(Method.FIND_NODE, m.getMethod());
+		assertEquals(id, m.getId());
+		assertEquals(txid, m.getTxid());
+		assertEquals(target, m.getTarget());
+		assertTrue(m.doesWant4());
+		assertTrue(m.doesWant6());
+		assertTrue(m.doesWantToken());
 	}
 
 	@Test
@@ -172,6 +275,7 @@ public class FindNodeTests extends MessageTests {
 		msg.setVersion(VERSION);
 		msg.setNodes4(nodes4);
 		msg.setNodes6(nodes6);
+		msg.setToken(0x78901234);
 
 		byte[] bin = msg.serialize();
 		printMessage(msg, bin);
@@ -211,6 +315,47 @@ public class FindNodeTests extends MessageTests {
 		assertEquals(VERSION_STR, m.getReadableVersion());
 		assertTrue(m.getNodes6().isEmpty());
 		assertFalse(m.getNodes4().isEmpty());
+		assertEquals(0, m.getToken());
+
+		List<NodeInfo> nodes = m.getNodes4();
+		assertArrayEquals(nodes4.toArray(), nodes.toArray());
+	}
+
+	@Test
+	public void testFindNodeResponse4WithToken() throws Exception {
+		Id id = Id.random();
+		int txid = ThreadLocals.random().nextInt();
+
+		List<NodeInfo> nodes4 = new ArrayList<>();
+		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65535));
+		nodes4.add(new NodeInfo(Id.random(), "192.168.1.2", 1232));
+		nodes4.add(new NodeInfo(Id.random(), "192.168.1.3", 1233));
+		nodes4.add(new NodeInfo(Id.random(), "192.168.1.4", 1234));
+		nodes4.add(new NodeInfo(Id.random(), "192.168.1.5", 1235));
+
+		FindNodeResponse msg = new FindNodeResponse(txid);
+		msg.setId(id);
+		msg.setVersion(VERSION);
+		msg.setNodes4(nodes4);
+		msg.setToken(0x12345678);
+
+		byte[] bin = msg.serialize();
+		assertTrue(bin.length <= msg.estimateSize());
+
+		printMessage(msg, bin);
+
+		Message pm = Message.parse(bin);
+		assertTrue(pm instanceof FindNodeResponse);
+		FindNodeResponse m = (FindNodeResponse)pm;
+
+		assertEquals(Type.RESPONSE, m.getType());
+		assertEquals(Method.FIND_NODE, m.getMethod());
+		assertEquals(id, m.getId());
+		assertEquals(txid, m.getTxid());
+		assertEquals(VERSION_STR, m.getReadableVersion());
+		assertTrue(m.getNodes6().isEmpty());
+		assertFalse(m.getNodes4().isEmpty());
+		assertEquals(0x12345678, m.getToken());
 
 		List<NodeInfo> nodes = m.getNodes4();
 		assertArrayEquals(nodes4.toArray(), nodes.toArray());
@@ -249,6 +394,47 @@ public class FindNodeTests extends MessageTests {
 		assertEquals(VERSION_STR, m.getReadableVersion());
 		assertTrue(m.getNodes4().isEmpty());
 		assertFalse(m.getNodes6().isEmpty());
+		assertEquals(0, m.getToken());
+
+		List<NodeInfo> nodes = m.getNodes6();
+		assertArrayEquals(nodes6.toArray(), nodes.toArray());
+	}
+
+	@Test
+	public void testFindNodeResponse6WithToken() throws Exception {
+		Id id = Id.random();
+		int txid = ThreadLocals.random().nextInt();
+
+		List<NodeInfo> nodes6 = new ArrayList<>();
+		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:8070:6543:8a2e:0370:7334", 65535));
+		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7332", 1232));
+		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7333", 1233));
+		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7334", 1234));
+		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7335", 1235));
+
+		FindNodeResponse msg = new FindNodeResponse(txid);
+		msg.setId(id);
+		msg.setVersion(VERSION);
+		msg.setNodes6(nodes6);
+		msg.setToken(0x43218765);
+
+		byte[] bin = msg.serialize();
+		assertTrue(bin.length <= msg.estimateSize());
+
+		printMessage(msg, bin);
+
+		Message pm = Message.parse(bin);
+		assertTrue(pm instanceof FindNodeResponse);
+		FindNodeResponse m = (FindNodeResponse)pm;
+
+		assertEquals(Type.RESPONSE, m.getType());
+		assertEquals(Method.FIND_NODE, m.getMethod());
+		assertEquals(id, m.getId());
+		assertEquals(txid, m.getTxid());
+		assertEquals(VERSION_STR, m.getReadableVersion());
+		assertTrue(m.getNodes4().isEmpty());
+		assertFalse(m.getNodes6().isEmpty());
+		assertEquals(0x43218765, m.getToken());
 
 		List<NodeInfo> nodes = m.getNodes6();
 		assertArrayEquals(nodes6.toArray(), nodes.toArray());
@@ -294,6 +480,57 @@ public class FindNodeTests extends MessageTests {
 		assertEquals(0, m.getVersion());
 		assertNotNull(m.getNodes4());
 		assertNotNull(m.getNodes6());
+		assertEquals(0, m.getToken());
+
+		List<NodeInfo> nodes = m.getNodes4();
+		assertArrayEquals(nodes4.toArray(), nodes.toArray());
+
+		nodes = m.getNodes6();
+		assertArrayEquals(nodes6.toArray(), nodes.toArray());
+	}
+
+	@Test
+	public void testFindNodeResponse46WithToken() throws Exception {
+		Id id = Id.random();
+		int txid = ThreadLocals.random().nextInt();
+
+		List<NodeInfo> nodes4 = new ArrayList<>();
+		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65535));
+		nodes4.add(new NodeInfo(Id.random(), "192.168.1.2", 1232));
+		nodes4.add(new NodeInfo(Id.random(), "192.168.1.3", 1233));
+		nodes4.add(new NodeInfo(Id.random(), "192.168.1.4", 1234));
+		nodes4.add(new NodeInfo(Id.random(), "192.168.1.5", 1235));
+
+		List<NodeInfo> nodes6 = new ArrayList<>();
+		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:8070:6543:8a2e:0370:7334", 65535));
+		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7332", 1232));
+		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7333", 1233));
+		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7334", 1234));
+		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7335", 1235));
+
+		FindNodeResponse msg = new FindNodeResponse(txid);
+		msg.setId(id);
+		msg.setNodes4(nodes4);
+		msg.setNodes6(nodes6);
+		msg.setToken(0x87654321);
+
+		byte[] bin = msg.serialize();
+		assertTrue(bin.length <= msg.estimateSize());
+
+		printMessage(msg, bin);
+
+		Message pm = Message.parse(bin);
+		assertTrue(pm instanceof FindNodeResponse);
+		FindNodeResponse m = (FindNodeResponse)pm;
+
+		assertEquals(Type.RESPONSE, m.getType());
+		assertEquals(Method.FIND_NODE, m.getMethod());
+		assertEquals(id, m.getId());
+		assertEquals(txid, m.getTxid());
+		assertEquals(0, m.getVersion());
+		assertNotNull(m.getNodes4());
+		assertNotNull(m.getNodes6());
+		assertEquals(0x87654321, m.getToken());
 
 		List<NodeInfo> nodes = m.getNodes4();
 		assertArrayEquals(nodes4.toArray(), nodes.toArray());

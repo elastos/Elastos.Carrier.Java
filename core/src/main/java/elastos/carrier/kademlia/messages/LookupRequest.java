@@ -34,6 +34,7 @@ public abstract class LookupRequest extends Message {
 	private Id target;
 	private boolean want4;
 	private boolean want6;
+	private boolean wantToken;
 
 	public LookupRequest(Method method, Id target) {
 		super(Type.REQUEST, method);
@@ -60,6 +61,14 @@ public abstract class LookupRequest extends Message {
 		return want6;
 	}
 
+    protected void setWantToken(boolean wantToken) {
+		this.wantToken = wantToken;
+	}
+
+    protected boolean doesWantToken() {
+		return wantToken;
+	}
+
 	protected int getWant() {
 		int want = 0;
 
@@ -69,12 +78,16 @@ public abstract class LookupRequest extends Message {
 		if (want6)
 			want |= 0x02;
 
+		if (wantToken)
+			want |= 0x04;
+
 		return want;
 	}
 
 	protected void setWant(int want) {
 		want4 = (want & 0x01) == 0x01;
 		want6 = (want & 0x02) == 0x02;
+		wantToken = (want & 0x04) == 0x04;
 	}
 
 	@Override

@@ -58,8 +58,8 @@ import elastos.carrier.kademlia.messages.AnnouncePeerResponse;
 import elastos.carrier.kademlia.messages.ErrorMessage;
 import elastos.carrier.kademlia.messages.FindNodeRequest;
 import elastos.carrier.kademlia.messages.FindNodeResponse;
-import elastos.carrier.kademlia.messages.FindPeersRequest;
-import elastos.carrier.kademlia.messages.FindPeersResponse;
+import elastos.carrier.kademlia.messages.FindPeerRequest;
+import elastos.carrier.kademlia.messages.FindPeerResponse;
 import elastos.carrier.kademlia.messages.FindValueRequest;
 import elastos.carrier.kademlia.messages.FindValueResponse;
 import elastos.carrier.kademlia.messages.LookupResponse;
@@ -406,8 +406,8 @@ public class DHT {
 		// Cancel all scheduled actions
 		for (ScheduledFuture<?> future : scheduledActions) {
 			future.cancel(false);
-			// none of the scheduled tasks should experience exceptions, log them if they
-			// did
+			// none of the scheduled tasks should experience exceptions,
+			// log them if they did
 			try {
 				future.get();
 			} catch (ExecutionException e) {
@@ -479,8 +479,8 @@ public class DHT {
 			onStoreValue((StoreValueRequest) msg);
 			break;
 
-		case FIND_PEERS:
-			onFindPeers((FindPeersRequest) msg);
+		case FIND_PEER:
+			onFindPeers((FindPeerRequest) msg);
 			break;
 
 		case ANNOUNCE_PEER:
@@ -505,6 +505,10 @@ public class DHT {
 		int want4 = q.doesWant4() ? Constants.MAX_ENTRIES_PER_BUCKET : 0;
 		int want6 = q.doesWant6() ? Constants.MAX_ENTRIES_PER_BUCKET : 0;
 		populateClosestNodes(r, q.getTarget(), want4, want6);
+
+		if (q.doesWantToken())
+			r.setToken(getNode().getTokenManager().generateToken(q.getId(), q.getOrigin(), q.getTarget()));
+
 		r.setRemote(q.getOrigin());
 		server.sendMessage(r);
 	}
@@ -516,24 +520,30 @@ public class DHT {
 		FindValueResponse r = new FindValueResponse(q.getTxid());
 		r.setToken(getNode().getTokenManager().generateToken(q.getId(), q.getOrigin(), target));
 
-		Value v = storage.getValue(target);
-		if (v != null) {
-			if (q.getSequenceNumber() < 0 || v.getSequenceNumber() < 0
-					|| q.getSequenceNumber() < v.getSequenceNumber()) {
-				r.setValue(v.getData());
-				r.setPublicKey(v.getPublicKey());
-				r.setSignature(v.getSignature());
-				if (v.getSequenceNumber() >= 0)
-					r.setSequenceNumber(v.getSequenceNumber());
+		try {
+			Value v = storage.getValue(target);
+			if (v != null) {
+				if (q.getSequenceNumber() < 0 || v.getSequenceNumber() < 0
+						|| q.getSequenceNumber() < v.getSequenceNumber()) {
+					r.setValue(v.getData());
+					r.setPublicKey(v.getPublicKey());
+					r.setSignature(v.getSignature());
+					if (v.getSequenceNumber() >= 0)
+						r.setSequenceNumber(v.getSequenceNumber());
+				}
+			} else {
+				int want4 = q.doesWant4() ? Constants.MAX_ENTRIES_PER_BUCKET : 0;
+				int want6 = q.doesWant6() ? Constants.MAX_ENTRIES_PER_BUCKET : 0;
+				populateClosestNodes(r, target, want4, want6);
 			}
-		} else {
-			int want4 = q.doesWant4() ? Constants.MAX_ENTRIES_PER_BUCKET : 0;
-			int want6 = q.doesWant6() ? Constants.MAX_ENTRIES_PER_BUCKET : 0;
-			populateClosestNodes(r, target, want4, want6);
-		}
 
-		r.setRemote(q.getOrigin());
-		server.sendMessage(r);
+			r.setRemote(q.getOrigin());
+			server.sendMessage(r);
+		} catch (KadException e) {
+			ErrorMessage em = new ErrorMessage(q.getMethod(), q.getTxid(), e.getCode(), e.getMessage());
+			em.setRemote(q.getOrigin());
+			server.sendMessage(em);
+		}
 	}
 
 	private void onStoreValue(StoreValueRequest q) {
@@ -547,7 +557,7 @@ public class DHT {
 		}
 
 		try {
-			storage.putValue(valueId, Value.of(q), q.getExpectedSequenceNumber());
+			storage.putValue(Value.of(q), q.getExpectedSequenceNumber());
 			StoreValueResponse r = new StoreValueResponse(q.getTxid());
 			r.setRemote(q.getOrigin());
 			server.sendMessage(r);
@@ -556,25 +566,45 @@ public class DHT {
 		}
 	}
 
-	private void onFindPeers(FindPeersRequest q) {
+	private void onFindPeers(FindPeerRequest q) {
 		DataStorage storage = getNode().getStorage();
 
 		Id target = q.getTarget();
-		FindPeersResponse r = new FindPeersResponse(q.getTxid());
+		FindPeerResponse r = new FindPeerResponse(q.getTxid());
 		r.setToken(getNode().getTokenManager().generateToken(q.getId(), q.getOrigin(), target));
 
-		// TODO: check the max peers
-		List<PeerInfo> peers = storage.getPeers(target, q.doesWant4(), q.doesWant6(), 16);
-		if (!peers.isEmpty()) {
-			r.setPeers(peers);
-		} else {
-			int want4 = q.doesWant4() ? Constants.MAX_ENTRIES_PER_BUCKET : 0;
-			int want6 = q.doesWant6() ? Constants.MAX_ENTRIES_PER_BUCKET : 0;
-			populateClosestNodes(r, q.getTarget(), want4, want6);
-		}
+		try {
+			boolean hasPeers = false;
 
-		r.setRemote(q.getOrigin());
-		server.sendMessage(r);
+			if (q.doesWant4()) {
+				List<PeerInfo> peers = storage.getPeer(target, 4, 8);
+				if (!peers.isEmpty()) {
+					r.setPeers4(peers);
+					hasPeers = true;
+				}
+			}
+
+			if (q.doesWant6()) {
+				List<PeerInfo> peers = storage.getPeer(target, 6, 8);
+				if (!peers.isEmpty()) {
+					r.setPeers6(peers);
+					hasPeers = true;
+				}
+			}
+
+			if (!hasPeers) {
+				int want4 = q.doesWant4() ? Constants.MAX_ENTRIES_PER_BUCKET : 0;
+				int want6 = q.doesWant6() ? Constants.MAX_ENTRIES_PER_BUCKET : 0;
+				populateClosestNodes(r, q.getTarget(), want4, want6);
+			}
+
+			r.setRemote(q.getOrigin());
+			server.sendMessage(r);
+		} catch (KadException e) {
+			ErrorMessage em = new ErrorMessage(q.getMethod(), q.getTxid(), e.getCode(), e.getMessage());
+			em.setRemote(q.getOrigin());
+			server.sendMessage(em);
+		}
 	}
 
 	private void onAnnouncePeer(AnnouncePeerRequest q) {
@@ -764,7 +794,7 @@ public class DHT {
 	}
 
 	public Task storeValue(Value value, Consumer<List<NodeInfo>> completeHandler) {
-		ValueLookup lookup = new ValueLookup(this, value.getId());
+		NodeLookup lookup = new NodeLookup(this, value.getId(), true);
 		lookup.addListener(l -> {
 			if (lookup.getState() != Task.State.FINISHED)
 				return;
@@ -772,8 +802,7 @@ public class DHT {
 			ClosestSet closest = lookup.getClosestSet();
 			if (closest == null || closest.size() == 0) {
 				// this should never happen
-				log.error(
-						"!!! Value announce task not started because the value lookup task got the empty closest nodes.");
+				log.error("!!! Value announce task not started because the node lookup task got the empty closest nodes.");
 				completeHandler.accept(Collections.emptyList());
 				return;
 			}
@@ -791,7 +820,7 @@ public class DHT {
 		return lookup;
 	}
 
-	public Task findPeers(Id id, int expected, LookupOption option, Consumer<List<PeerInfo>> completeHandler) {
+	public Task findPeer(Id id, int expected, LookupOption option, Consumer<Collection<PeerInfo>> completeHandler) {
 		// NOTICE: Concurrent threads adding to ArrayList
 		//
 		// There is no guaranteed behavior for what happens when add is
@@ -801,8 +830,8 @@ public class DHT {
 		// deal with iteration while adding/removing.
 		List<PeerInfo> peers = new ArrayList<>();
 		PeerLookup task = new PeerLookup(this, id);
-		task.setReultHandler((p) -> {
-			peers.add(p);
+		task.setReultHandler((ps) -> {
+			peers.addAll(ps);
 
 			if (option == LookupOption.ARBITRARY && peers.size() >= expected) {
 				task.cancel();
@@ -819,7 +848,7 @@ public class DHT {
 	}
 
 	public Task announcePeer(Id peerId, int port, Consumer<List<NodeInfo>> completeHandler) {
-		PeerLookup lookup = new PeerLookup(this, peerId);
+		NodeLookup lookup = new NodeLookup(this, peerId, true);
 		lookup.addListener(l -> {
 			if (lookup.getState() != Task.State.FINISHED)
 				return;
@@ -828,7 +857,7 @@ public class DHT {
 			if (closest == null || closest.size() == 0) {
 				// this should never happen
 				log.error(
-						"!!! Peer announce task not started because the peer lookup task got the empty closest nodes.");
+						"!!! Peer announce task not started because the node lookup task got the empty closest nodes.");
 				completeHandler.accept(Collections.emptyList());
 				return;
 			}

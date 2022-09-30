@@ -81,7 +81,7 @@ public class ValueLookup extends TargetedTask {
 			if (expectedSequence != -1)
 				r.setSequenceNumber(expectedSequence);
 
-			boolean sent = !sendCall(cn, r, (c) -> {
+			boolean sent = sendCall(cn, r, (c) -> {
 				cn.setSent();
 			});
 
@@ -102,12 +102,12 @@ public class ValueLookup extends TargetedTask {
 
 		if (fvr.getValue() != null) {
 			Value value = Value.of(fvr);
-			if (value.getId().equals(getTarget())) {
+			if (!value.getId().equals(getTarget())) {
 				log.error("Responsed value id {} mismatched with expected {}", value.getId(), getTarget());
 				return;
 			}
 
-			if (value.isValid()) {
+			if (!value.isValid()) {
 				log.error("Responsed value {} is invalid, signature mismatch", value.getId());
 				return;
 			}

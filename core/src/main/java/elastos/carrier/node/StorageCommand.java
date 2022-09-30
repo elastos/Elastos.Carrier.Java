@@ -36,6 +36,7 @@ import elastos.carrier.node.StorageCommand.ListValueCommand;
 import elastos.carrier.node.StorageCommand.PeerCommand;
 import elastos.carrier.node.StorageCommand.ValueCommand;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 @Command(name = "storage", mixinStandardHelpOptions = true, version = "Carrier storage 2.0",
@@ -116,11 +117,19 @@ public class StorageCommand {
 	@Command(name = "peer", mixinStandardHelpOptions = true, version = "Carrier peer 2.0",
 			description = "Display peer info from the local storage.")
 	public static class PeerCommand implements Callable<Integer> {
+		@Option(names = {"-f", "--family"}, description = "IP family: 4 for IPv4, 6 for IPv6, default both")
+		private int family = 10;
+
 		@Parameters(paramLabel = "ID", index = "0", description = "The peer id.")
 		private String id = null;
 
 		@Override
 		public Integer call() throws Exception {
+			if (family != 4 && family != 6 && family != 10) {
+				System.out.println("Invalid faimly: " + id);
+				return -1;
+			}
+
 			Id peerId = null;
 			try {
 				peerId = new Id(id);
@@ -130,7 +139,7 @@ public class StorageCommand {
 			}
 
 			DataStorage storage = Launcher.getCarrierNode().getStorage();
-			List<PeerInfo> peers = storage.getPeers(peerId, true, true, -1);
+			List<PeerInfo> peers = storage.getPeer(peerId, family, -1);
 			if (!peers.isEmpty()) {
 				for (PeerInfo peer : peers)
 					System.out.println(peer);
