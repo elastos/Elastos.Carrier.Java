@@ -98,10 +98,9 @@ public class ValueLookup extends TargetedTask {
 		if (response.getType() != Message.Type.RESPONSE || response.getMethod() != Message.Method.FIND_VALUE)
 			return;
 
-		FindValueResponse fvr = (FindValueResponse)response;
-
-		if (fvr.getValue() != null) {
-			Value value = Value.of(fvr);
+		FindValueResponse r = (FindValueResponse)response;
+		if (r.getValue() != null) {
+			Value value = Value.of(r);
 			if (!value.getId().equals(getTarget())) {
 				log.error("Responsed value id {} mismatched with expected {}", value.getId(), getTarget());
 				return;
@@ -121,7 +120,7 @@ public class ValueLookup extends TargetedTask {
 			if (resultHandler != null)
 				resultHandler.accept(value);
 		} else {
-			List<NodeInfo> nodes = fvr.getNodes(getDHT().getType());
+			List<NodeInfo> nodes = r.getNodes(getDHT().getType());
 			if (nodes == null)
 				return;
 
@@ -132,10 +131,8 @@ public class ValueLookup extends TargetedTask {
 		CandidateNode cn = removeCandidate(call.getTargetId());
 		if (cn != null) {
 			cn.setReplied();
-			if (fvr.getToken() != 0) {
-				cn.setToken(fvr.getToken());
-				addClosest(cn);
-			}
+			cn.setToken(r.getToken());
+			addClosest(cn);
 		}
 	}
 

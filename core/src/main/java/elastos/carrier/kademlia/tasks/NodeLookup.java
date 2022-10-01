@@ -42,15 +42,27 @@ import elastos.carrier.kademlia.messages.Message;
 
 public class NodeLookup extends TargetedTask {
 	private boolean bootstrap = false;
+	private boolean wantToken = false;
 	private static final Logger log = LoggerFactory.getLogger(NodeLookup.class);
 
-	public NodeLookup(DHT dht, Id nodeId, boolean bootstrap) {
+	public NodeLookup(DHT dht, Id nodeId) {
 		super(dht, nodeId);
+	}
+
+ 	public void setBootstrap(boolean bootstrap) {
 		this.bootstrap = bootstrap;
 	}
 
-	public NodeLookup(DHT dht, Id nodeId) {
-		this(dht, nodeId, false);
+	public boolean isBootstrap() {
+		return bootstrap;
+	}
+
+ 	public void setWantToken(boolean wantToken) {
+		this.wantToken = wantToken;
+	}
+
+	public boolean doesWantToken() {
+		return wantToken;
 	}
 
 	public void injectCandidates(Collection<NodeInfo> nodes) {
@@ -83,7 +95,7 @@ public class NodeLookup extends TargetedTask {
 				start = cn;
 
 			// send a findNode to the node
-			FindNodeRequest r = new FindNodeRequest(getTarget());
+			FindNodeRequest r = new FindNodeRequest(getTarget(), doesWantToken());
 			r.setWant4(getDHT().getType() == DHT.Type.IPV4);
 			r.setWant6(getDHT().getType() == DHT.Type.IPV6);
 
@@ -104,9 +116,11 @@ public class NodeLookup extends TargetedTask {
 		if (response.getType() != Message.Type.RESPONSE || response.getMethod() != Message.Method.FIND_NODE)
 			return;
 
+		FindNodeResponse r = (FindNodeResponse)response;
 		CandidateNode cn = removeCandidate(call.getTargetId());
 		if (cn != null) {
 			cn.setReplied();
+			cn.setToken(r.getToken());
 			addClosest(cn);
 		}
 

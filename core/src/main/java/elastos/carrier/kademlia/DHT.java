@@ -284,7 +284,8 @@ public class DHT {
 		};
 
 
-		NodeLookup task = new NodeLookup(this, getNode().getId(), true);
+		NodeLookup task = new NodeLookup(this, getNode().getId());
+		task.setBootstrap(true);
 		task.setName("Bootstrap: filling home bucket");
 		task.injectCandidates(nodes);
 		task.addListener(bootstrapListener);
@@ -383,7 +384,7 @@ public class DHT {
 
 		// deep lookup to make ourselves known to random parts of the keyspace
 		scheduledActions.add(getNode().getScheduler().scheduleWithFixedDelay(() -> {
-			NodeLookup task = new NodeLookup(this, Id.random(), false);
+			NodeLookup task = new NodeLookup(this, Id.random());
 			task.setName(type + ":Random Refresh Lookup");
 			taskMan.add(task);
 		}, Constants.RANDOM_LOOKUP_INTERVAL, Constants.RANDOM_LOOKUP_INTERVAL, TimeUnit.MILLISECONDS));
@@ -802,7 +803,8 @@ public class DHT {
 	}
 
 	public Task storeValue(Value value, Consumer<List<NodeInfo>> completeHandler) {
-		NodeLookup lookup = new NodeLookup(this, value.getId(), true);
+		NodeLookup lookup = new NodeLookup(this, value.getId());
+		lookup.setWantToken(true);
 		lookup.addListener(l -> {
 			if (lookup.getState() != Task.State.FINISHED)
 				return;
@@ -856,7 +858,8 @@ public class DHT {
 	}
 
 	public Task announcePeer(Id peerId, int port, Consumer<List<NodeInfo>> completeHandler) {
-		NodeLookup lookup = new NodeLookup(this, peerId, true);
+		NodeLookup lookup = new NodeLookup(this, peerId);
+		lookup.setWantToken(true);
 		lookup.addListener(l -> {
 			if (lookup.getState() != Task.State.FINISHED)
 				return;

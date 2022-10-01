@@ -123,10 +123,8 @@ public class PeerLookup extends TargetedTask {
 		CandidateNode cn = removeCandidate(call.getTargetId());
 		if (cn != null) {
 			cn.setReplied();
-			if (r.getToken() != 0) {
-				cn.setToken(r.getToken());
-				addClosest(cn);
-			}
+			cn.setToken(r.getToken());
+			addClosest(cn);
 		}
 	}
 
