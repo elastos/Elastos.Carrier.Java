@@ -515,7 +515,7 @@ public class Node {
 		return future;
 	}
 
-	public CompletableFuture<List<PeerInfo>> findPeers(Id id, int expected, LookupOption option) throws KadException {
+	public CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected, LookupOption option) throws KadException {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid peer id");
 		checkArgument(option != null, "Invalid lookup option");
@@ -588,8 +588,11 @@ public class Node {
 			peer6 = new PeerInfo(getId(), dht6.getServer().getAddress().getAddress(), port);
 
 		try {
-			getStorage().putPeer(id, peer4);
-			getStorage().putPeer(id, peer6);
+			if (peer4 != null)
+				getStorage().putPeer(id, peer4);
+
+			if (peer6 != null)
+				getStorage().putPeer(id, peer6);
 		} catch(KadException e) {
 			CompletableFuture<Void> future = new CompletableFuture<>();
 			future.completeExceptionally(e);

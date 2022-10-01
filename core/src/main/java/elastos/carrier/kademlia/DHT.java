@@ -521,17 +521,25 @@ public class DHT {
 		r.setToken(getNode().getTokenManager().generateToken(q.getId(), q.getOrigin(), target));
 
 		try {
+			boolean hasValue = false;
 			Value v = storage.getValue(target);
 			if (v != null) {
 				if (q.getSequenceNumber() < 0 || v.getSequenceNumber() < 0
-						|| q.getSequenceNumber() < v.getSequenceNumber()) {
-					r.setValue(v.getData());
+						|| q.getSequenceNumber() <= v.getSequenceNumber()) {
 					r.setPublicKey(v.getPublicKey());
+					r.setRecipient(v.getRecipient());
+					r.setNonce(v.getNonce());
 					r.setSignature(v.getSignature());
 					if (v.getSequenceNumber() >= 0)
 						r.setSequenceNumber(v.getSequenceNumber());
+
+					r.setValue(v.getData());
+
+					hasValue = true;
 				}
-			} else {
+			}
+
+			if (!hasValue) {
 				int want4 = q.doesWant4() ? Constants.MAX_ENTRIES_PER_BUCKET : 0;
 				int want6 = q.doesWant6() ? Constants.MAX_ENTRIES_PER_BUCKET : 0;
 				populateClosestNodes(r, target, want4, want6);

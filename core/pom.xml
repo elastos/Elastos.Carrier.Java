@@ -28,7 +28,7 @@
       <artifactId>jackson-core</artifactId>
       <version>${jackson.version}</version>
     </dependency>
-<!--
+    <!--
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
@@ -39,7 +39,7 @@
       <artifactId>jackson-annotations</artifactId>
       <version>${jackson.version}</version>
     </dependency>
--->
+    -->
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-cbor</artifactId>
@@ -52,10 +52,10 @@
       <version>${vertx.version}</version>
     </dependency>
 
-	<!--
+    <!--
       Force to use JNR-FFI 2.2.12,
       override the version that depended by the Apache tuweni-crypto,
-	  fix failed to load the libsodium shared librart
+    fix failed to load the libsodium shared librart
      -->
     <dependency>
       <groupId>com.github.jnr</groupId>
