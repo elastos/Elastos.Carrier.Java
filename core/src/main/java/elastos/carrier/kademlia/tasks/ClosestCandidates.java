@@ -29,19 +29,23 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import elastos.carrier.kademlia.Constants;
 import elastos.carrier.kademlia.Id;
 import elastos.carrier.kademlia.NodeInfo;
+import io.vertx.core.impl.ConcurrentHashSet;
 
 public class ClosestCandidates {
 	private final Id target;
 	private final int capacity;
 	private final ConcurrentSkipListMap<Id, CandidateNode> closest;
+	private final ConcurrentHashSet<Object> dedup;
 
 	public ClosestCandidates(Id target, int capacity) {
 		this.target = target;
 		this.capacity = capacity;
 
 		closest = new ConcurrentSkipListMap<>(target::threeWayCompare);
+		dedup = new ConcurrentHashSet<>();
 	}
 
 	boolean reachedCapacity() {
@@ -66,6 +70,19 @@ public class ClosestCandidates {
 	public void add(Collection<? extends NodeInfo> nodes) {
 		synchronized (closest) {
 			for (NodeInfo node : nodes) {
+				if (!dedup.add(nodes)) // existing node id
+					continue;
+
+				if (Constants.DEVELOPMENT_ENVIRONMENT) {
+					// develop env: existing socket address
+					if (!dedup.add(node.getAddress()))
+						continue;
+				} else {
+					// product env: existing ip address
+					if (!dedup.add(node.getAddress().getAddress()))
+						continue;
+				}
+
 				if (closest.containsKey(node.getId()))
 					continue;
 

@@ -50,7 +50,7 @@ public class DefaultConfiguration implements Configuration {
 	public Inet4Address IPv4Address() {
 		if (addr4 == null)
 			addr4 = (Inet4Address)AddressUtils.getAllAddresses().filter(Inet4Address.class::isInstance)
-					.filter((a) -> !a.isLoopbackAddress())
+					.filter((a) -> !AddressUtils.isLocalUnicast(a))
 					.distinct()
 					.findFirst().get();
 

@@ -24,9 +24,7 @@ package elastos.carrier.kademlia.tasks;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +39,6 @@ import elastos.carrier.kademlia.RPCCall;
 import elastos.carrier.kademlia.messages.FindPeerRequest;
 import elastos.carrier.kademlia.messages.FindPeerResponse;
 import elastos.carrier.kademlia.messages.Message;
-import elastos.carrier.utils.AddressUtils;
 
 public class PeerLookup extends TargetedTask {
 	Consumer<Collection<PeerInfo>> resultHandler;
@@ -113,11 +110,10 @@ public class PeerLookup extends TargetedTask {
 
 		if (!hasPeers) {
 			List<NodeInfo> nodes = r.getNodes(getDHT().getType());
-			if (nodes == null || nodes.isEmpty())
+			if (nodes.isEmpty())
 				return;
 
-			Set<NodeInfo> cands = nodes.stream().filter(e -> !AddressUtils.isBogon(e.getAddress()) && !getDHT().getNode().isLocalId(e.getId())).collect(Collectors.toSet());
-			addCandidates(cands);
+			addCandidates(nodes);
 		}
 
 		CandidateNode cn = removeCandidate(call.getTargetId());

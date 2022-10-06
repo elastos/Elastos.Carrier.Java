@@ -44,8 +44,6 @@ public class AddressUtils {
 	// private final static NetMask V4_COMPAT = NetMask.fromString("0000::/96");
 	private final static byte[] LOCAL_BROADCAST = new byte[] { (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff };
 
-	private static final boolean devEnv = System.getProperty("elastos.carrier.enviroment", "").equals("development");
-
 	static {
 		try {
 			// ::ffff:0:0/96
@@ -100,8 +98,7 @@ public class AddressUtils {
 	}
 
 	public static boolean isBogon(InetAddress addr, int port) {
-		return !(port > 0 && port <= 0xFFFF &&
-				devEnv ? !isLocalUnicast(addr) : isGlobalUnicast(addr));
+		return !(port > 0 && port <= 0xFFFF && isGlobalUnicast(addr));
 	}
 
 	// https://datatracker.ietf.org/doc/html/rfc4380

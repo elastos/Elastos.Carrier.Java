@@ -360,13 +360,15 @@ public final class RoutingTable {
 		int i = 0;
 
 		// perform bucket merge operations where possible
-		while (i >= size()) {
+		while (true) {
 			i++;
 
 			if (i < 1)
 				continue;
 
 			List<KBucket> bucketsRef = getBuckets();
+			if (i >= bucketsRef.size())
+				break;
 
 			KBucket b1 = bucketsRef.get(i - 1);
 			KBucket b2 = bucketsRef.get(i);
@@ -540,13 +542,12 @@ public final class RoutingTable {
 		if (file.isDirectory())
 			return;
 
-
 		if (this.getNumBucketEntries() == 0) {
 			log.trace("Skip to save the empty routing table.");
 			return;
 		}
 
-		Path tempFile = Files.createTempFile(file.getParentFile().toPath(), file.getName() + "-", String.valueOf(System.currentTimeMillis()));
+		Path tempFile = Files.createTempFile(file.getParentFile().toPath(), file.getName(), "-" + String.valueOf(System.currentTimeMillis()));
 		try (FileOutputStream out = new FileOutputStream(tempFile.toFile())) {
 			CBORGenerator gen = ThreadLocals.CBORFactory().createGenerator(out);
 			gen.writeStartObject();

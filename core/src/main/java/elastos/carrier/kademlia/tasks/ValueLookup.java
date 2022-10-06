@@ -23,9 +23,7 @@
 package elastos.carrier.kademlia.tasks;
 
 import java.util.List;
-import java.util.Set;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +38,6 @@ import elastos.carrier.kademlia.Value;
 import elastos.carrier.kademlia.messages.FindValueRequest;
 import elastos.carrier.kademlia.messages.FindValueResponse;
 import elastos.carrier.kademlia.messages.Message;
-import elastos.carrier.utils.AddressUtils;
 
 public class ValueLookup extends TargetedTask {
 	int expectedSequence = -1;
@@ -121,11 +118,10 @@ public class ValueLookup extends TargetedTask {
 				resultHandler.accept(value);
 		} else {
 			List<NodeInfo> nodes = r.getNodes(getDHT().getType());
-			if (nodes == null)
+			if (nodes.isEmpty())
 				return;
 
-			Set<NodeInfo> cands = nodes.stream().filter(e -> !AddressUtils.isBogon(e.getAddress()) && !getDHT().getNode().isLocalId(e.getId())).collect(Collectors.toSet());
-			addCandidates(cands);
+			addCandidates(nodes);
 		}
 
 		CandidateNode cn = removeCandidate(call.getTargetId());

@@ -314,7 +314,7 @@ public class DHT {
 				routingTable.save(persistFile);
 				lastSave = now;
 			} catch (IOException e) {
-				log.error("Can not save the routing table", e);
+				log.error("Can not save the routing table: " + e.getMessage(), e);
 			}
 		}
 	}
@@ -617,18 +617,21 @@ public class DHT {
 	}
 
 	private void onAnnouncePeer(AnnouncePeerRequest q) {
+		boolean bogon = Constants.DEVELOPMENT_ENVIRONMENT ?
+				AddressUtils.isLocalUnicast(q.getOrigin().getAddress()) : AddressUtils.isBogon(q.getOrigin());
+
+		if (bogon) {
+			log.debug("Received an announce peer request from bogon address {}, ignored ",
+					AddressUtils.toString(q.getOrigin()));
+			return;
+		}
+
 		DataStorage storage = getNode().getStorage();
 
 		if (!getNode().getTokenManager().verifyToken(q.getToken(), q.getId(), q.getOrigin(), q.getTarget())) {
 			log.warn("Received an announce peer request with invalid token from {}",
 					AddressUtils.toString(q.getOrigin()));
 			sendError(q, ErrorCode.ProtocolError.value(), "Invalid token for ANNOUNCE PEER request");
-			return;
-		}
-
-		if (!AddressUtils.isBogon(q.getOrigin().getAddress(), q.getPort())) {
-			log.debug("Received an announce peer request from bogon address {}, ignored ",
-					AddressUtils.toString(q.getOrigin()));
 			return;
 		}
 
@@ -684,8 +687,14 @@ public class DHT {
 
 	void received(Message msg) {
 		InetSocketAddress addr = msg.getOrigin();
-		if (AddressUtils.isBogon(addr))
+		boolean bogon = Constants.DEVELOPMENT_ENVIRONMENT ?
+				AddressUtils.isLocalUnicast(addr.getAddress()) : AddressUtils.isBogon(addr);
+
+		if (bogon) {
+			log.debug("Received a message from bogon address {}, ignored the potential routing table operation",
+					AddressUtils.toString(addr));
 			return;
+		}
 
 		Id id = msg.getId();
 		RPCCall call = msg.getAssociatedCall();

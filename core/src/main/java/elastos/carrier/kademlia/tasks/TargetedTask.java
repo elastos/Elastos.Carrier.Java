@@ -22,6 +22,7 @@
 
 package elastos.carrier.kademlia.tasks;
 
+import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -58,10 +59,15 @@ public abstract class TargetedTask extends Task {
 		return candidates.get(id);
 	}
 
+	private boolean isBogonAddress(InetSocketAddress addr) {
+		return Constants.DEVELOPMENT_ENVIRONMENT ?
+				AddressUtils.isLocalUnicast(addr.getAddress()) : AddressUtils.isBogon(addr);
+	}
+
 	protected void addCandidates(Collection<? extends NodeInfo> nodes) {
 		Set<NodeInfo> cands = nodes.stream()
+				.filter(n -> !isBogonAddress(n.getAddress()) && !getDHT().getNode().isLocalId(n.getId()))
 				.filter(n -> !closest.contains(n.getId()))
-				.filter(n -> !AddressUtils.isBogon(n.getAddress()) && !getDHT().getNode().isLocalId(n.getId()))
 				.collect(Collectors.toSet());
 
 		if (!cands.isEmpty())

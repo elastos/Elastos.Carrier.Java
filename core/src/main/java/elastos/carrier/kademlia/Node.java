@@ -97,7 +97,7 @@ public class Node {
 		if (Constants.DEVELOPMENT_ENVIRONMENT)
 			log.info("Carrier node running in development environment.");
 
-		persistent = checkPersistence(config.storagePath());
+		persistent = checkPersistence(config.storagePath().getAbsoluteFile());
 
 		File keyFile = null;
 		if (persistent) {
