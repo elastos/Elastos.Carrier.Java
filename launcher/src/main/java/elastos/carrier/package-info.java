@@ -20,19 +20,4 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.node;
-
-import java.util.concurrent.Callable;
-
-import picocli.CommandLine.Command;
-
-@Command(name = "routingtable", mixinStandardHelpOptions = true, version = "Carrier routingtable 2.0",
-		description = "Display the routing tables.")
-public class RoutingTableCommand implements Callable<Integer> {
-	@Override
-	public Integer call() throws Exception {
-		System.out.println(Shell.getCarrierNode());
-		return 0;
-	}
-
-}
+package elastos.carrier;

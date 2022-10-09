@@ -31,7 +31,7 @@ import picocli.CommandLine.Command;
 public class StopCommand implements Callable<Integer> {
 	@Override
 	public Integer call() {
-		Launcher.getCarrierNode().stop();
+		Shell.getCarrierNode().stop();
 		return 0;
 	}
 }

@@ -49,7 +49,7 @@ public class StoreValueCommand implements Callable<Integer> {
 
 	@Override
 	public Integer call() throws Exception {
-		Node node = Launcher.getCarrierNode();
+		Node node = Shell.getCarrierNode();
 		Value value = null;
 
 		if (target == null) {
@@ -82,7 +82,7 @@ public class StoreValueCommand implements Callable<Integer> {
 			value = node.updateValue(id, text.getBytes());
 		}
 
-		CompletableFuture<Void> f = Launcher.getCarrierNode().storeValue(value);
+		CompletableFuture<Void> f = Shell.getCarrierNode().storeValue(value);
 		f.get();
 		System.out.println("Value " + value.getId() + " stored.");
 		return 0;

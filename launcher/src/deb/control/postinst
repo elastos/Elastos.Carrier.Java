@@ -1,0 +1,67 @@
+#!/bin/sh
+
+set -e
+
+test $DEBIAN_SCRIPT_DEBUG && set -v -x
+
+chperms() {
+	# chperms <user> <group> <perms> <file>
+	if ! OVERRIDE=`dpkg-statoverride --list $4 2>&1`; then
+		if [ -e $4 ]; then
+			chown $1:$2 $4
+			chmod $3 $4
+		fi
+	fi
+}
+
+case "$1" in
+  configure)
+    if ! getent passwd carrier > /dev/null; then
+        adduser --system \
+                --quiet \
+                --group \
+                --no-create-home \
+                --disabled-password \
+                --home /var/lib/carrier \
+                carrier
+    fi
+
+    chperms carrier root 0775 /var/lib/carrier
+
+    chperms carrier root 0775 /var/log/carrier
+
+    chperms root carrier 0755 /etc/carrier
+
+    chperms root carrier 0644 /etc/carrier/logback.xml
+
+    chperms root carrier 0644 /etc/carrier/default.conf
+
+  ;;
+esac
+
+# Automatically added by dh_systemd_enable
+# This will only remove masks created by d-s-h on package removal.
+deb-systemd-helper unmask carrier.service >/dev/null || true
+
+# was-enabled defaults to true, so new installations run enable.
+if deb-systemd-helper --quiet was-enabled carrier.service; then
+	# Enables the unit on first installation, creates new
+	# symlinks on upgrades if the unit file has changed.
+	deb-systemd-helper enable carrier.service >/dev/null || true
+else
+	# Update the statefile to add new symlinks (if any), which need to be
+	# cleaned up on purge. Also remove old symlinks.
+	deb-systemd-helper update-state carrier.service >/dev/null || true
+fi
+# End automatically added section
+# Automatically added by dh_installinit
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ]; then
+	if [ -x "/etc/init.d/carrier" ]; then
+		update-rc.d carrier defaults >/dev/null
+		invoke-rc.d carrier start || exit $?
+	fi
+fi
+# End automatically added section
+
+
+exit 0;

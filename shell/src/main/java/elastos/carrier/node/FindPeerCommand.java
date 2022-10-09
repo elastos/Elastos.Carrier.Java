@@ -63,7 +63,7 @@ public class FindPeerCommand implements Callable<Integer> {
 			return -1;
 		}
 
-		CompletableFuture<List<PeerInfo>> f = Launcher.getCarrierNode().findPeer(id, expected, option);
+		CompletableFuture<List<PeerInfo>> f = Shell.getCarrierNode().findPeer(id, expected, option);
 		List<PeerInfo> pl = f.get();
 		if (!pl.isEmpty()) {
 			for (PeerInfo p : pl)

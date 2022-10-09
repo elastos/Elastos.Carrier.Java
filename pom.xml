@@ -6,7 +6,7 @@
 
   <groupId>elastos.carrier</groupId>
   <artifactId>carrier-parent</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>${revision}</version>
   <packaging>pom</packaging>
 
   <name>Elastos Carrier</name>
@@ -27,6 +27,8 @@
   </scm>
 
   <properties>
+    <revision>6.0.0-SNAPSHOT</revision>
+
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
     <maven.compiler.release>11</maven.compiler.release>
@@ -49,6 +51,7 @@
   <modules>
     <module>core</module>
     <module>shell</module>
+    <module>launcher</module>
   </modules>
 
   <build>

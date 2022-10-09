@@ -60,7 +60,7 @@ public class FindNodeCommand implements Callable<Integer> {
 			return -1;
 		}
 
-		CompletableFuture<List<NodeInfo>> f = Launcher.getCarrierNode().findNode(id, option);
+		CompletableFuture<List<NodeInfo>> f = Shell.getCarrierNode().findNode(id, option);
 		List<NodeInfo> nl = f.get();
 		if (!nl.isEmpty()) {
 			for (NodeInfo n : nl)

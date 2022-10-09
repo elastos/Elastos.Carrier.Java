@@ -565,6 +565,12 @@ public class DHT {
 			return;
 		}
 
+		Value v = Value.of(q);
+		if (v.isValid()) {
+			sendError(q, ErrorCode.ProtocolError.value(), "Invalue value");
+			return;
+		}
+
 		try {
 			storage.putValue(Value.of(q), q.getExpectedSequenceNumber());
 			StoreValueResponse r = new StoreValueResponse(q.getTxid());

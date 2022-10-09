@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.node;
+package elastos.carrier;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -82,7 +82,6 @@ public class DefaultConfiguration implements Configuration {
 					.distinct()
 					.findFirst().orElse(null);
 		*/
-
 		return addr6;
 	}
 
@@ -107,7 +106,7 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	void setListeningPort(int port) {
-		if (port <= 0)
+		if (port <= 0 || port >= 65535)
 			return;
 
 		this.port = port;
@@ -162,8 +161,8 @@ public class DefaultConfiguration implements Configuration {
 			if (root.has("dataDir"))
 				setStoragePath(root.get("dataDir").asText());
 
-			if (root.has("bootstaps")) {
-				JsonNode bootstraps = root.get("bootstaps");
+			if (root.has("bootstraps")) {
+				JsonNode bootstraps = root.get("bootstraps");
 				if (!bootstraps.isArray())
 					throw new IOException("Config file error: bootstaps");
 

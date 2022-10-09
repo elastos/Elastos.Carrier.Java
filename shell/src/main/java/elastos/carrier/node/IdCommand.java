@@ -32,7 +32,7 @@ import picocli.CommandLine.Command;
 public class IdCommand implements Callable<Integer> {
 	@Override
 	public Integer call() {
-		Id id = Launcher.getCarrierNode().getId();
+		Id id = Shell.getCarrierNode().getId();
 		System.out.println("Carrier id: " + id);
 
 		return 0;

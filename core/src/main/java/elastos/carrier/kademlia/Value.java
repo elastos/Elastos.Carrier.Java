@@ -94,9 +94,9 @@ public class Value {
 		ByteBuffer buf = ByteBuffer.wrap(toSign);
 		if (recipient != null)
 			buf.put(recipient.getBytes());
-		buf.put(this.nonce);
+		buf.put(nonce);
 		buf.putInt(sequenceNumber);
-		buf.put(this.data);
+		buf.put(data);
 
 		return toSign;
 	}
@@ -173,7 +173,16 @@ public class Value {
 	}
 
 	public boolean isValid() {
+		if (data == null || data.length == 0)
+			return false;
+
+		if (nonce == null || nonce.length != CryptoBox.Nonce.length())
+			return false;
+
 		if (isMutable()) {
+			if (signature == null || signature.length != Signature.length())
+				return false;
+
 			Signature.PublicKey pk = publicKey.toSignatureKey();
 
 			return Signature.verify(getSignData(), signature, pk);
@@ -183,6 +192,9 @@ public class Value {
 	}
 
 	public byte[] decryptData(Signature.PrivateKey recipientSk) {
+		if (!isValid())
+			return null;
+
 		if (recipient == null)
 			return null;
 
@@ -207,8 +219,8 @@ public class Value {
 					Arrays.equals(signature, v.signature) &&
 					Arrays.equals(data, v.data);
 		}
-		return false;
 
+		return false;
 	}
 
 	@Override

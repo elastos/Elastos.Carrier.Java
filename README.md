@@ -18,3 +18,9 @@ mvn
 ```
 
 If you want skip the test cases, use `mvn -Dmaven.test.skip=true` command instead of `mvn`.
+
+If you want create a daily build, use 
+
+```bash
+mvn -Dmaven.test.skip=true -Drevision=6.0.0-"`date -u +"%Y%m%d%H%M"`"
+```

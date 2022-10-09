@@ -53,7 +53,7 @@ public class StorageCommand {
 
 		@Override
 		public Integer call() throws Exception {
-			DataStorage storage = Launcher.getCarrierNode().getStorage();
+			DataStorage storage = Shell.getCarrierNode().getStorage();
 
 			Stream<Id> ids = storage.valueIdStream();
 			AtomicInteger n = new AtomicInteger(0);
@@ -83,7 +83,7 @@ public class StorageCommand {
 				return -1;
 			}
 
-			DataStorage storage = Launcher.getCarrierNode().getStorage();
+			DataStorage storage = Shell.getCarrierNode().getStorage();
 			Value value = storage.getValue(valueId);
 			if (value != null)
 				System.out.println(value);
@@ -100,7 +100,7 @@ public class StorageCommand {
 
 		@Override
 		public Integer call() throws Exception {
-			DataStorage storage = Launcher.getCarrierNode().getStorage();
+			DataStorage storage = Shell.getCarrierNode().getStorage();
 
 			Stream<Id> ids = storage.peerIdStream();
 			AtomicInteger n = new AtomicInteger(0);
@@ -138,7 +138,7 @@ public class StorageCommand {
 				return -1;
 			}
 
-			DataStorage storage = Launcher.getCarrierNode().getStorage();
+			DataStorage storage = Shell.getCarrierNode().getStorage();
 			List<PeerInfo> peers = storage.getPeer(peerId, family, -1);
 			if (!peers.isEmpty()) {
 				for (PeerInfo peer : peers)

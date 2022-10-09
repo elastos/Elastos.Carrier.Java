@@ -8,7 +8,7 @@
     <relativePath>../</relativePath>
     <groupId>elastos.carrier</groupId>
     <artifactId>carrier-parent</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>${revision}</version>
   </parent>
 
   <artifactId>carrier-core</artifactId>

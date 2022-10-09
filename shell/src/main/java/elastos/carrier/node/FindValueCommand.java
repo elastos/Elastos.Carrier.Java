@@ -59,7 +59,7 @@ public Integer call() throws Exception {
 		return -1;
 	}
 
-	CompletableFuture<Value> f = Launcher.getCarrierNode().findValue(id, option);
+	CompletableFuture<Value> f = Shell.getCarrierNode().findValue(id, option);
 	Value v = f.get();
 	if (v != null)
 		System.out.println(v);

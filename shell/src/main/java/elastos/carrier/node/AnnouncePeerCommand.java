@@ -53,7 +53,7 @@ public class AnnouncePeerCommand implements Callable<Integer> {
 			return -1;
 		}
 
-		CompletableFuture<Void> f = Launcher.getCarrierNode().announcePeer(id, port);
+		CompletableFuture<Void> f = Shell.getCarrierNode().announcePeer(id, port);
 		f.get();
 		System.out.println("Peer " + id + " announced.");
 

@@ -66,7 +66,7 @@ public class BootstrapCommand implements Callable<Integer> {
 		}
 
 		NodeInfo n = new NodeInfo(nodeId, addr, port);
-		Launcher.getCarrierNode().bootstrap(n);
+		Shell.getCarrierNode().bootstrap(n);
 
 		return null;
 	}

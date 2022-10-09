@@ -8,7 +8,7 @@
     <relativePath>../</relativePath>
     <groupId>elastos.carrier</groupId>
     <artifactId>carrier-parent</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>${revision}</version>
   </parent>
 
   <artifactId>carrier-shell</artifactId>
@@ -20,7 +20,7 @@
     <dependency>
       <groupId>elastos.carrier</groupId>
       <artifactId>carrier-core</artifactId>
-      <version>1.0-SNAPSHOT</version>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
@@ -93,14 +93,14 @@
                     <resource>
                         <directory>src/main/resources/bin</directory>
                         <includes>
-                            <include>carrier</include>
+                            <include>carrier-shell</include>
                         </includes>
                     </resource>
                 </resources>
             </configuration>
-        </execution>
-      </executions>
-    </plugin>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 </project>

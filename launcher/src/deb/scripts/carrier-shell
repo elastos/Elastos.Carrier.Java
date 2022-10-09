@@ -1,0 +1,5 @@
+#!/bin/sh
+
+CARRIER_HOME=/usr/lib/carrier
+
+java -cp "$CARRIER_HOME/lib/*" $JAVA_OPTS elastos.carrier.node.Shell $*

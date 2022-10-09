@@ -53,8 +53,8 @@ import picocli.CommandLine.Option;
 import picocli.shell.jline3.PicocliCommands;
 import picocli.shell.jline3.PicocliCommands.PicocliCommandsFactory;
 
-@Command(name = "launcher", mixinStandardHelpOptions = true, version = "Carrier Launcher 2.0",
-		description = "Elastos Carrier command line launcher.",
+@Command(name = "shell", mixinStandardHelpOptions = true, version = "Carrier shell 2.0",
+		description = "Elastos Carrier command line shell.",
 		subcommands = {
 			IdCommand.class,
 			BootstrapCommand.class,
@@ -67,7 +67,7 @@ import picocli.shell.jline3.PicocliCommands.PicocliCommandsFactory;
 			StorageCommand.class,
 			StopCommand.class,
 		})
-public class Launcher  implements Callable<Integer> {
+public class Shell  implements Callable<Integer> {
 	@Option(names = {"-4", "--address4"}, description = "IPv4 address to listen.")
 	private String addr4 = null;
 
@@ -96,7 +96,7 @@ public class Launcher  implements Callable<Integer> {
 		Supplier<Path> workDir = () -> Paths.get(System.getProperty("user.home"));
 		// set up JLine built-in commands
 		Builtins builtins = new Builtins(workDir, null, null);
-		Launcher commands = new Launcher();
+		Shell commands = new Shell();
 		PicocliCommandsFactory factory = new PicocliCommandsFactory();
 		CommandLine cmd = new CommandLine(commands, factory);
 		PicocliCommands picocliCommands = new PicocliCommands(cmd);
@@ -175,7 +175,7 @@ public class Launcher  implements Callable<Integer> {
 	}
 
 	public static void main(String[] args) {
-		int exitCode = new CommandLine(new Launcher()).execute(args);
+		int exitCode = new CommandLine(new Shell()).execute(args);
 		System.exit(exitCode);
 	}
 }

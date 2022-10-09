@@ -1,16 +1,18 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <configuration>
+  <!--
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
       <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{32} - %msg %ex{full}%n</pattern>
     </encoder>
   </appender>
+  -->
 
   <appender name="ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
-    <file>carrier.log</file>
+    <file>/var/log/carrier/carrier.log</file>
     <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
       <!-- rollover daily -->
-      <fileNamePattern>carrier-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <fileNamePattern>/var/log/carrier/carrier-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
        <!-- each file should be at most 100MB, keep 60 days worth of history, but at most 20GB -->
        <maxFileSize>100MB</maxFileSize>    
        <maxHistory>60</maxHistory>
@@ -24,8 +26,8 @@
   <logger name="elastos.carrier.kademlia.NetworkEngine" level="INFO"/>
   <logger name="elastos.carrier.kademlia.RPCServer" level="INFO"/>
 
-  <root level="TRACE">
-    <appender-ref ref="STDOUT" />
+  <root level="DEBUG">
+    <!-- <appender-ref ref="STDOUT" /> -->
     <appender-ref ref="ROLLING" />
   </root>
 </configuration>
