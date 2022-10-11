@@ -5,7 +5,6 @@ Elastos Carrier Super Node in Java
 ## Dependencies
 
 - java ≥ 11
-- maven 3.8 (building)
 - libsoduium runtime (shared object)
 
 
@@ -14,13 +13,13 @@ Elastos Carrier Super Node in Java
 ```bash
 git clone THIS_REPO_URL
 cd REPO_DIR
-mvn
+./mvnw
 ```
 
-If you want skip the test cases, use `mvn -Dmaven.test.skip=true` command instead of `mvn`.
+If you want skip the test cases, use `./mvnw -Dmaven.test.skip=true` command instead of `./mvnw`.
 
 If you want create a daily build, use 
 
 ```bash
-mvn -Dmaven.test.skip=true -Drevision=6.0.0-"`date -u +"%Y%m%d%H%M"`"
+./mvnw -Dmaven.test.skip=true -Drevision=6.0.0-"`date -u +"%Y%m%d%H%M"`"
 ```
