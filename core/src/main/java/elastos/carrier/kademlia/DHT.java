@@ -566,7 +566,7 @@ public class DHT {
 		}
 
 		Value v = Value.of(q);
-		if (v.isValid()) {
+		if (!v.isValid()) {
 			sendError(q, ErrorCode.ProtocolError.value(), "Invalue value");
 			return;
 		}

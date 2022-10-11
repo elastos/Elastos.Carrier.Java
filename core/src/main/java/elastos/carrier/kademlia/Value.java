@@ -89,7 +89,7 @@ public class Value {
 	}
 
 	private byte[] getSignData() {
-		byte[] toSign = new byte[(recipient != null ? Signature.PublicKey.length() : 0) +
+		byte[] toSign = new byte[(recipient != null ? Id.BYTE_LENGTH : 0) +
 				CryptoBox.Nonce.length() + Integer.BYTES + this.data.length];
 		ByteBuffer buf = ByteBuffer.wrap(toSign);
 		if (recipient != null)
