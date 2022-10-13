@@ -22,7 +22,7 @@
   </appender>
 
   <logger name="elastos.carrier.kademlia.NetworkEngine" level="INFO"/>
-  <logger name="elastos.carrier.kademlia.RPCServer" level="INFO"/>
+  <logger name="elastos.carrier.kademlia.RPCServer" level="TRACE"/>
 
   <root level="TRACE">
     <appender-ref ref="STDOUT" />

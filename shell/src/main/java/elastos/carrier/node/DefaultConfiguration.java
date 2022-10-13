@@ -107,7 +107,7 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	void setListeningPort(int port) {
-		if (port <= 0)
+		if (port <= 0 || port >= 65535)
 			return;
 
 		this.port = port;
@@ -162,8 +162,8 @@ public class DefaultConfiguration implements Configuration {
 			if (root.has("dataDir"))
 				setStoragePath(root.get("dataDir").asText());
 
-			if (root.has("bootstaps")) {
-				JsonNode bootstraps = root.get("bootstaps");
+			if (root.has("bootstraps")) {
+				JsonNode bootstraps = root.get("bootstraps");
 				if (!bootstraps.isArray())
 					throw new IOException("Config file error: bootstaps");
 
@@ -184,8 +184,8 @@ public class DefaultConfiguration implements Configuration {
 						throw new IOException("Config file error: bootstap node id", e);
 					}
 
-					InetAddress addr = InetAddress.getByName(root.get("address").asText());
-					int port = root.get("port").asInt();
+					InetAddress addr = InetAddress.getByName(bootstrap.get("address").asText());
+					int port = bootstrap.get("port").asInt();
 
 					NodeInfo node = new NodeInfo(id, addr, port);
 					bootstrapNodes.add(node);

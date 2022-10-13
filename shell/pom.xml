@@ -51,7 +51,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>3.2.2</version>
+        <version>${maven-jar-plugin.version}</version>
         <configuration>
           <outputDirectory>${project.build.directory}/lib</outputDirectory>
         </configuration>
@@ -59,7 +59,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>${maven-dependency-plugin.version}</version>
         <executions>
           <execution>
             <id>copy-dependencies</id>
@@ -79,7 +79,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>${maven-resources-plugin.version}</version>
         <executions>
           <execution>
             <id>copy-resource-one</id>

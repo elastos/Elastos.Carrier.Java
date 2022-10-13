@@ -82,6 +82,7 @@ public class DefaultConfiguration implements Configuration {
 					.distinct()
 					.findFirst().orElse(null);
 		*/
+
 		return addr6;
 	}
 
@@ -115,7 +116,7 @@ public class DefaultConfiguration implements Configuration {
 	@Override
 	public File storagePath() {
 		if (storagePath == null)
-			storagePath = toFile("~/.cache/carrier");
+			storagePath = toFile("/var/lib/carrier");
 
 		return storagePath;
 	}
@@ -183,8 +184,8 @@ public class DefaultConfiguration implements Configuration {
 						throw new IOException("Config file error: bootstap node id", e);
 					}
 
-					InetAddress addr = InetAddress.getByName(root.get("address").asText());
-					int port = root.get("port").asInt();
+					InetAddress addr = InetAddress.getByName(bootstrap.get("address").asText());
+					int port = bootstrap.get("port").asInt();
 
 					NodeInfo node = new NodeInfo(id, addr, port);
 					bootstrapNodes.add(node);
