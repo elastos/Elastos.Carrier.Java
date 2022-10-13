@@ -115,6 +115,11 @@ public class Node {
 			initKey(keyFile);
 
 		id = new Id(keyPair.publicKey().bytes());
+		if (persistent) {
+			File idFile = new File(config.storagePath(), "id");
+			writeIdFile(idFile);
+		}
+		
 		log.info("Carrier Kademlia node: {}", id);
 
 		statusListeners = new ArrayList<>(4);
@@ -160,6 +165,16 @@ public class Node {
 				os.write(keyPair.privateKey().bytes());
 			} catch (IOException e) {
 				throw new IOError("Can not write the key file.", e);
+			}
+		}
+	}
+	
+	private void writeIdFile(File idFile) throws KadException {
+		if (idFile != null) {
+			try (FileOutputStream os = new FileOutputStream(idFile)) {
+				os.write(id.toString().getBytes());
+			} catch (IOException e) {
+				throw new IOError("Can not write the id file.", e);
 			}
 		}
 	}
