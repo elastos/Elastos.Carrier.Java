@@ -137,7 +137,7 @@
                   <linkTarget>/usr/lib/carrier/bin/carrier-shell</linkTarget>
                 </data>
                 <data>
-                  <src>${basedir}/src/deb/scripts/carrier.sh</src>
+                  <src>${basedir}/src/deb/scripts/carrier</src>
                   <type>file</type>
                   <mapper>
                     <type>perm</type>
@@ -166,7 +166,7 @@
                     <prefix>/etc/carrier</prefix>
                     <user>root</user>
                     <group>carrier</group>
-                    <filemode>640</filemode>
+                    <filemode>644</filemode>
                   </mapper>
                 </data>
                 <data>

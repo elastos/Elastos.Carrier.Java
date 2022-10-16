@@ -39,29 +39,40 @@ case "$1" in
   ;;
 esac
 
-# Automatically added by dh_systemd_enable
-# This will only remove masks created by d-s-h on package removal.
-deb-systemd-helper unmask carrier.service >/dev/null || true
+# Begin postinst_systemd_enable
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	# This will only remove masks created by d-s-h on package removal.
+	deb-systemd-helper unmask 'carrier.service' >/dev/null || true
 
-# was-enabled defaults to true, so new installations run enable.
-if deb-systemd-helper --quiet was-enabled carrier.service; then
-	# Enables the unit on first installation, creates new
-	# symlinks on upgrades if the unit file has changed.
-	deb-systemd-helper enable carrier.service >/dev/null || true
-else
-	# Update the statefile to add new symlinks (if any), which need to be
-	# cleaned up on purge. Also remove old symlinks.
-	deb-systemd-helper update-state carrier.service >/dev/null || true
+	# was-enabled defaults to true, so new installations run enable.
+	if deb-systemd-helper --quiet was-enabled 'carrier.service'; then
+		# Enables the unit on first installation, creates new
+		# symlinks on upgrades if the unit file has changed.
+		deb-systemd-helper enable 'carrier.service' >/dev/null || true
+	else
+		# Update the statefile to add new symlinks (if any), which need to be
+		# cleaned up on purge. Also remove old symlinks.
+		deb-systemd-helper update-state 'carrier.service' >/dev/null || true
+	fi
 fi
-# End automatically added section
-# Automatically added by dh_installinit
-if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ]; then
+# End postinst_systemd_enable
+
+# Begin postinst_systemd_start
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	if [ -d /run/systemd/system ]; then
+		systemctl --system daemon-reload >/dev/null || true
+		deb-systemd-invoke start 'carrier.service' >/dev/null || true
+	fi
+fi
+# End postinst_systemd_start
+
+# Begin postinst_init
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
 	if [ -x "/etc/init.d/carrier" ]; then
 		update-rc.d carrier defaults >/dev/null
 		invoke-rc.d carrier start || exit $?
 	fi
 fi
-# End automatically added section
-
+# End postinst_init
 
 exit 0;

@@ -378,17 +378,18 @@ public class Node {
 	}
 
 	public CompletableFuture<List<NodeInfo>> findNode(Id id) {
-		return findNode(id, defaultLookupOption);
+		return findNode(id, null);
 	}
 
 	public CompletableFuture<List<NodeInfo>> findNode(Id id, LookupOption option) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid node id");
-		checkArgument(option != null, "Invalid lookup option");
+		
+		LookupOption lookupOption = option == null ? defaultLookupOption : option;
 
 		List<NodeInfo> results = new ArrayList<NodeInfo>(2);
 
-		if (option == LookupOption.ARBITRARY) {
+		if (lookupOption == LookupOption.ARBITRARY) {
 			if (dht4 != null) {
 				NodeInfo n = dht4.getNode(id);
 				if (n != null)
@@ -414,7 +415,7 @@ public class Node {
 			if (n != null)
 				results.add(n);
 
-			if ((option == LookupOption.OPTIMISTIC && !results.isEmpty()) || c >= numDHTs)
+			if ((lookupOption == LookupOption.OPTIMISTIC && !results.isEmpty()) || c >= numDHTs)
 				future.complete(results);
 		};
 
@@ -433,16 +434,17 @@ public class Node {
 	}
 
 	public CompletableFuture<Value> findValue(Id id) throws KadException {
-		return findValue(id, defaultLookupOption);
+		return findValue(id, null);
 	}
 
 	public CompletableFuture<Value> findValue(Id id, LookupOption option) throws KadException {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid value id");
-		checkArgument(option != null, "Invalid lookup option");
+
+		LookupOption lookupOption = option == null ? defaultLookupOption : option;
 
 		Value local = getStorage().getValue(id);
-		if (local != null && option == LookupOption.ARBITRARY)
+		if (local != null && lookupOption == LookupOption.ARBITRARY)
 			return CompletableFuture.completedFuture(local);
 
 		TaskFuture<Value> future = new TaskFuture<>();
@@ -467,7 +469,7 @@ public class Node {
 				}
 			}
 
-			if ((option == LookupOption.OPTIMISTIC && v != null) || c >= numDHTs) {
+			if ((lookupOption == LookupOption.OPTIMISTIC && v != null) || c >= numDHTs) {
 				Value value = valueRef.get();
 				if (value != null) {
 					try {
@@ -483,12 +485,12 @@ public class Node {
 
 		Task t4 = null, t6 = null;
 		if (dht4 != null) {
-			t4 = dht4.findValue(id, option, completeHandler);
+			t4 = dht4.findValue(id, lookupOption, completeHandler);
 			future.addTask(t4);
 		}
 
 		if (dht6 != null) {
-			t6 = dht6.findValue(id, option, completeHandler);
+			t6 = dht6.findValue(id, lookupOption, completeHandler);
 			future.addTask(t6);
 		}
 
@@ -530,10 +532,13 @@ public class Node {
 		return future;
 	}
 
+	public CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected) throws KadException {
+		return findPeer(id, expected, null);
+	}
+	
 	public CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected, LookupOption option) throws KadException {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid peer id");
-		checkArgument(option != null, "Invalid lookup option");
 
 		int family = 0;
 
@@ -542,9 +547,11 @@ public class Node {
 
 		if (dht6 != null)
 			family += 6;
+		
+		LookupOption lookupOption = option == null ? defaultLookupOption : option;		
 
 		List<PeerInfo> local = getStorage().getPeer(id, family, expected);
-		if (expected > 0 && local.size() >= expected && option == LookupOption.ARBITRARY)
+		if (expected > 0 && local.size() >= expected && lookupOption == LookupOption.ARBITRARY)
 			return CompletableFuture.completedFuture(local);
 
 		TaskFuture<List<PeerInfo>> future = new TaskFuture<>();
@@ -571,7 +578,7 @@ public class Node {
 				log.error("Save peer " + id + " failed", ignore);
 			}
 
-			if ((option == LookupOption.OPTIMISTIC && expected > 0 && ps.size() >= expected) || c >= numDHTs) {
+			if ((lookupOption == LookupOption.OPTIMISTIC && expected > 0 && ps.size() >= expected) || c >= numDHTs) {
 				Collections.shuffle(results);
 				future.complete(results);
 			}
@@ -579,12 +586,12 @@ public class Node {
 
 		Task t4 = null, t6 = null;
 		if (dht4 != null) {
-			t4 = dht4.findPeer(id, expected, option, completeHandler);
+			t4 = dht4.findPeer(id, expected, lookupOption, completeHandler);
 			future.addTask(t4);
 		}
 
 		if (dht6 != null) {
-			t6 = dht6.findPeer(id, expected, option, completeHandler);
+			t6 = dht6.findPeer(id, expected, lookupOption, completeHandler);
 			future.addTask(t6);
 		}
 

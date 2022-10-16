@@ -4,38 +4,44 @@ set -e
 
 case "$1" in
   purge)
-    if [ -d /var/lib/carrier ]; then
-      rm -rf /var/lib/carrier
+    if [ -d /usr/lib/carrier ]; then
+      rm -rf /usr/lib/carrier
     fi
     if [ -d /var/run/carrier ]; then
       rm -rf /var/run/carrier
     fi
+    if [ -d /var/log/carrier ]; then
+      rm -rf /var/log/carrier
+    fi
+    if [ -d /var/lib/carrier ]; then
+      # Not purge the carrier key and id files
+      find /var/lib/carrier -type f -not \( -name 'id' -or -name 'key' \) -print0 | xargs -0 -I {} rm -rf {}
+      rmdir /var/lib/carrier 2>/dev/null || true
+    fi
   ;;
 esac
 
-# Automatically added by dh_installinit
+# Begin postrm_init
 if [ "$1" = "purge" ] ; then
 	update-rc.d carrier remove >/dev/null
 fi
+# End postrm_init
 
-
-# In case this system is running systemd, we make systemd reload the unit files
-# to pick up changes.
-if [ -d /run/systemd/system ] ; then
+# Begin postrm_systemd
+if [ -d /run/systemd/system ]; then
 	systemctl --system daemon-reload >/dev/null || true
 fi
-# End automatically added section
-# Automatically added by dh_systemd_enable
+
 if [ "$1" = "remove" ]; then
 	if [ -x "/usr/bin/deb-systemd-helper" ]; then
-		deb-systemd-helper mask carrier.service >/dev/null
+		deb-systemd-helper mask 'carrier.service' >/dev/null || true
 	fi
 fi
 
 if [ "$1" = "purge" ]; then
 	if [ -x "/usr/bin/deb-systemd-helper" ]; then
-		deb-systemd-helper purge carrier.service >/dev/null
-		deb-systemd-helper unmask carrier.service >/dev/null
+		deb-systemd-helper purge 'carrier.service' >/dev/null || true
+		deb-systemd-helper unmask 'carrier.service' >/dev/null || true
 	fi
 fi
-# End automatically added section
+# End postrm_systemd

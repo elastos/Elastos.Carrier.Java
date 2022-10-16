@@ -3,7 +3,7 @@
 set -e
 
 case "$1" in
-  upgrade)
+  upgrade) 
   ;;
   install|abort-upgrade)
   ;;
@@ -12,3 +12,23 @@ case "$1" in
     exit 1
   ;;
 esac
+
+# Begin preinst
+if ( [ "$1" = "install" ] || [ "$1" = "upgrade" ] ) && [ -d /usr/lib/carrier ]; then
+	if [ -x "/etc/init.d/carrier" ]; then
+		invoke-rc.d carrier stop || exit $?
+	fi
+	
+	if [ -d /run/systemd/system ]; then
+		deb-systemd-invoke stop 'carrier.service' >/dev/null || true
+	fi
+
+	if [ -d /usr/lib/carrier/lib ]; then
+		BACKUP_DIR=/usr/lib/carrier/lib/backup-`date +"%Y%m%d%H%M%S"`
+		mkdir $BACKUP_DIR
+		mv /usr/lib/carrier/lib/*.jar $BACKUP_DIR 2>/dev/null || true
+	fi
+fi
+# End preinst
+
+exit 0
