@@ -93,7 +93,7 @@ public class SQLiteStorage implements DataStorage {
 
 	private ScheduledFuture<?> expireFuture;
 
-	private static final Logger log = LoggerFactory.getLogger(MapDBStorage.class);
+	private static final Logger log = LoggerFactory.getLogger(SQLiteStorage.class);
 
 	public static DataStorage open(File path, ScheduledExecutorService scheduler) throws KadException {
 		SQLiteStorage storage = new SQLiteStorage();

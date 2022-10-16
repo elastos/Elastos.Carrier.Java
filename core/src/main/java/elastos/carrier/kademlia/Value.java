@@ -176,10 +176,10 @@ public class Value {
 		if (data == null || data.length == 0)
 			return false;
 
-		if (nonce == null || nonce.length != CryptoBox.Nonce.length())
-			return false;
-
 		if (isMutable()) {
+			if (nonce == null || nonce.length != CryptoBox.Nonce.length())
+				return false;
+
 			if (signature == null || signature.length != Signature.length())
 				return false;
 

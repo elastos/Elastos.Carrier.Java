@@ -2,6 +2,6 @@
 
 PRGDIR=`dirname $0`
 
-[ -f "$CARRIER_HOME"/bin/carrier ] || CARRIER_HOME=`cd "$PRGDIR/.." ; pwd`
+[ -f "$CARRIER_HOME"/bin/carrier-shell ] || CARRIER_HOME=`cd "$PRGDIR/.." ; pwd`
 
 java -cp "$CARRIER_HOME/lib/*" -Delastos.carrier.enviroment=development $JAVA_OPTS elastos.carrier.node.Shell $*
