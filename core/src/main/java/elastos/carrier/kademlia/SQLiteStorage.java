@@ -376,8 +376,11 @@ public class SQLiteStorage implements DataStorage {
 		} else {
 			return Collections.emptyList();
 		}
-
-		List<PeerInfo> peers = new ArrayList<>(maxPeers * families.size());
+		
+		if (maxPeers <=0)
+			maxPeers = Integer.MAX_VALUE;
+		
+		List<PeerInfo> peers = new ArrayList<>((maxPeers > 64 ? 16 : maxPeers) * families.size());
 		for (int f : families) {
 			try (PreparedStatement stmt = connection.prepareStatement(SELECT_PEER)) {
 				long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;

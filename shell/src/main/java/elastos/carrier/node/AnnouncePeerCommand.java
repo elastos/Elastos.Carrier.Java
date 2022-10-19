@@ -22,31 +22,29 @@
 
 package elastos.carrier.node;
 
+import java.text.Normalizer;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
 import elastos.carrier.kademlia.Id;
+import elastos.carrier.utils.ThreadLocals;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
 @Command(name = "announcepeer", mixinStandardHelpOptions = true, version = "Carrier announcepeer 2.0",
 		description = "Announce a service peer.")
 public class AnnouncePeerCommand implements Callable<Integer> {
-	@Parameters(paramLabel = "ID", index = "0", description = "The service peer id to be announce.")
-	private String target;
+	@Parameters(paramLabel = "NAME", index = "0", description = "The service name to be announce.")
+	private String name;
 
 	@Parameters(paramLabel = "PORT", index = "1", description = "The service port to be announce.")
 	private int port = 0;
 
 	@Override
 	public Integer call() throws Exception {
-		Id id = null;
-		try {
-			id = new Id(target);
-		} catch (Exception e) {
-			System.out.println("Invalid ID: " + target);
-			return -1;
-		}
+		String nname = Normalizer.normalize(name.trim().toLowerCase(), Normalizer.Form.NFC);
+		byte[] digest = ThreadLocals.sha256().digest(nname.getBytes());
+		Id id = new Id(digest);
 
 		if (port <= 0) {
 			System.out.println("Invalid port: " + port);

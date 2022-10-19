@@ -22,6 +22,7 @@
 
 package elastos.carrier.node;
 
+import java.text.Normalizer;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -29,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import elastos.carrier.kademlia.Id;
 import elastos.carrier.kademlia.LookupOption;
 import elastos.carrier.kademlia.PeerInfo;
+import elastos.carrier.utils.ThreadLocals;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -42,8 +44,8 @@ public class FindPeerCommand implements Callable<Integer> {
 	@Option(names = { "-x", "--expected-count" }, description = "expected number of peers")
 	private int expected = -1;
 
-	@Parameters(paramLabel = "ID", index = "0", description = "The target peer id to be find.")
-	private String target;
+	@Parameters(paramLabel = "NAME", index = "0", description = "The service name to be find.")
+	private String name;
 
 	@Override
 	public Integer call() throws Exception {
@@ -55,13 +57,9 @@ public class FindPeerCommand implements Callable<Integer> {
 			return -1;
 		}
 
-		Id id = null;
-		try {
-			id = new Id(target);
-		} catch (Exception e) {
-			System.out.println("Invalid ID: " + target);
-			return -1;
-		}
+		String nname = Normalizer.normalize(name.trim().toLowerCase(), Normalizer.Form.NFC);
+		byte[] digest = ThreadLocals.sha256().digest(nname.getBytes());
+		Id id = new Id(digest);
 
 		CompletableFuture<List<PeerInfo>> f = Shell.getCarrierNode().findPeer(id, expected, option);
 		List<PeerInfo> pl = f.get();
