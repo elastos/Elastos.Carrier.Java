@@ -103,14 +103,14 @@ public class PeerInfo {
 
 	@Override
 	public int hashCode() {
-		return addr.getAddress().hashCode();
+		return nodeId.hashCode() + addr.hashCode() + 0x70; // 'p'
 	}
 
 	@Override
 	public boolean equals(Object o) {
 		if (o instanceof PeerInfo) {
-			PeerInfo ni = (PeerInfo) o;
-			return ni.addr.equals(addr);
+			PeerInfo other = (PeerInfo) o;
+			return this.nodeId.equals(other.nodeId) && this.addr.equals(other.addr);
 		}
 		return false;
 	}

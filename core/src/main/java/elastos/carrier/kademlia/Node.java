@@ -33,6 +33,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
@@ -564,7 +565,7 @@ public class Node {
 		// However, it has been my experience that both objects have been
 		// added fine. Most of the thread safety issues related to lists
 		// deal with iteration while adding/removing.
-		List<PeerInfo> results = new ArrayList<>(local);
+		HashSet<PeerInfo> results = new HashSet<>(local);
 
 		// TODO: improve the value handler
 		Consumer<Collection<PeerInfo>> completeHandler = (ps) -> {
@@ -579,8 +580,9 @@ public class Node {
 			}
 
 			if ((lookupOption == LookupOption.OPTIMISTIC && expected > 0 && ps.size() >= expected) || c >= numDHTs) {
-				Collections.shuffle(results);
-				future.complete(results);
+				ArrayList<PeerInfo> list = new ArrayList<>(results);
+				Collections.shuffle(list);
+				future.complete(list);
 			}
 		};
 
