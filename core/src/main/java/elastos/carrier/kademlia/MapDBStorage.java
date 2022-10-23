@@ -461,7 +461,7 @@ public class MapDBStorage implements DataStorage {
 				in.readFully(data);
 			}
 
-			Value value = new Value(publicKey, privateKey, recipient, nonce, sig, seq, data);
+			Value value = new Value(publicKey, privateKey, recipient, nonce, seq, sig, data);
 			return new ValueEntry(timestamp, value);
 		}
 	}

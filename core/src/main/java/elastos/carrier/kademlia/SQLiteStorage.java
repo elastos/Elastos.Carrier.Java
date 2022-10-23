@@ -237,7 +237,7 @@ public class SQLiteStorage implements DataStorage {
 				int sequenceNumber = rs.getInt("sequenceNumber");
 				byte[] data = rs.getBytes("data");
 
-				return new Value(publicKey, privateKey, recipient, nonce, signature, sequenceNumber, data);
+				return new Value(publicKey, privateKey, recipient, nonce, sequenceNumber, signature, data);
 			}
 		} catch (SQLException e) {
 			log.error("SQLite storage encounter an error: " + e.getMessage(), e);
@@ -376,10 +376,10 @@ public class SQLiteStorage implements DataStorage {
 		} else {
 			return Collections.emptyList();
 		}
-		
+
 		if (maxPeers <=0)
 			maxPeers = Integer.MAX_VALUE;
-		
+
 		List<PeerInfo> peers = new ArrayList<>((maxPeers > 64 ? 16 : maxPeers) * families.size());
 		for (int f : families) {
 			try (PreparedStatement stmt = connection.prepareStatement(SELECT_PEER)) {

@@ -120,7 +120,7 @@ public class Node {
 			File idFile = new File(config.storagePath(), "id");
 			writeIdFile(idFile);
 		}
-		
+
 		log.info("Carrier Kademlia node: {}", id);
 
 		statusListeners = new ArrayList<>(4);
@@ -169,7 +169,7 @@ public class Node {
 			}
 		}
 	}
-	
+
 	private void writeIdFile(File idFile) throws KadException {
 		if (idFile != null) {
 			try (FileOutputStream os = new FileOutputStream(idFile)) {
@@ -385,7 +385,7 @@ public class Node {
 	public CompletableFuture<List<NodeInfo>> findNode(Id id, LookupOption option) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid node id");
-		
+
 		LookupOption lookupOption = option == null ? defaultLookupOption : option;
 
 		List<NodeInfo> results = new ArrayList<NodeInfo>(2);
@@ -434,23 +434,28 @@ public class Node {
 		return future;
 	}
 
-	public CompletableFuture<Value> findValue(Id id) throws KadException {
+	public CompletableFuture<Value> findValue(Id id) {
 		return findValue(id, null);
 	}
 
-	public CompletableFuture<Value> findValue(Id id, LookupOption option) throws KadException {
+	public CompletableFuture<Value> findValue(Id id, LookupOption option) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid value id");
 
 		LookupOption lookupOption = option == null ? defaultLookupOption : option;
 
-		Value local = getStorage().getValue(id);
-		if (local != null && lookupOption == LookupOption.ARBITRARY)
-			return CompletableFuture.completedFuture(local);
+		Value local = null;
+		try {
+			local = getStorage().getValue(id);
+			if (local != null && lookupOption == LookupOption.ARBITRARY)
+				return CompletableFuture.completedFuture(local);
+		} catch (KadException e) {
+			return CompletableFuture.failedFuture(e);
+		}
 
 		TaskFuture<Value> future = new TaskFuture<>();
 		AtomicInteger completion = new AtomicInteger(0);
-		AtomicReference<Value> valueRef = new AtomicReference<>(null);
+		AtomicReference<Value> valueRef = new AtomicReference<>(local);
 
 		// TODO: improve the value handler
 		Consumer<Value> completeHandler = (v) -> {
@@ -458,9 +463,6 @@ public class Node {
 
 			if (v != null) {
 				synchronized(valueRef) {
-					if (valueRef.get() == null && local != null)
-						valueRef.set(local);
-
 					if (valueRef.get() == null) {
 						valueRef.set(v);
 					} else {
@@ -505,9 +507,7 @@ public class Node {
 		try {
 			getStorage().putValue(value);
 		} catch(KadException e) {
-			CompletableFuture<Void> future = new CompletableFuture<>();
-			future.completeExceptionally(e);
-			return future;
+			return CompletableFuture.failedFuture(e);
 		}
 
 		TaskFuture<Void> future = new TaskFuture<>();
@@ -533,11 +533,11 @@ public class Node {
 		return future;
 	}
 
-	public CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected) throws KadException {
+	public CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected) {
 		return findPeer(id, expected, null);
 	}
-	
-	public CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected, LookupOption option) throws KadException {
+
+	public CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected, LookupOption option) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid peer id");
 
@@ -548,12 +548,17 @@ public class Node {
 
 		if (dht6 != null)
 			family += 6;
-		
-		LookupOption lookupOption = option == null ? defaultLookupOption : option;		
 
-		List<PeerInfo> local = getStorage().getPeer(id, family, expected);
-		if (expected > 0 && local.size() >= expected && lookupOption == LookupOption.ARBITRARY)
-			return CompletableFuture.completedFuture(local);
+		LookupOption lookupOption = option == null ? defaultLookupOption : option;
+
+		List<PeerInfo> local;
+		try {
+			local = getStorage().getPeer(id, family, expected);
+			if (expected > 0 && local.size() >= expected && lookupOption == LookupOption.ARBITRARY)
+				return CompletableFuture.completedFuture(local);
+		} catch (KadException e) {
+			return CompletableFuture.failedFuture(e);
+		}
 
 		TaskFuture<List<PeerInfo>> future = new TaskFuture<>();
 		AtomicInteger completion = new AtomicInteger(0);
@@ -605,6 +610,9 @@ public class Node {
 		checkArgument(id != null, "Invalid peer id");
 		checkArgument(port != 0, "Invaid peer port");
 
+		// TODO: can not create a peer with local address.
+		//       how to get the public peer address?
+		/*
 		PeerInfo peer4 = null, peer6 = null;
 		if (dht4 != null)
 			peer4 = new PeerInfo(getId(), dht4.getServer().getAddress().getAddress(), port);
@@ -618,10 +626,9 @@ public class Node {
 			if (peer6 != null)
 				getStorage().putPeer(id, peer6);
 		} catch(KadException e) {
-			CompletableFuture<Void> future = new CompletableFuture<>();
-			future.completeExceptionally(e);
-			return future;
+			return CompletableFuture.failedFuture(e);
 		}
+		*/
 
 		TaskFuture<Void> future = new TaskFuture<>();
 		AtomicInteger completion = new AtomicInteger(0);
@@ -662,6 +669,10 @@ public class Node {
 		CryptoBox.Nonce nonce = CryptoBox.Nonce.random();
 
 		return new Value(kp, recipient, nonce, 0, data);
+	}
+
+	public Value createRawValue(Id id, Id recipient, byte[] nonce, int seq, byte[] sig, byte[] data) {
+		return new Value(id, recipient, nonce, seq, sig, data);
 	}
 
 	public Value updateValue(Id valueId, byte[] data) throws KadException {

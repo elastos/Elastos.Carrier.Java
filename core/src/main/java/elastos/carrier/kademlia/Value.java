@@ -48,14 +48,14 @@ public class Value {
 	}
 
 	protected Value(byte[] data) {
-		this(null, null, null, null, null, 0, data);
+		this(null, null, null, null, 0, null, data);
 	}
 
-	protected Value(Id publicKey, Id recipient, byte[] nonce, byte[] signature, int sequenceNumber, byte[] data) {
-		this(publicKey, null, recipient, nonce, signature, sequenceNumber, data);
+	protected Value(Id publicKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
+		this(publicKey, null, recipient, nonce, sequenceNumber, signature, data);
 	}
 
-	protected Value(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, byte[] signature, int sequenceNumber, byte[] data) {
+	protected Value(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
 		this.publicKey = publicKey;
 		this.privateKey = privateKey;
 		this.recipient = recipient;
@@ -103,12 +103,12 @@ public class Value {
 
 	public static Value of(StoreValueRequest request) {
 		return new Value(request.getPublicKey(), request.getRecipient(), request.getNonce(),
-				request.getSignature(), request.getSequenceNumber(), request.getValue());
+				request.getSequenceNumber(), request.getSignature(), request.getValue());
 	}
 
 	public static Value of(FindValueResponse response) {
 		return new Value(response.getPublicKey(), response.getRecipient(), response.getNonce(),
-				response.getSignature(), response.getSequenceNumber(), response.getValue());
+				response.getSequenceNumber(), response.getSignature(), response.getValue());
 	}
 
 	public Id getId() {
