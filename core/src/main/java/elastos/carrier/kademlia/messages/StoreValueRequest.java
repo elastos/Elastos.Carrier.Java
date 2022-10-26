@@ -118,6 +118,11 @@ public class StoreValueRequest extends Message {
 		return Value.calculateId(publicKey, nonce, value);
 	}
 
+	public Value toValue() {
+		return new Value(getPublicKey(), getRecipient(), getNonce(),
+				getSequenceNumber(), getSignature(), getValue());
+	}
+
 	@Override
 	protected void serialize(JsonGenerator gen) throws IOException {
 		gen.writeFieldName(getType().toString());

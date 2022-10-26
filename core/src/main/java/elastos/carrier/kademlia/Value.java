@@ -44,18 +44,18 @@ public class Value {
 	private int sequenceNumber;
 	private byte[] data;
 
-	protected Value() {
+	public Value() {
 	}
 
-	protected Value(byte[] data) {
+	public Value(byte[] data) {
 		this(null, null, null, null, 0, null, data);
 	}
 
-	protected Value(Id publicKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
+	public Value(Id publicKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
 		this(publicKey, null, recipient, nonce, sequenceNumber, signature, data);
 	}
 
-	protected Value(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
+	public Value(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
 		this.publicKey = publicKey;
 		this.privateKey = privateKey;
 		this.recipient = recipient;
@@ -65,11 +65,11 @@ public class Value {
 		this.data = data;
 	}
 
-	protected Value(Signature.KeyPair keypair ,CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoError {
+	public Value(Signature.KeyPair keypair ,CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoError {
 		this(keypair, null, nonce, sequenceNumber, data);
 	}
 
-	protected Value(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoError {
+	public Value(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoError {
 		this.publicKey = new Id(keypair.publicKey().bytes());
 		this.privateKey = keypair.privateKey().bytes();
 		this.recipient = recipient;

@@ -134,13 +134,13 @@ public class Shell  implements Callable<Integer> {
 
 		if (addr4 != null)
 			config.setIPv4Address(addr4);
-		
+
 		if (addr6 != null)
 			config.setIPv6Address(addr6);
-		
+
 		if (port != 0)
 			config.setListeningPort(port);
-		
+
 		if (dataDir != null)
 			config.setStoragePath(dataDir);
 	}

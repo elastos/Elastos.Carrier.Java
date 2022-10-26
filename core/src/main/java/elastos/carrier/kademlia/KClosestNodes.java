@@ -66,7 +66,7 @@ public class KClosestNodes {
 		return entries.size();
 	}
 
-	private void insertBucket(KBucket bucket) {
+	private void insertEntries(KBucket bucket) {
 		bucket.stream().filter(filter).forEach(entries::add);
 	}
 
@@ -89,7 +89,7 @@ public class KClosestNodes {
 
 		final int idx = RoutingTable.indexOf(buckets, target);
 		KBucket bucket = buckets.get(idx);
-		insertBucket(bucket);
+		insertEntries(bucket);
 
 		int low = idx;
 		int high = idx;
@@ -108,23 +108,23 @@ public class KClosestNodes {
 
 			if (lowBucket == null) {
 				high++;
-				insertBucket(highBucket);
+				insertEntries(highBucket);
 			} else if (highBucket == null) {
 				low--;
-				insertBucket(lowBucket);
+				insertEntries(lowBucket);
 			} else {
 				int dir = target.threeWayCompare(lowBucket.prefix().last(), highBucket.prefix().first());
 				if (dir < 0) {
 					low--;
-					insertBucket(lowBucket);
+					insertEntries(lowBucket);
 				} else if (dir > 0) {
 					high++;
-					insertBucket(highBucket);
+					insertEntries(highBucket);
 				} else {
 					low--;
 					high++;
-					insertBucket(lowBucket);
-					insertBucket(highBucket);
+					insertEntries(lowBucket);
+					insertEntries(highBucket);
 				}
 			}
 		}

@@ -25,6 +25,7 @@ package elastos.carrier.kademlia.tasks;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -32,20 +33,19 @@ import java.util.stream.Stream;
 import elastos.carrier.kademlia.Constants;
 import elastos.carrier.kademlia.Id;
 import elastos.carrier.kademlia.NodeInfo;
-import io.vertx.core.impl.ConcurrentHashSet;
 
 public class ClosestCandidates {
 	private final Id target;
 	private final int capacity;
 	private final ConcurrentSkipListMap<Id, CandidateNode> closest;
-	private final ConcurrentHashSet<Object> dedup;
+	private final ConcurrentSkipListSet<Object> dedup;
 
 	public ClosestCandidates(Id target, int capacity) {
 		this.target = target;
 		this.capacity = capacity;
 
 		closest = new ConcurrentSkipListMap<>(target::threeWayCompare);
-		dedup = new ConcurrentHashSet<>();
+		dedup = new ConcurrentSkipListSet<>();
 	}
 
 	boolean reachedCapacity() {
@@ -70,20 +70,17 @@ public class ClosestCandidates {
 	public void add(Collection<? extends NodeInfo> nodes) {
 		synchronized (closest) {
 			for (NodeInfo node : nodes) {
-				if (!dedup.add(nodes)) // existing node id
+				// Check existing node id
+				if (!dedup.add(node.getId()))
 					continue;
 
-				if (Constants.DEVELOPMENT_ENVIRONMENT) {
-					// develop env: existing socket address
-					if (!dedup.add(node.getAddress()))
-						continue;
-				} else {
-					// product env: existing ip address
-					if (!dedup.add(node.getAddress().getAddress()))
-						continue;
-				}
+				// Check existing:
+				// - develop env: existing socket address
+				// - product env: existing ip address
+				Object addr = Constants.DEVELOPMENT_ENVIRONMENT ?
+						node.getAddress() : node.getAddress().getAddress();
 
-				if (closest.containsKey(node.getId()))
+				if (!dedup.add(addr))
 					continue;
 
 				CandidateNode cn = new CandidateNode(node);

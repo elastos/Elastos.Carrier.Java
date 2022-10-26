@@ -258,9 +258,7 @@ public class Node {
 
 	private int getPort() {
 		int port = config.listeningPort();
-		if (port < 1 || port > 65535)
-			port = Constants.DEFAULT_DHT_PORT;
-		return port;
+		return port <= 0 || port > 65535 ? Constants.DEFAULT_DHT_PORT : port;
 	}
 
 	public void bootstrap(NodeInfo node) throws KadException {

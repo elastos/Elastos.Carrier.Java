@@ -28,6 +28,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 import elastos.carrier.kademlia.Id;
+import elastos.carrier.kademlia.Value;
 import elastos.carrier.utils.Hex;
 
 public class FindValueResponse extends LookupResponse {
@@ -92,6 +93,11 @@ public class FindValueResponse extends LookupResponse {
 
 	public void setValue(byte[] value) {
 		this.value = value;
+	}
+
+	public Value toValue() {
+		return new Value(getPublicKey(), getRecipient(), getNonce(),
+				getSequenceNumber(), getSignature(), getValue());
 	}
 
 	@Override
