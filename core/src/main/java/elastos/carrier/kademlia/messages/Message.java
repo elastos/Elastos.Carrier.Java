@@ -35,10 +35,10 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
-import elastos.carrier.kademlia.Id;
+import elastos.carrier.Id;
+import elastos.carrier.Version;
 import elastos.carrier.kademlia.RPCCall;
 import elastos.carrier.kademlia.RPCServer;
-import elastos.carrier.kademlia.Version;
 import elastos.carrier.utils.Functional.ThrowingSupplier;
 import elastos.carrier.utils.ThreadLocals;
 
@@ -264,7 +264,7 @@ public abstract class Message {
 
 		if (id != null) {
 			gen.writeFieldName("i");
-			gen.writeBinary(id.getBytes());
+			gen.writeBinary(id.bytes());
 		}
 
 		gen.writeFieldName("t");
@@ -362,7 +362,7 @@ public abstract class Message {
 
 					case "i":
 						try {
-							msg.id = new Id(parser.getBinaryValue());
+							msg.id = Id.of(parser.getBinaryValue());
 						} catch (IllegalArgumentException e) {
 							throw new MessageException("Invalid node id for 'i'").setPartialMessage(PartialMessage.of(msg));
 						}

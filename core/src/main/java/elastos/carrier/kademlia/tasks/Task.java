@@ -35,9 +35,9 @@ import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 
+import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.Constants;
 import elastos.carrier.kademlia.DHT;
-import elastos.carrier.kademlia.NodeInfo;
 import elastos.carrier.kademlia.RPCCall;
 import elastos.carrier.kademlia.RPCCallListener;
 import elastos.carrier.kademlia.messages.Message;

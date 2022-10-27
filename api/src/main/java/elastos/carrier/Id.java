@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.kademlia;
+package elastos.carrier;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
@@ -32,11 +32,11 @@ import elastos.carrier.utils.Base58;
 import elastos.carrier.utils.Hex;
 
 public class Id implements Comparable<Id> {
-	public final transient static int BIT_LENGTH = 256;
-	public final transient static int BYTE_LENGTH = BIT_LENGTH >> 3;
+	public static final int SIZE = 256;
+	public static final int BYTES = SIZE / Byte.SIZE;
 
-	public static final Id MIN_ID = new Id();
-	public static final Id MAX_ID = new Id("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+	public static final Id MIN_ID = Id.zero();
+	public static final Id MAX_ID = Id.ofHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
 
 	// the performance for raw bytes is much better then BigInteger
 	private byte[] bytes;
@@ -60,24 +60,25 @@ public class Id implements Comparable<Id> {
 	/**
 	 * Construct a random kademlia Id.
 	 */
-	public Id() {
-		bytes = new byte[BYTE_LENGTH];
+	protected Id() {
+		bytes = new byte[BYTES];
 	}
 
 	/**
-	 * Construct the kademlia Id from string.
-	 *
-	 * @param hexId the id string
+	 * Construct a random kademlia Id.
 	 */
-	public Id(String hexId) {
-		int pos = 0;
-		if (hexId.startsWith("0x"))
-			pos = 2;
+	protected Id(Id id) {
+		this(id.bytes);
+	}
 
-		if (hexId.length() != BYTE_LENGTH * 2 + pos)
-			throw new IllegalArgumentException("Hex ID string should be " + BYTE_LENGTH * 2 + " characters long.");
 
-		this.bytes = Hex.decode(hexId, pos, BYTE_LENGTH * 2);
+	/**
+	 * Construct the kademlia Id from a given binary id
+	 *
+	 * @param id the binary id in bytes
+	 */
+	protected Id(byte[] id) {
+		this.bytes = id.clone();
 	}
 
 	/**
@@ -85,11 +86,11 @@ public class Id implements Comparable<Id> {
 	 *
 	 * @param id the binary id in bytes
 	 */
-	public Id(byte[] id) {
-		if (id.length != BYTE_LENGTH)
-			throw new IllegalArgumentException("Binary id should be " + BYTE_LENGTH + " bytes long.");
+	public static Id of(byte[] id) {
+		if (id.length != BYTES)
+			throw new IllegalArgumentException("Binary id should be " + BYTES + " bytes long.");
 
-		this.bytes = id.clone();
+		return new Id(id);
 	}
 
 	/**
@@ -97,8 +98,44 @@ public class Id implements Comparable<Id> {
 	 *
 	 * @param id Id to clone
 	 */
-	public Id(Id id) {
-		this.bytes = id.bytes.clone();
+	public static Id of(Id id) {
+		return new Id(id);
+	}
+
+	public static Id of(String id) {
+		return id.startsWith("0x") ? ofHex(id) : ofBase58(id);
+	}
+
+	/**
+	 * Create a Carrier Id from hex string.
+	 *
+	 * @param hexId the id string
+	 */
+	public static Id ofHex(String hexId) {
+		int pos = hexId.startsWith("0x") ? 2 : 0;
+		if (hexId.length() != BYTES * 2 + pos)
+			throw new IllegalArgumentException("Hex ID string should be " + BYTES * 2 + " characters long.");
+
+		return of(Hex.decode(hexId, pos, BYTES * 2));
+	}
+
+	/**
+	 * Create a Carrier Id from base58 string.
+	 *
+	 * @param base58Id the id string
+	 */
+	public static Id ofBase58(String base58Id) {
+		return of(Base58.decode(base58Id));
+	}
+
+	public static Id ofBit(int idx) {
+		Id id = new Id();
+		id.bytes[idx / 8] = (byte)(0x80 >>> (idx % 8));
+		return id;
+	}
+
+	public static Id zero() {
+		return new Id();
 	}
 
 	public static Id random() {
@@ -107,58 +144,32 @@ public class Id implements Comparable<Id> {
 		return id;
 	}
 
-	public static Id bitOf(int idx) {
-		Id id = new Id();
-		id.bytes[idx / 8] = (byte)(0x80 >>> (idx % 8));
-		return id;
+	public byte[] getBytes() {
+		return bytes.clone();
 	}
 
-	public byte[] getBytes() {
+	public byte[] bytes() {
 		return bytes;
 	}
 
 	public int getInt(int offset) {
-		byte[] b = bytes;
-		return Byte.toUnsignedInt(b[offset]) << 24 |
-				Byte.toUnsignedInt(b[offset+1]) << 16 |
-				Byte.toUnsignedInt(b[offset+2]) << 8 |
-				Byte.toUnsignedInt(b[offset+3]);
-	}
-
-	/**
-	 * @return The BigInteger representation of the key
-	 */
-	public BigInteger toInteger() {
-		return new BigInteger(1, this.bytes);
-	}
-
-	/**
-	 * @return The hex string representation of the key
-	 */
-	public String toHexString() {
-		return Hex.encode(bytes);
-	}
-
-	public String toBase58String() {
-		return Base58.encode(bytes);
-	}
-
-	public String toBinaryString() {
-		StringBuilder repr = new StringBuilder(BIT_LENGTH + (BIT_LENGTH >>> 2));
-		for(int i = 0; i < BIT_LENGTH; i++) {
-			repr.append((bytes[i >>> 3] & (0x80 >> (i & 0x07))) != 0 ? '1' : '0');
-			if ((i & 0x03) == 0x03) repr.append(' ');
-		}
-		return repr.toString();
+		return Byte.toUnsignedInt(bytes[offset]) << 24 |
+				Byte.toUnsignedInt(bytes[offset+1]) << 16 |
+				Byte.toUnsignedInt(bytes[offset+2]) << 8 |
+				Byte.toUnsignedInt(bytes[offset+3]);
 	}
 
 	public Id add(Id id) {
 		Id result = new Id();
 
+		byte[] a = bytes;
+		byte[] b = id.bytes;
+		byte[] r = result.bytes;
+
 		int carry = 0;
-		for(int i = BYTE_LENGTH - 1; i >= 0; i--) {
-			carry = (bytes[i] & 0xff) + (id.bytes[i] & 0xff) + carry;
-			result.bytes[i] = (byte)(carry & 0xff);
+		for(int i = BYTES - 1; i >= 0; i--) {
+			carry = (a[i] & 0xff) + (b[i] & 0xff) + carry;
+			r[i] = (byte)(carry & 0xff);
 			carry >>>= 8;
 		}
 
@@ -176,12 +187,17 @@ public class Id implements Comparable<Id> {
 		return distance(this, to);
 	}
 
-	public static Id distance(Id i1, Id i2) {
-		Id id = new Id();
-		for (int i = 0; i < BYTE_LENGTH; i++)
-			id.bytes[i] = (byte) (i1.bytes[i] ^ i2.bytes[i]);
+	public static Id distance(Id id1, Id id2) {
+		Id result = new Id();
 
-		return id;
+		byte[] r = result.bytes;
+		byte[] a = id1.bytes;
+		byte[] b = id2.bytes;
+
+		for (int i = 0; i < BYTES; i++)
+			r[i] = (byte) (a[i] ^ b[i]);
+
+		return result;
 	}
 
 	/**
@@ -191,21 +207,21 @@ public class Id implements Comparable<Id> {
 	 * @return the newly generated Id
 	 */
 	public Id getIdByDistance(int distance) {
-		byte[] result = new byte[BYTE_LENGTH];
+		byte[] result = new byte[BYTES];
 
-		int zeroBytes = (BIT_LENGTH - distance) / 8;
-		int zeroBits = (BIT_LENGTH - distance) % 8;
+		int zeroBytes = (SIZE - distance) / 8;
+		int zeroBits = (SIZE - distance) % 8;
 
 		// new byte array is initialized with all zeroes
 		// Arrays.fill(result, 0, zeroBytes, (byte)0);
 
-		if (zeroBytes < BYTE_LENGTH) {
+		if (zeroBytes < BYTES) {
 			result[zeroBytes] = (byte)(0xFF >>> zeroBits);
 
-			Arrays.fill(result, zeroBytes + 1, BYTE_LENGTH, (byte) 0xFF);
+			Arrays.fill(result, zeroBytes + 1, BYTES, (byte) 0xFF);
 		}
 
-		return this.distance(new Id(result));
+		return this.distance(Id.of(result));
 	}
 
 	/**
@@ -224,7 +240,7 @@ public class Id implements Comparable<Id> {
 		 * Compute the xor of this and to Get the index i of the first set bit of the
 		 * xor returned NodeId The distance between them is ID_LENGTH - i
 		 */
-		return BIT_LENGTH - id1.distance(id2).getLeadingZeros();
+		return SIZE - id1.distance(id2).getLeadingZeros();
 	}
 
 	/**
@@ -233,14 +249,14 @@ public class Id implements Comparable<Id> {
 	 * @return -1 if k1 is closer to this key, 0 if k1 and k2 are equal distant, 1 if
 	 *         k2 is closer
 	 */
-	public int threeWayCompare(Id i1, Id i2) {
-		int mmi = Arrays.mismatch(i1.bytes, i2.bytes);
+	public int threeWayCompare(Id id1, Id id2) {
+		int mmi = Arrays.mismatch(id1.bytes, id2.bytes);
 		if (mmi == -1)
 			return 0;
 
 		int r = bytes[mmi] & 0xff;
-		int a = i1.bytes[mmi] & 0xff;
-		int b = i2.bytes[mmi] & 0xff;
+		int a = id1.bytes[mmi] & 0xff;
+		int b = id2.bytes[mmi] & 0xff;
 
 		return Integer.compareUnsigned(a ^ r, b ^ r);
 	}
@@ -254,10 +270,10 @@ public class Id implements Comparable<Id> {
 		int msb = 0;
 
 		int i;
-		for (i = 0; i < BYTE_LENGTH && bytes[i] == 0; i++);
+		for (i = 0; i < BYTES && bytes[i] == 0; i++);
 		msb += i << 3;
 
-		if (i < BYTE_LENGTH) {
+		if (i < BYTES) {
 			byte b = bytes[i];
 			if (b > 0) {
 				int n = 7;
@@ -279,8 +295,8 @@ public class Id implements Comparable<Id> {
 		int lsb = 0;
 
 		int i;
-		for (i = BYTE_LENGTH - 1; i >= 0 && bytes[i] == 0; i--);
-		lsb += (BYTE_LENGTH - 1 - i) << 3;
+		for (i = BYTES - 1; i >= 0 && bytes[i] == 0; i--);
+		lsb += (BYTES - 1 - i) << 3;
 
 		if (i >= 0) {
 			byte b = (byte)(~bytes[i] & (bytes[i] - 1));
@@ -378,8 +394,37 @@ public class Id implements Comparable<Id> {
 				| ((b[24] ^ b[25] ^ b[26] ^ b[27] ^ b[28] ^ b[29] ^ b[30] ^ b[31]) & 0xff);
 	}
 
+	/**
+	 * @return The BigInteger representation of the key
+	 */
+	public BigInteger toInteger() {
+		return new BigInteger(1, bytes);
+	}
+
+	/**
+	 * @return The hex string representation of the key
+	 */
+	public String toHexString() {
+		return "0x" + Hex.encode(bytes);
+	}
+
+	public String toBase58String() {
+		return Base58.encode(bytes);
+	}
+
+	public String toBinaryString() {
+		StringBuilder repr = new StringBuilder(SIZE + (SIZE >>> 2));
+
+		for(int i = 0; i < SIZE; i++) {
+			repr.append((bytes[i >>> 3] & (0x80 >> (i & 0x07))) != 0 ? '1' : '0');
+			if ((i & 0x03) == 0x03) repr.append(' ');
+		}
+		return repr.toString();
+	}
+
 	@Override
 	public String toString() {
-		return this.toHexString();
+		return this.toBase58String();
+		//return this.toHexString();
 	}
 }

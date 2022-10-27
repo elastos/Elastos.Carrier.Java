@@ -24,7 +24,7 @@ package elastos.carrier.node;
 
 import java.util.concurrent.Callable;
 
-import elastos.carrier.kademlia.Id;
+import elastos.carrier.Id;
 import picocli.CommandLine.Command;
 
 @Command(name = "id", mixinStandardHelpOptions = true, version = "Carrier id 2.0",

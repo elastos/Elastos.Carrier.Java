@@ -26,9 +26,9 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
-import elastos.carrier.kademlia.Id;
-import elastos.carrier.kademlia.LookupOption;
-import elastos.carrier.kademlia.NodeInfo;
+import elastos.carrier.Id;
+import elastos.carrier.LookupOption;
+import elastos.carrier.NodeInfo;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -54,7 +54,7 @@ public class FindNodeCommand implements Callable<Integer> {
 
 		Id id = null;
 		try {
-			id = new Id(target);
+			id = Id.of(target);
 		} catch (Exception e) {
 			System.out.println("Invalid ID: " + target);
 			return -1;

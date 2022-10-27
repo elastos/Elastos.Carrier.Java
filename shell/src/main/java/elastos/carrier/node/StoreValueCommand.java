@@ -25,9 +25,9 @@ package elastos.carrier.node;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
-import elastos.carrier.kademlia.Id;
-import elastos.carrier.kademlia.Node;
-import elastos.carrier.kademlia.Value;
+import elastos.carrier.Id;
+import elastos.carrier.Node;
+import elastos.carrier.Value;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -59,7 +59,7 @@ public class StoreValueCommand implements Callable<Integer> {
  				} else {
  					Id recipientId = null;
  					try {
- 						recipientId = new Id(recipient);
+ 						recipientId = Id.of(recipient);
  					} catch (Exception e) {
  						System.out.println("Invalid recipient: " + recipient);
  						return -1;
@@ -73,7 +73,7 @@ public class StoreValueCommand implements Callable<Integer> {
 		} else {
 			Id id = null;
 			try {
-				id = new Id(target);
+				id = Id.of(target);
 			} catch (Exception e) {
 				System.out.println("Invalid value id to be update: " + target);
 				return -1;

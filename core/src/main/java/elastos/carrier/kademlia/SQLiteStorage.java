@@ -28,6 +28,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteDataSource;
 
+import elastos.carrier.Id;
+import elastos.carrier.PeerInfo;
+import elastos.carrier.Value;
 import elastos.carrier.kademlia.exceptions.CasFail;
 import elastos.carrier.kademlia.exceptions.IOError;
 import elastos.carrier.kademlia.exceptions.ImmutableSubstitutionFail;
@@ -193,7 +196,7 @@ public class SQLiteStorage implements DataStorage {
 						return false;
 
 					byte[] binId = idrs.getBytes("id");
-					consumer.accept(new Id(binId));
+					consumer.accept(Id.of(binId));
 					return true;
 				} catch (SQLException e) {
 					log.error("SQLite storage encounter an error: " + e.getMessage(), e);
@@ -217,7 +220,7 @@ public class SQLiteStorage implements DataStorage {
 	public Value getValue(Id valueId) throws KadException {
 		try (PreparedStatement stmt = connection.prepareStatement(SELECT_VALUE)) {
 			long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
-			stmt.setBytes(1, valueId.getBytes());
+			stmt.setBytes(1, valueId.bytes());
 			stmt.setLong(2, when);
 
 			try (ResultSet rs = stmt.executeQuery()) {
@@ -225,19 +228,19 @@ public class SQLiteStorage implements DataStorage {
 					return null;
 
 				byte[] v = rs.getBytes("publicKey");
-				Id publicKey = v != null ? new Id(v) : null;
+				Id publicKey = v != null ? Id.of(v) : null;
 
 				byte[] privateKey = rs.getBytes("privateKey");
 
 				v = rs.getBytes("recipient");
-				Id recipient = v != null ? new Id(v) : null;
+				Id recipient = v != null ? Id.of(v) : null;
 
 				byte[] nonce = rs.getBytes("nonce");
 				byte[] signature = rs.getBytes("signature");
 				int sequenceNumber = rs.getInt("sequenceNumber");
 				byte[] data = rs.getBytes("data");
 
-				return new Value(publicKey, privateKey, recipient, nonce, sequenceNumber, signature, data);
+				return Value.of(publicKey, privateKey, recipient, nonce, sequenceNumber, signature, data);
 			}
 		} catch (SQLException e) {
 			log.error("SQLite storage encounter an error: " + e.getMessage(), e);
@@ -261,10 +264,10 @@ public class SQLiteStorage implements DataStorage {
 		}
 
 		try (PreparedStatement stmt = connection.prepareStatement(UPSERT_VALUE)) {
-			stmt.setBytes(1, value.getId().getBytes());
+			stmt.setBytes(1, value.getId().bytes());
 
 			if (value.getPublicKey() != null)
-				stmt.setBytes(2, value.getPublicKey().getBytes());
+				stmt.setBytes(2, value.getPublicKey().bytes());
 			else
 				stmt.setNull(2, Types.BLOB);
 
@@ -274,7 +277,7 @@ public class SQLiteStorage implements DataStorage {
 				stmt.setNull(3, Types.BLOB);
 
 			if (value.getRecipient() != null)
-				stmt.setBytes(4, value.getRecipient().getBytes());
+				stmt.setBytes(4, value.getRecipient().bytes());
 			else
 				stmt.setNull(4, Types.BLOB);
 
@@ -342,7 +345,7 @@ public class SQLiteStorage implements DataStorage {
 						return false;
 
 					byte[] binId = idrs.getBytes("id");
-					consumer.accept(new Id(binId));
+					consumer.accept(Id.of(binId));
 					return true;
 				} catch (SQLException e) {
 					log.error("SQLite storage encounter an error: " + e.getMessage(), e);
@@ -384,14 +387,14 @@ public class SQLiteStorage implements DataStorage {
 		for (int f : families) {
 			try (PreparedStatement stmt = connection.prepareStatement(SELECT_PEER)) {
 				long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
-				stmt.setBytes(1, peerId.getBytes());
+				stmt.setBytes(1, peerId.bytes());
 				stmt.setInt(2, f);
 				stmt.setLong(3, when);
 				stmt.setInt(4, maxPeers);
 
 				try (ResultSet rs = stmt.executeQuery()) {
 					while (rs.next()) {
-						Id nodeId = new Id(rs.getBytes("nodeId"));
+						Id nodeId = Id.of(rs.getBytes("nodeId"));
 						byte[] ip = rs.getBytes("ip");
 						int port = rs.getInt("port");
 
@@ -412,16 +415,16 @@ public class SQLiteStorage implements DataStorage {
 	public PeerInfo getPeer(Id peerId, int family, Id nodeId) throws KadException {
 		try (PreparedStatement stmt = connection.prepareStatement(SELECT_PEER_WITH_NODEID)) {
 			long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
-			stmt.setBytes(1, peerId.getBytes());
+			stmt.setBytes(1, peerId.bytes());
 			stmt.setInt(2, family);
-			stmt.setBytes(3, nodeId.getBytes());
+			stmt.setBytes(3, nodeId.bytes());
 			stmt.setLong(4, when);
 
 			try (ResultSet rs = stmt.executeQuery()) {
 				if (!rs.next())
 					return null;
 
-				nodeId = new Id(rs.getBytes("nodeId"));
+				nodeId = Id.of(rs.getBytes("nodeId"));
 				byte[] ip = rs.getBytes("ip");
 				int port = rs.getInt("port");
 
@@ -446,9 +449,9 @@ public class SQLiteStorage implements DataStorage {
 
 		try (PreparedStatement stmt = connection.prepareStatement(UPSERT_PEER)) {
 			for (PeerInfo peer : peers) {
-				stmt.setBytes(1, peerId.getBytes());
+				stmt.setBytes(1, peerId.bytes());
 				stmt.setInt(2, peer.getInetFamily());
-				stmt.setBytes(3, peer.getNodeId().getBytes());
+				stmt.setBytes(3, peer.getNodeId().bytes());
 				stmt.setBytes(4, peer.getInetAddress().getAddress());
 				stmt.setInt(5, peer.getPort());
 				stmt.setLong(6, now);

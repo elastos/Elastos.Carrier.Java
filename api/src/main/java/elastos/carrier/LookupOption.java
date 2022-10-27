@@ -20,35 +20,10 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.kademlia;
+package elastos.carrier;
 
-import java.util.HashMap;
-import java.util.Map;
-
-public final class Version {
-	private static final String VERSION_NOT_AVAILABLE = "N/A";
-
-	@SuppressWarnings("serial")
-	private static final Map<String, String> names = new HashMap<String, String>() {{
-	    put("OR", "Orca");		// Java super node
-	}};
-
-	static int build(String name, int version) {
-		byte[] nameBytes = name.toUpperCase().getBytes();
-
-		return Byte.toUnsignedInt(nameBytes[0]) << 24 |
-				Byte.toUnsignedInt(nameBytes[1]) << 16 |
-				(version & 0x0000FFFF);
-	}
-
-	public static String toString(int version) {
-		if (version == 0)
-			return VERSION_NOT_AVAILABLE;
-
-		String n = new String(new byte[] { (byte)(version >>> 24),
-				(byte)((version & 0x00ff0000) >>> 16) });
-		String v = Integer.toString(version & 0x0000ffff);
-
-		return names.getOrDefault(n, n) + "/" + v;
-	}
+public enum LookupOption {
+	ARBITRARY,
+	OPTIMISTIC,
+	CONSERVATIVE
 }

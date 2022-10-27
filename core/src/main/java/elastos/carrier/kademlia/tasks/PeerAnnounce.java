@@ -28,8 +28,8 @@ import java.util.Deque;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import elastos.carrier.Id;
 import elastos.carrier.kademlia.DHT;
-import elastos.carrier.kademlia.Id;
 import elastos.carrier.kademlia.messages.AnnouncePeerRequest;
 
 public class PeerAnnounce extends Task {

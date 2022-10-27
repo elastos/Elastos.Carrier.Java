@@ -27,9 +27,9 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
-import elastos.carrier.kademlia.Id;
-import elastos.carrier.kademlia.LookupOption;
-import elastos.carrier.kademlia.PeerInfo;
+import elastos.carrier.Id;
+import elastos.carrier.LookupOption;
+import elastos.carrier.PeerInfo;
 import elastos.carrier.utils.ThreadLocals;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -59,7 +59,7 @@ public class FindPeerCommand implements Callable<Integer> {
 
 		String nname = Normalizer.normalize(name.trim().toLowerCase(), Normalizer.Form.NFC);
 		byte[] digest = ThreadLocals.sha256().digest(nname.getBytes());
-		Id id = new Id(digest);
+		Id id = Id.of(digest);
 
 		CompletableFuture<List<PeerInfo>> f = Shell.getCarrierNode().findPeer(id, expected, option);
 		List<PeerInfo> pl = f.get();

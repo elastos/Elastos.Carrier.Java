@@ -20,14 +20,11 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.kademlia;
-
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+package elastos.carrier;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 
 public class NodeInfo {
 	private final Id id;
@@ -35,33 +32,63 @@ public class NodeInfo {
 	private int version;
 
 	public NodeInfo(Id id, InetSocketAddress addr) {
-		checkNotNull(id, "Invalid node id");
-		checkNotNull(addr, "Invalid socket address");
+		if (id == null)
+			throw new IllegalArgumentException("Invalid node id: null");
+
+		if (addr == null)
+			throw new IllegalArgumentException("Invalid socket address: null");
 
 		this.id = id;
 		this.addr = addr;
 	}
 
 	public NodeInfo(Id id, InetAddress addr, int port) {
-		checkNotNull(id, "Invalid node id");
-		checkNotNull(addr, "Invalid address");
-		checkArgument(port > 0, "Invalud port");
+		if (id == null)
+			throw new IllegalArgumentException("Invalid node id: null");
+
+		if (addr == null)
+			throw new IllegalArgumentException("Invalid socket address: null");
+
+		if (port <= 0 || port > 65535)
+			throw new IllegalArgumentException("Invalud port: " + port);
 
 		this.id = id;
 		this.addr = new InetSocketAddress(addr, port);
 	}
 
 	public NodeInfo(Id id, String addr, int port) {
-		checkNotNull(id, "Invalid node id");
-		checkNotNull(addr, "Invalid address");
-		checkArgument(port > 0, "Invalud port");
+		if (id == null)
+			throw new IllegalArgumentException("Invalid node id: null");
+
+		if (addr == null)
+			throw new IllegalArgumentException("Invalid socket address: null");
+
+		if (port <= 0 || port > 65535)
+			throw new IllegalArgumentException("Invalud port: " + port);
 
 		this.id = id;
 		this.addr = new InetSocketAddress(addr, port);
 	}
 
+	public NodeInfo(Id id, byte[] addr, int port) {
+		if (id == null)
+			throw new IllegalArgumentException("Invalid node id: null");
+		if (addr == null)
+			throw new IllegalArgumentException("Invalid socket address: null");
+		if (port <= 0 || port > 65535)
+			throw new IllegalArgumentException("Invalid port: " + port);
+
+		this.id = id;
+		try {
+			this.addr = new InetSocketAddress(InetAddress.getByAddress(addr), port);
+		} catch (UnknownHostException e) {
+			throw new IllegalArgumentException("Invalid binary inet address", e);
+		}
+	}
+
 	public NodeInfo(NodeInfo ni) {
-		checkNotNull(ni, "Invalid node info");
+		if (ni == null)
+			throw new IllegalArgumentException("Invalid node info: null");
 
 		this.id = ni.id;
 		this.addr = ni.addr;

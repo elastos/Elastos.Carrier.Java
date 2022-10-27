@@ -28,7 +28,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
-import elastos.carrier.kademlia.Id;
+import elastos.carrier.Id;
 
 public class AnnouncePeerRequest extends Message {
 	private Id target;
@@ -85,7 +85,7 @@ public class AnnouncePeerRequest extends Message {
 		gen.writeStartObject();
 
 		gen.writeFieldName("t");
-		gen.writeBinary(target.getBytes());
+		gen.writeBinary(target.bytes());
 
 		gen.writeFieldName("p");
 		gen.writeNumber(port);
@@ -111,7 +111,7 @@ public class AnnouncePeerRequest extends Message {
 			parser.nextToken();
 			switch (name) {
 			case "t":
-				target = new Id(parser.getBinaryValue());
+				target = Id.of(parser.getBinaryValue());
 				break;
 
 			case "p":

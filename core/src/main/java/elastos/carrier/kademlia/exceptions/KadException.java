@@ -22,7 +22,9 @@
 
 package elastos.carrier.kademlia.exceptions;
 
-public class KadException extends Exception {
+import elastos.carrier.CarrierException;
+
+public class KadException extends CarrierException {
 	private static final long serialVersionUID = -2702047825432607326L;
 	private final int code;
 

@@ -24,9 +24,9 @@ package elastos.carrier.kademlia.tasks;
 
 import java.util.Comparator;
 
-import elastos.carrier.kademlia.Id;
+import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.KBucketEntry;
-import elastos.carrier.kademlia.NodeInfo;
 
 public class CandidateNode extends NodeInfo {
 	private long lastSent;			/* the time of the last unanswered request */

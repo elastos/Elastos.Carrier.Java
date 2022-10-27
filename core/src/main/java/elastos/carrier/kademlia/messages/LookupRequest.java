@@ -28,7 +28,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
-import elastos.carrier.kademlia.Id;
+import elastos.carrier.Id;
 
 public abstract class LookupRequest extends Message {
 	private Id target;
@@ -95,7 +95,7 @@ public abstract class LookupRequest extends Message {
 		gen.writeFieldName(getType().toString());
 		gen.writeStartObject();
 		gen.writeFieldName("t");
-		gen.writeBinary(target.getBytes());
+		gen.writeBinary(target.bytes());
 		gen.writeFieldName("w");
 		gen.writeNumber(getWant());
 		_serialize(gen);
@@ -116,7 +116,7 @@ public abstract class LookupRequest extends Message {
 
 			switch (name) {
 			case "t":
-				target = new Id(parser.getBinaryValue());
+				target = Id.of(parser.getBinaryValue());
 				break;
 
 			case "w":

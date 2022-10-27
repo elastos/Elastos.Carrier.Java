@@ -31,6 +31,9 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
+import elastos.carrier.Version;
 import elastos.carrier.utils.AddressUtils;
 
 /**
@@ -285,7 +288,7 @@ public class KBucketEntry extends NodeInfo {
 	Map<String, Object> toMap() {
 		Map<String, Object> map = new LinkedHashMap<>();
 
-		map.put("id", getId().getBytes());
+		map.put("id", getId().bytes());
 		map.put("addr", getInetAddress().getAddress());
 		map.put("port", getPort());
 		map.put("created", created);
@@ -300,7 +303,7 @@ public class KBucketEntry extends NodeInfo {
 
 	static KBucketEntry fromMap(Map<String, Object> map) {
 		try {
-			Id id = new Id((byte[])map.get("id"));
+			Id id = Id.of((byte[])map.get("id"));
 			InetAddress addr = InetAddress.getByAddress((byte[])map.get("addr"));
 			int port = (int)map.get("port");
 

@@ -22,7 +22,7 @@
 
 package elastos.carrier.kademlia.messages;
 
-import elastos.carrier.kademlia.Id;
+import elastos.carrier.Id;
 
 public class FindNodeRequest extends LookupRequest {
 	public FindNodeRequest(Id targetId, boolean wantToken) {

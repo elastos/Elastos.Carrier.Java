@@ -28,8 +28,8 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
-import elastos.carrier.kademlia.Id;
-import elastos.carrier.kademlia.Value;
+import elastos.carrier.Id;
+import elastos.carrier.Value;
 import elastos.carrier.utils.Hex;
 
 public class StoreValueRequest extends Message {
@@ -118,8 +118,8 @@ public class StoreValueRequest extends Message {
 		return Value.calculateId(publicKey, nonce, value);
 	}
 
-	public Value toValue() {
-		return new Value(getPublicKey(), getRecipient(), getNonce(),
+	public Value value() {
+		return Value.of(getPublicKey(), getRecipient(), getNonce(),
 				getSequenceNumber(), getSignature(), getValue());
 	}
 
@@ -133,11 +133,11 @@ public class StoreValueRequest extends Message {
 
 		if (publicKey != null) {
 			gen.writeFieldName("k");
-			gen.writeBinary(publicKey.getBytes());
+			gen.writeBinary(publicKey.bytes());
 
 			if (recipient != null) {
 				gen.writeFieldName("rec");
-				gen.writeBinary(recipient.getBytes());
+				gen.writeBinary(recipient.bytes());
 			}
 
 			if (nonce != null) {
@@ -177,11 +177,11 @@ public class StoreValueRequest extends Message {
 			parser.nextToken();
 			switch (name) {
 			case "k":
-				publicKey = new Id(parser.getBinaryValue());
+				publicKey = Id.of(parser.getBinaryValue());
 				break;
 
 			case "rec":
-				recipient = new Id(parser.getBinaryValue());
+				recipient = Id.of(parser.getBinaryValue());
 				break;
 
 			case "n":

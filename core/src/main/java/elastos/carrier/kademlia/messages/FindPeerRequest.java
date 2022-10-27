@@ -22,7 +22,7 @@
 
 package elastos.carrier.kademlia.messages;
 
-import elastos.carrier.kademlia.Id;
+import elastos.carrier.Id;
 
 public class FindPeerRequest extends LookupRequest {
 	public FindPeerRequest(Id target) {

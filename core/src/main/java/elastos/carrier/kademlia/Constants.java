@@ -22,6 +22,8 @@
 
 package elastos.carrier.kademlia;
 
+import elastos.carrier.Version;
+
 public final class Constants {
 	///////////////////////////////////////////////////////////////////////////
 	// Default DHT port

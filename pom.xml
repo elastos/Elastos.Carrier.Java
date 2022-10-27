@@ -56,9 +56,11 @@
   </properties>
 
   <modules>
+    <module>api</module>
     <module>core</module>
     <module>shell</module>
     <module>launcher</module>
+    <module>services</module>
   </modules>
 
   <build>

@@ -29,6 +29,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.messages.Message;
 import elastos.carrier.kademlia.tasks.CandidateNode;
 

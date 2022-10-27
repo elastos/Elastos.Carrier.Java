@@ -27,7 +27,7 @@ import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Stream;
 
-import elastos.carrier.kademlia.Id;
+import elastos.carrier.Id;
 
 public class ClosestSet {
 	private final Id target;

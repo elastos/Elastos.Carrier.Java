@@ -20,9 +20,7 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.kademlia;
-
-import static com.google.common.base.Preconditions.checkArgument;
+package elastos.carrier;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -69,7 +67,7 @@ public class Prefix extends Id {
 	}
 
 	public boolean isSplittable() {
-		return depth < Id.BIT_LENGTH - 1;
+		return depth < Id.SIZE - 1;
 	}
 
 	public Id first() {
@@ -88,7 +86,7 @@ public class Prefix extends Id {
 		Prefix parent = new Prefix(this);
 		int oldDepth = parent.depth--;
 		// set last bit to zero
-		byte[] b = parent.getBytes();
+		byte[] b = parent.bytes();
 		b[oldDepth >>> 3] &= ~(0x80 >> (oldDepth & 0x07));
 		return parent;
 	}
@@ -98,9 +96,9 @@ public class Prefix extends Id {
 		Prefix branch = new Prefix(this);
 		int branchDepth = ++branch.depth;
 		if (highBranch)
-			branch.getBytes()[branchDepth / 8] |= 0x80 >> (branchDepth % 8);
-			else
-				branch.getBytes()[branchDepth / 8] &= ~(0x80 >> (branchDepth % 8));
+			branch.bytes()[branchDepth / 8] |= 0x80 >> (branchDepth % 8);
+		else
+			branch.bytes()[branchDepth / 8] &= ~(0x80 >> (branchDepth % 8));
 
 		return branch;
 	}
@@ -125,21 +123,22 @@ public class Prefix extends Id {
 	}
 
 	public static Prefix getCommonPrefix(Collection<Id> ids) {
-		checkArgument(!ids.isEmpty(), "ids cannot be empty");
+		if (ids.isEmpty())
+			throw new IllegalArgumentException("ids cannot be empty");
 
-		byte[] first = Collections.min(ids).getBytes();
-		byte[] last = Collections.max(ids).getBytes();
+		byte[] first = Collections.min(ids).bytes();
+		byte[] last = Collections.max(ids).bytes();
 
 		Prefix prefix = new Prefix();
-		byte[] dest = prefix.getBytes();
+		byte[] dest = prefix.bytes();
 
 		int i = 0;
-		for (; i < Id.BYTE_LENGTH && first[i] == last[i]; i++) {
+		for (; i < Id.BYTES && first[i] == last[i]; i++) {
 			dest[i] = first[i];
 			prefix.depth += 8;
 		}
 
-		if (i < Id.BYTE_LENGTH) {
+		if (i < Id.BYTES) {
 			// first differing byte
 			dest[i] = (byte) (first[i] & last[i]);
 			for (int j = 0; j < 8; j++) {
@@ -166,7 +165,7 @@ public class Prefix extends Id {
 			if (this.depth != p.depth)
 				return false;
 
-			return Arrays.equals(this.getBytes(), p.getBytes());
+			return Arrays.equals(this.bytes(), p.bytes());
 		}
 		return false;
 	}
@@ -178,7 +177,7 @@ public class Prefix extends Id {
 			return "all";
 
 		StringBuilder repr = new StringBuilder(depth + depth >>> 2 + 4);
-		byte[] b = getBytes();
+		byte[] b = bytes();
 		for (int i = 0; i <= depth; i++) {
 			repr.append((b[i >>> 3] & (0x80 >> (i & 0x07))) != 0 ? '1' : '0');
 			if ((i & 0x03) == 0x03) repr.append(' ');
@@ -192,6 +191,6 @@ public class Prefix extends Id {
 		if (depth == -1)
 			return "all";
 
-		return Hex.encode(getBytes(), 0, (depth + 8) >>> 3) + "/" + depth;
+		return Hex.encode(bytes(), 0, (depth + 8) >>> 3) + "/" + depth;
 	}
 }

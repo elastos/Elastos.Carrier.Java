@@ -28,8 +28,8 @@ import java.util.Deque;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import elastos.carrier.Value;
 import elastos.carrier.kademlia.DHT;
-import elastos.carrier.kademlia.Value;
 import elastos.carrier.kademlia.messages.StoreValueRequest;
 
 public class ValueAnnounce extends Task {

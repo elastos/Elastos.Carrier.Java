@@ -27,8 +27,8 @@ import java.io.IOException;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
-import elastos.carrier.kademlia.Id;
-import elastos.carrier.kademlia.Value;
+import elastos.carrier.Id;
+import elastos.carrier.Value;
 import elastos.carrier.utils.Hex;
 
 public class FindValueResponse extends LookupResponse {
@@ -95,8 +95,8 @@ public class FindValueResponse extends LookupResponse {
 		this.value = value;
 	}
 
-	public Value toValue() {
-		return new Value(getPublicKey(), getRecipient(), getNonce(),
+	public Value value() {
+		return Value.of(getPublicKey(), getRecipient(), getNonce(),
 				getSequenceNumber(), getSignature(), getValue());
 	}
 
@@ -104,12 +104,12 @@ public class FindValueResponse extends LookupResponse {
 	protected void _serialize(JsonGenerator gen) throws IOException {
 		if (publicKey != null) {
 			gen.writeFieldName("k");
-			gen.writeBinary(publicKey.getBytes());
+			gen.writeBinary(publicKey.bytes());
 		}
 
 		if (recipient != null) {
 			gen.writeFieldName("rec");
-			gen.writeBinary(recipient.getBytes());
+			gen.writeBinary(recipient.bytes());
 		}
 
 		if (nonce != null) {
@@ -137,11 +137,11 @@ public class FindValueResponse extends LookupResponse {
 	protected void _parse(String fieldName, CBORParser parser) throws MessageException, IOException {
 		switch (fieldName) {
 		case "k":
-			publicKey = new Id(parser.getBinaryValue());
+			publicKey = Id.of(parser.getBinaryValue());
 			break;
 
 		case "rec":
-			recipient = new Id(parser.getBinaryValue());
+			recipient = Id.of(parser.getBinaryValue());
 			break;
 
 		case "n":

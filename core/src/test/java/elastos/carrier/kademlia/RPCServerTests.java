@@ -27,6 +27,8 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.DHT.Type;
 import elastos.carrier.kademlia.exceptions.KadException;
 import elastos.carrier.kademlia.messages.Message;

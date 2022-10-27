@@ -27,10 +27,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
+import elastos.carrier.Id;
+import elastos.carrier.PeerInfo;
+import elastos.carrier.Value;
 import elastos.carrier.kademlia.DataStorage;
-import elastos.carrier.kademlia.Id;
-import elastos.carrier.kademlia.PeerInfo;
-import elastos.carrier.kademlia.Value;
 import elastos.carrier.node.StorageCommand.ListPeerCommand;
 import elastos.carrier.node.StorageCommand.ListValueCommand;
 import elastos.carrier.node.StorageCommand.PeerCommand;
@@ -77,7 +77,7 @@ public class StorageCommand {
 		public Integer call() throws Exception {
 			Id valueId = null;
 			try {
-				valueId = new Id(id);
+				valueId = Id.of(id);
 			} catch (Exception e) {
 				System.out.println("Invalid id: " + id);
 				return -1;
@@ -132,7 +132,7 @@ public class StorageCommand {
 
 			Id peerId = null;
 			try {
-				peerId = new Id(id);
+				peerId = Id.of(id);
 			} catch (Exception e) {
 				System.out.println("Invalid id: " + id);
 				return -1;

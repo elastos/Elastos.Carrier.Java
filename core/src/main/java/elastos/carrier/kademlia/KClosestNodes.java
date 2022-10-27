@@ -29,6 +29,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 
+import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
+
 public class KClosestNodes {
 	private DHT dht;
 	private Id target;

@@ -52,6 +52,11 @@ import org.slf4j.LoggerFactory;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
+import elastos.carrier.Id;
+import elastos.carrier.LookupOption;
+import elastos.carrier.NodeInfo;
+import elastos.carrier.PeerInfo;
+import elastos.carrier.Value;
 import elastos.carrier.kademlia.exceptions.KadException;
 import elastos.carrier.kademlia.messages.AnnouncePeerRequest;
 import elastos.carrier.kademlia.messages.AnnouncePeerResponse;
@@ -565,14 +570,14 @@ public class DHT {
 			return;
 		}
 
-		Value v = Value.of(q);
+		Value v = q.value();
 		if (!v.isValid()) {
 			sendError(q, ErrorCode.ProtocolError.value(), "Invalue value");
 			return;
 		}
 
 		try {
-			storage.putValue(Value.of(q), q.getExpectedSequenceNumber());
+			storage.putValue(v, q.getExpectedSequenceNumber());
 			StoreValueResponse r = new StoreValueResponse(q.getTxid());
 			r.setRemote(q.getOrigin());
 			server.sendMessage(r);

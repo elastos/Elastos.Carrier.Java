@@ -20,43 +20,32 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.utils;
+package elastos.carrier;
 
-public class ExponentialWeightendMovingAverage {
-	private double weight = 0.3;
-	private double average = Double.NaN;
+import java.io.File;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
+import java.util.Collection;
 
-	public ExponentialWeightendMovingAverage() {
-	}
+public interface Configuration {
+	public Inet4Address IPv4Address();
 
-	public ExponentialWeightendMovingAverage(double weight) {
-		this.weight = weight;
-	}
+	public Inet6Address IPv6Address();
 
-	// updateAverage
-	public void update(double value) {
-		if (Double.isNaN(average))
-			average = value;
-		else
-			average = value * weight + average * (1.0 - weight);
-	}
+	public int listeningPort();
 
-	public double getAverage() {
-		return average;
-	}
+	/**
+	 * If a Path that points to an existing, writable directory is returned then the routing table
+	 * will be persisted to that directory periodically and during shutdown
+	 */
+	public File storagePath();
 
-	public double getAverage(double defaultValue) {
-		return Double.isNaN(average) ? defaultValue : average;
-	}
+	/**
+	 * if true then attempt to bootstrap through well-known nodes is made.
+	 * you either must have a persisted routing table which can be loaded or
+	 * manually seed the routing table by calling {@link DHT#addDHTNode(String, int)}
+	 */
+	//public boolean routerBootstrap();
 
-	// setValue
-	public ExponentialWeightendMovingAverage setAverage(double average) {
-		this.average = average;
-		return this;
-	}
-
-	public ExponentialWeightendMovingAverage setWeight(double weight) {
-		this.weight = weight;
-		return this;
-	}
+	public Collection<NodeInfo> bootstrapNodes();
 }

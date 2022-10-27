@@ -27,10 +27,10 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.Constants;
 import elastos.carrier.kademlia.DHT;
-import elastos.carrier.kademlia.Id;
-import elastos.carrier.kademlia.NodeInfo;
 import elastos.carrier.kademlia.RPCCall;
 import elastos.carrier.utils.AddressUtils;
 

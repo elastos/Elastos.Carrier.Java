@@ -26,7 +26,7 @@ import java.text.Normalizer;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
-import elastos.carrier.kademlia.Id;
+import elastos.carrier.Id;
 import elastos.carrier.utils.ThreadLocals;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
@@ -44,7 +44,7 @@ public class AnnouncePeerCommand implements Callable<Integer> {
 	public Integer call() throws Exception {
 		String nname = Normalizer.normalize(name.trim().toLowerCase(), Normalizer.Form.NFC);
 		byte[] digest = ThreadLocals.sha256().digest(nname.getBytes());
-		Id id = new Id(digest);
+		Id id = Id.of(digest);
 
 		if (port <= 0) {
 			System.out.println("Invalid port: " + port);

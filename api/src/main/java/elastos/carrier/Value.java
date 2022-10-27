@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.kademlia;
+package elastos.carrier;
 
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
@@ -29,9 +29,6 @@ import java.util.Objects;
 
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.Signature;
-import elastos.carrier.kademlia.exceptions.CryptoError;
-import elastos.carrier.kademlia.messages.FindValueResponse;
-import elastos.carrier.kademlia.messages.StoreValueRequest;
 import elastos.carrier.utils.Hex;
 import elastos.carrier.utils.ThreadLocals;
 
@@ -44,18 +41,10 @@ public class Value {
 	private int sequenceNumber;
 	private byte[] data;
 
-	public Value() {
+	protected Value() {
 	}
 
-	public Value(byte[] data) {
-		this(null, null, null, null, 0, null, data);
-	}
-
-	public Value(Id publicKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
-		this(publicKey, null, recipient, nonce, sequenceNumber, signature, data);
-	}
-
-	public Value(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
+	protected Value(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
 		this.publicKey = publicKey;
 		this.privateKey = privateKey;
 		this.recipient = recipient;
@@ -65,11 +54,7 @@ public class Value {
 		this.data = data;
 	}
 
-	public Value(Signature.KeyPair keypair ,CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoError {
-		this(keypair, null, nonce, sequenceNumber, data);
-	}
-
-	public Value(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoError {
+	protected Value(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) {
 		this.publicKey = new Id(keypair.publicKey().bytes());
 		this.privateKey = keypair.privateKey().bytes();
 		this.recipient = recipient;
@@ -88,27 +73,37 @@ public class Value {
 		this.signature = Signature.sign(getSignData(), keypair.privateKey());
 	}
 
+	public static Value of(byte[] data) {
+		return new Value(null, null, null, null, 0, null, data);
+	}
+
+	public static Value of(Id publicKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
+		return new Value (publicKey, null, recipient, nonce, sequenceNumber, signature, data);
+	}
+
+	public static Value of(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
+		return new Value (publicKey, privateKey, recipient, nonce, sequenceNumber, signature, data);
+	}
+
+	public static Value of(Signature.KeyPair keypair ,CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) {
+		return new Value (keypair, null, nonce, sequenceNumber, data);
+	}
+
+	public static Value of(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) {
+		return new Value(keypair, recipient, nonce, sequenceNumber, data);
+	}
+
 	private byte[] getSignData() {
-		byte[] toSign = new byte[(recipient != null ? Id.BYTE_LENGTH : 0) +
+		byte[] toSign = new byte[(recipient != null ? Id.BYTES : 0) +
 				CryptoBox.Nonce.length() + Integer.BYTES + this.data.length];
 		ByteBuffer buf = ByteBuffer.wrap(toSign);
 		if (recipient != null)
-			buf.put(recipient.getBytes());
+			buf.put(recipient.bytes());
 		buf.put(nonce);
 		buf.putInt(sequenceNumber);
 		buf.put(data);
 
 		return toSign;
-	}
-
-	public static Value of(StoreValueRequest request) {
-		return new Value(request.getPublicKey(), request.getRecipient(), request.getNonce(),
-				request.getSequenceNumber(), request.getSignature(), request.getValue());
-	}
-
-	public static Value of(FindValueResponse response) {
-		return new Value(response.getPublicKey(), response.getRecipient(), response.getNonce(),
-				response.getSequenceNumber(), response.getSignature(), response.getValue());
 	}
 
 	public Id getId() {
@@ -123,7 +118,7 @@ public class Value {
 		return privateKey != null;
 	}
 
-	byte[] getPrivateKey() {
+	public byte[] getPrivateKey() {
 		return privateKey;
 	}
 
@@ -151,17 +146,14 @@ public class Value {
 		MessageDigest digest = ThreadLocals.sha256();
 		digest.reset();
 
-		byte[] hash;
 		if(publicKey != null) {
-			digest.update(publicKey.getBytes());
+			digest.update(publicKey.bytes());
 			digest.update(nonce);
-			hash = digest.digest();
 		} else {
 			digest.update(data);
-			hash = digest.digest();
 		}
 
-		return new Id(hash);
+		return new Id(digest.digest());
 	}
 
 	public boolean isMutable() {

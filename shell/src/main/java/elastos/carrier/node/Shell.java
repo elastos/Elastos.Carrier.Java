@@ -45,6 +45,8 @@ import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.widget.TailTipWidgets;
 
+import elastos.carrier.Configuration;
+import elastos.carrier.DefaultConfiguration;
 import elastos.carrier.kademlia.Node;
 import elastos.carrier.kademlia.exceptions.KadException;
 import picocli.CommandLine;
@@ -90,7 +92,7 @@ public class Shell  implements Callable<Integer> {
 	static private Node carrierNode;
 
 	private SystemRegistry systemRegistry;
-	private DefaultConfiguration config;
+	private Configuration config;
 
 	public void initCommandLine() {
 		Supplier<Path> workDir = () -> Paths.get(System.getProperty("user.home"));
@@ -127,22 +129,31 @@ public class Shell  implements Callable<Integer> {
 	}
 
 	private void initConfig() throws IOException {
-		config = new DefaultConfiguration();
+		DefaultConfiguration.Builder builder = new DefaultConfiguration.Builder();
 
-		if (configFile != null)
-			config.load(configFile);
+		if (configFile != null) {
+			try {
+				builder.load(configFile);
+			} catch (Exception e) {
+				System.out.println("Can not load the config file: " + configFile + ", error: " + e.getMessage());
+				e.printStackTrace(System.err);
+				System.exit(-1);
+			}
+		}
 
 		if (addr4 != null)
-			config.setIPv4Address(addr4);
+			builder.setIPv4Address(addr4);
 
 		if (addr6 != null)
-			config.setIPv6Address(addr6);
+			builder.setIPv6Address(addr6);
 
 		if (port != 0)
-			config.setListeningPort(port);
+			builder.setListeningPort(port);
 
 		if (dataDir != null)
-			config.setStoragePath(dataDir);
+			builder.setStoragePath(dataDir);
+
+		config = builder.build();
 	}
 
 	private void initCarrierNode() throws KadException {

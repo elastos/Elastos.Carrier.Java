@@ -51,6 +51,9 @@ import org.mapdb.serializer.SerializerArrayTuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import elastos.carrier.Id;
+import elastos.carrier.PeerInfo;
+import elastos.carrier.Value;
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.Signature;
 import elastos.carrier.kademlia.exceptions.CasFail;
@@ -140,12 +143,12 @@ public class MapDBStorage implements DataStorage {
 
 	@Override
 	public Stream<Id> valueIdStream() {
-		return values.keySet().stream().map(b -> new Id(b));
+		return values.keySet().stream().map(b -> Id.of(b));
 	}
 
 	@Override
 	public Value getValue(Id valueId) {
-		ValueEntry entry = values.get(valueId.getBytes());
+		ValueEntry entry = values.get(valueId.bytes());
 		return entry == null ? null : entry.value;
 	}
 
@@ -157,7 +160,7 @@ public class MapDBStorage implements DataStorage {
 		Id id = value.getId();
 		ValueEntry entry = new ValueEntry(value);
 		while (true) {
-			ValueEntry old = values.putIfAbsent(id.getBytes(), entry);
+			ValueEntry old = values.putIfAbsent(id.bytes(), entry);
 			if (old == null) {
 				db.commit();
 				return null;
@@ -172,7 +175,7 @@ public class MapDBStorage implements DataStorage {
 					throw new CasFail("CAS failure");
 			}
 
-			if (values.replace(id.getBytes(), old, entry)) {
+			if (values.replace(id.bytes(), old, entry)) {
 				db.commit();
 				return old.value;
 			}
@@ -186,7 +189,7 @@ public class MapDBStorage implements DataStorage {
 
 	@Override
 	public Stream<Id> peerIdStream() {
-		return peers.keySet().stream().map(o -> new Id((byte[])o[0])).distinct();
+		return peers.keySet().stream().map(o -> Id.of((byte[])o[0])).distinct();
 	}
 
 	@Override
@@ -206,7 +209,7 @@ public class MapDBStorage implements DataStorage {
 
 		List<PeerInfoEntry> result = new ArrayList<>(maxPeers * families.size());
 		for (int f : families) {
-			Object[] prefix = new Object[] { peerId.getBytes(), (byte)f };
+			Object[] prefix = new Object[] { peerId.bytes(), (byte)f };
 			Map<Object[], PeerInfoEntry> map = peers.prefixSubMap(prefix);
 			if (map.size() == 0)
 				continue;
@@ -228,7 +231,7 @@ public class MapDBStorage implements DataStorage {
 
 	@Override
 	public PeerInfo getPeer(Id peerId, int family, Id nodeId) {
-		PeerInfoEntry entry = peers.get(new Object[] { peerId.getBytes(), (byte)family, nodeId.getBytes() });
+		PeerInfoEntry entry = peers.get(new Object[] { peerId.bytes(), (byte)family, nodeId.bytes() });
 		return entry == null ? null : entry.peer;
 	}
 
@@ -240,7 +243,7 @@ public class MapDBStorage implements DataStorage {
 		for (PeerInfo peer : peers) {
 			int family = peer.isIPv4() ? 4 : 6;
 			PeerInfoEntry entry = new PeerInfoEntry(peer);
-			this.peers.put(new Object[] { peerId.getBytes(), (byte)family, peer.getNodeId().getBytes() }, entry);
+			this.peers.put(new Object[] { peerId.bytes(), (byte)family, peer.getNodeId().bytes() }, entry);
 		}
 
 		db.commit();
@@ -333,7 +336,7 @@ public class MapDBStorage implements DataStorage {
 			out.writeLong(entry.timestamp);
 
 			PeerInfo peer = entry.peer;
-			out.write(peer.getNodeId().getBytes());
+			out.write(peer.getNodeId().bytes());
 			out.writeByte(peer.isIPv4() ? 0 : 1);
 			out.write(peer.getInetAddress().getAddress());
 			out.writeInt(peer.getPort());
@@ -343,9 +346,9 @@ public class MapDBStorage implements DataStorage {
 		public PeerInfoEntry deserialize(DataInput2 in, int available) throws IOException {
 			long timestamp = in.readLong();
 
-			byte[] binId = new byte[Id.BYTE_LENGTH];
+			byte[] binId = new byte[Id.BYTES];
 			in.readFully(binId);
-			Id nodeId = new Id(binId);
+			Id nodeId = Id.of(binId);
 
 			boolean isIPv4 = in.readByte() == 0;
 			byte[] addr = new byte[isIPv4 ? 4 : 16];
@@ -367,8 +370,8 @@ public class MapDBStorage implements DataStorage {
 			if (value.getPublicKey() == null) {
 				out.writeByte(0);
 			} else {
-				out.writeByte(Id.BYTE_LENGTH);
-				out.write(value.getPublicKey().getBytes());
+				out.writeByte(Id.BYTES);
+				out.write(value.getPublicKey().bytes());
 			}
 
 			if (value.getPrivateKey() == null) {
@@ -381,8 +384,8 @@ public class MapDBStorage implements DataStorage {
 			if (value.getRecipient() == null) {
 				out.writeByte(0);
 			} else {
-				out.writeByte(Id.BYTE_LENGTH);
-				out.write(value.getRecipient().getBytes());
+				out.writeByte(Id.BYTES);
+				out.write(value.getRecipient().bytes());
 			}
 
 			if (value.getNonce() == null) {
@@ -416,9 +419,9 @@ public class MapDBStorage implements DataStorage {
 			Id publicKey = null;
 			byte s = in.readByte();
 			if (s != 0) {
-				assert(s == Id.BYTE_LENGTH);
-				publicKey  = new Id();
-				in.readFully(publicKey.getBytes());
+				assert(s == Id.BYTES);
+				publicKey  = Id.zero();
+				in.readFully(publicKey.bytes());
 			}
 
 			byte[] privateKey = null;
@@ -432,9 +435,9 @@ public class MapDBStorage implements DataStorage {
 			Id recipient = null;
 			s = in.readByte();
 			if (s != 0) {
-				assert(s == Id.BYTE_LENGTH);
-				recipient = new Id();
-				in.readFully(recipient.getBytes());
+				assert(s == Id.BYTES);
+				recipient = Id.zero();
+				in.readFully(recipient.bytes());
 			}
 
 			byte[] nonce = null;
@@ -461,7 +464,7 @@ public class MapDBStorage implements DataStorage {
 				in.readFully(data);
 			}
 
-			Value value = new Value(publicKey, privateKey, recipient, nonce, seq, sig, data);
+			Value value = Value.of(publicKey, privateKey, recipient, nonce, seq, sig, data);
 			return new ValueEntry(timestamp, value);
 		}
 	}

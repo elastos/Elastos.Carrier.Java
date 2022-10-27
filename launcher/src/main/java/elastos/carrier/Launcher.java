@@ -25,27 +25,17 @@ package elastos.carrier;
 import elastos.carrier.kademlia.Node;
 
 public class Launcher {
-	private static DefaultConfiguration config = new DefaultConfiguration();
+	private static Configuration config;
 	private static Object shutdown = new Object();
 
 	private static Node carrierNode;
-
-	private static void loadConfig(String configFile) {
-		try {
-			config.load(configFile);
-		} catch (Exception e) {
-			System.out.println("Can not load the config file: " + configFile + ", error: " + e.getMessage());
-			e.printStackTrace(System.err);
-			System.exit(-1);
-		}
-	}
 
 	private static void initCarrierNode() {
 		try {
 			shutdown = new Object();
 			carrierNode = new Node(config);
 			carrierNode.addStatusListener((o, n) -> {
-				if (n == Node.Status.Stopped) {
+				if (n == NodeStatus.Stopped) {
 					synchronized(shutdown) {
 						shutdown.notifyAll();
 					}
@@ -60,6 +50,10 @@ public class Launcher {
 	}
 
 	private static void parseArgs(String[] args) {
+		DefaultConfiguration.Builder builder = new DefaultConfiguration.Builder();
+		builder.setAutoIPv4Address(true);
+		builder.setAutoIPv6Address(false);
+
 		int i = 0;
 		while (i < args.length) {
 			if (!args[i].startsWith("-")) {
@@ -74,35 +68,42 @@ public class Launcher {
 					System.exit(-1);
 				}
 
-				loadConfig(args[++i]);
+				String configFile = args[++i];
+				try {
+					builder.load(configFile);
+				} catch (Exception e) {
+					System.out.println("Can not load the config file: " + configFile + ", error: " + e.getMessage());
+					e.printStackTrace(System.err);
+					System.exit(-1);
+				}
 			} else if (args[i].equals("--address4") || args[i].equals("-4")) {
 				if (i + 1 >= args.length) {
 					System.out.format("Missing the value for arg:%d %s\n", i, args[i]);
 					System.exit(-1);
 				}
 
-				config.setIPv4Address(args[++i]);
+				builder.setIPv4Address(args[++i]);
 			} else if (args[i].equals("--address6") || args[i].equals("-6")) {
 				if (i + 1 >= args.length) {
 					System.out.format("Missing the value for arg:%d %s\n", i, args[i]);
 					System.exit(-1);
 				}
 
-				config.setIPv6Address(args[++i]);
+				builder.setIPv6Address(args[++i]);
 			} else if (args[i].equals("--port") || args[i].equals("-p")) {
 				if (i + 1 >= args.length) {
 					System.out.format("Missing the value for arg:%d %s\n", i, args[i]);
 					System.exit(-1);
 				}
 
-				config.setListeningPort(Integer.valueOf(args[++i]));
+				builder.setListeningPort(Integer.valueOf(args[++i]));
 			} else if (args[i].equals("--data-dir") || args[i].equals("-d")) {
 				if (i + 1 >= args.length) {
 					System.out.format("Missing the value for arg:%d %s\n", i, args[i]);
 					System.exit(-1);
 				}
 
-				config.setStoragePath(args[++i]);
+				builder.setStoragePath(args[++i]);
 			} else if (args[i].equals("--help") || args[i].equals("-h")) {
 				System.out.println("Usage: launcher [OPTIONS]");
 				System.out.println("Available options:");
@@ -117,6 +118,8 @@ public class Launcher {
 
 			i++;
 		}
+
+		config = builder.build();
 	}
 
 	public static void main(String[] args) {

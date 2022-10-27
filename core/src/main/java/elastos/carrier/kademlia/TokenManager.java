@@ -28,6 +28,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import elastos.carrier.Id;
 import elastos.carrier.utils.ThreadLocals;
 
 public class TokenManager {
@@ -52,14 +53,14 @@ public class TokenManager {
 	}
 
 	private static int generateToken(Id nodeId, InetAddress ip, int port, Id targetId, long timestamp, byte[] sessionSecret) {
-		byte[] tokData = new byte[Id.BYTE_LENGTH * 2 + ip.getAddress().length + 2 + 8 + sessionSecret.length];
+		byte[] tokData = new byte[Id.BYTES * 2 + ip.getAddress().length + 2 + 8 + sessionSecret.length];
 
 		// nodeId + ip + port + targetId + timestamp + sessionSecret
 		ByteBuffer bb = ByteBuffer.wrap(tokData);
-		bb.put(nodeId.getBytes());
+		bb.put(nodeId.bytes());
 		bb.put(ip.getAddress());
 		bb.putShort((short)port);
-		bb.put(targetId.getBytes());
+		bb.put(targetId.bytes());
 		bb.putLong(timestamp);
 		bb.put(sessionSecret);
 

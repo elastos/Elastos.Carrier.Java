@@ -30,9 +30,9 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.Constants;
-import elastos.carrier.kademlia.Id;
-import elastos.carrier.kademlia.NodeInfo;
 
 public class ClosestCandidates {
 	private final Id target;

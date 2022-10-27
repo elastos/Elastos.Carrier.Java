@@ -42,6 +42,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import elastos.carrier.Id;
+import elastos.carrier.PeerInfo;
+import elastos.carrier.Value;
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.Signature;
 import elastos.carrier.kademlia.exceptions.CasFail;
@@ -100,7 +103,7 @@ public class DataStorageTests {
 		System.out.println("Writing values...");
 		for (int i = 1; i <= 256; i++) {
 			Arrays.fill(data, (byte)(i % (126 - 32) + 33));
-			Value v = new Value(data);
+			Value v = Value.of(data);
 
 			ids.add(v.getId());
 			ds.putValue(v, -1);
@@ -133,7 +136,7 @@ public class DataStorageTests {
 
 		Signature.KeyPair keypair = Signature.KeyPair.random();
 
-		Id pk = new Id(keypair.publicKey().bytes());
+		Id pk = Id.of(keypair.publicKey().bytes());
 		CryptoBox.Nonce nonce = CryptoBox.Nonce.random();
 		byte[] data = "Hello world".getBytes();
 		byte[] newData = "Foo bar".getBytes();
@@ -141,7 +144,7 @@ public class DataStorageTests {
 
 
 		// new value: success
-		Value v = new Value(keypair, nonce, seq, data);
+		Value v = Value.of(keypair, nonce, seq, data);
 		Id valueId = v.getId();
 		System.out.println(valueId);
 		ds.putValue(v, 0);
@@ -155,14 +158,14 @@ public class DataStorageTests {
 		assertTrue(v.isValid());
 
 		// update: invalid sequence number
-		Value v1 = new Value(keypair, nonce, seq - 1, newData);
+		Value v1 = Value.of(keypair, nonce, seq - 1, newData);
 		assertEquals(valueId, v.getId());
 		assertThrows(SequenceNotMonotonic.class, () -> {
 			ds.putValue(v1, 10);
 		});
 
 		// update: CAS fail
-		Value v2 = new Value(keypair, nonce, seq + 1, newData);
+		Value v2 = Value.of(keypair, nonce, seq + 1, newData);
 		assertEquals(valueId, v.getId());
 		assertThrows(CasFail.class, () -> {
 			ds.putValue(v2, 9);
@@ -178,7 +181,7 @@ public class DataStorageTests {
 		assertTrue(v.isValid());
 
 		// update: success
-		v = new Value(keypair, nonce, seq + 1, newData);
+		v = Value.of(keypair, nonce, seq + 1, newData);
 		assertEquals(valueId, v.getId());
 		ds.putValue(v, 10);
 
@@ -201,8 +204,8 @@ public class DataStorageTests {
 		Signature.KeyPair keypair = Signature.KeyPair.random();
 		Signature.KeyPair recKeypair = Signature.KeyPair.random();
 
-		Id pk = new Id(keypair.publicKey().bytes());
-		Id recipient = new Id(recKeypair.publicKey().bytes());
+		Id pk = Id.of(keypair.publicKey().bytes());
+		Id recipient = Id.of(recKeypair.publicKey().bytes());
 		CryptoBox.Nonce nonce = CryptoBox.Nonce.random();
 		byte[] data = "Hello world".getBytes();
 		byte[] newData = "Foo bar".getBytes();
@@ -210,7 +213,7 @@ public class DataStorageTests {
 
 
 		// new value: success
-		Value v = new Value(keypair, recipient, nonce, seq, data);
+		Value v = Value.of(keypair, recipient, nonce, seq, data);
 		Id valueId = v.getId();
 		System.out.println(valueId);
 		ds.putValue(v, 0);
@@ -225,14 +228,14 @@ public class DataStorageTests {
 		assertTrue(v.isValid());
 
 		// update: invalid sequence number
-		Value v1 = new Value(keypair, recipient, nonce, seq - 1, newData);
+		Value v1 = Value.of(keypair, recipient, nonce, seq - 1, newData);
 		assertEquals(valueId, v.getId());
 		assertThrows(SequenceNotMonotonic.class, () -> {
 			ds.putValue(v1, 10);
 		});
 
 		// update: CAS fail
-		Value v2 = new Value(keypair, recipient, nonce, seq + 1, newData);
+		Value v2 = Value.of(keypair, recipient, nonce, seq + 1, newData);
 		assertEquals(valueId, v.getId());
 		assertThrows(CasFail.class, () -> {
 			ds.putValue(v2, 9);
@@ -249,7 +252,7 @@ public class DataStorageTests {
 		assertTrue(v.isValid());
 
 		// update: success
-		v = new Value(keypair, recipient, nonce, seq + 1, newData);
+		v = Value.of(keypair, recipient, nonce, seq + 1, newData);
 		assertEquals(valueId, v.getId());
 		ds.putValue(v, 10);
 

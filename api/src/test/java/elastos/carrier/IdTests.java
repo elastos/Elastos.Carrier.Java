@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.kademlia;
+package elastos.carrier;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -40,50 +40,50 @@ public class IdTests {
 	@Test
 	public void testIdFromHexString() {
 		String hexWithPrefix = "0x71e1b2ecdf528b623192f899d984c53f2b13508e21ccd53de5d7158672820636";
-		Id id = new Id(hexWithPrefix);
-		assertEquals(hexWithPrefix.substring(2), id.toString());
+		Id id = Id.of(hexWithPrefix);
+		assertEquals(hexWithPrefix, id.toHexString());
 
 		String hexWithoutPrefix = "F897B6CB7969005520E6F6101EB5466D9859926A51653365E36C4A3C42E5DE6F";
-		id = new Id(hexWithoutPrefix);
-		assertEquals(hexWithoutPrefix.toLowerCase(), id.toString());
+		id = Id.ofHex(hexWithoutPrefix);
+		assertEquals(hexWithoutPrefix.toLowerCase(), id.toHexString().substring(2));
 
 		String hexWithPrefix2 = "0x71E1B2ECDF528B623192F899D984C53F2B13508E21CCD53DE5D71586728206";
 		Exception e = assertThrows(IllegalArgumentException.class, () -> {
-			new Id(hexWithPrefix2);
+			Id.of(hexWithPrefix2);
 		});
 		assertEquals("Hex ID string should be 64 characters long.", e.getMessage());
 
 		String hexWithoutPrefix2 = "f897b6cb7969005520e6f6101eb5466d9859926a51653365e36c4a3c42e5de";
 		e = assertThrows(IllegalArgumentException.class, () -> {
-			new Id(hexWithoutPrefix2);
+			Id.ofHex(hexWithoutPrefix2);
 		});
 		assertEquals("Hex ID string should be 64 characters long.", e.getMessage());
 
 		String hexWithPrefix3 = "0x71E1B2ECDR528B623192F899D984C53F2B13508E21CCD53DE5D7158672820636";
 		e = assertThrows(IllegalArgumentException.class, () -> {
-			new Id(hexWithPrefix3);
+			Id.of(hexWithPrefix3);
 		});
 		assertEquals("Invalid hex byte 'DR' at index 10 of '0x71E1B2ECDR528B623192F899D984C53F2B13508E21CCD53DE5D7158672820636'", e.getMessage());
 
 		String hexWithoutPrefix3 = "f897b6cb7969005520e6f6101ebx466d9859926a51653365e36c4a3c42e5de6f";
 		e = assertThrows(IllegalArgumentException.class, () -> {
-			new Id(hexWithoutPrefix3);
+			Id.ofHex(hexWithoutPrefix3);
 		});
 		assertEquals("Invalid hex byte 'bx' at index 26 of 'f897b6cb7969005520e6f6101ebx466d9859926a51653365e36c4a3c42e5de6f'", e.getMessage());
 	}
 
 	@Test
 	public void testIdFromBytes() {
-		byte[] binId = new byte[Id.BYTE_LENGTH];
+		byte[] binId = new byte[Id.BYTES];
 		new Random().nextBytes(binId);
 
-		Id id = new Id(binId);
-		assertArrayEquals(binId, Hex.decode(id.toHexString()));
+		Id id = Id.of(binId);
+		assertArrayEquals(binId, Hex.decode(id.toHexString().substring(2)));
 
 		byte[] binId2 = new byte[20];
 		new Random().nextBytes(binId2);
 		Exception e = assertThrows(IllegalArgumentException.class, () -> {
-			new Id(binId2);
+			Id.of(binId2);
 		});
 		assertEquals("Binary id should be 32 bytes long.", e.getMessage());
 	}
@@ -91,7 +91,7 @@ public class IdTests {
 	@Test
 	public void testIdFromId() {
 		Id id1 = Id.random();
-		Id id2 = new Id(id1);
+		Id id2 = Id.of(id1);
 
 		assertEquals(id1.toHexString(), id2.toHexString());
 		assertEquals(id1.toInteger(), id2.toInteger());
@@ -104,36 +104,36 @@ public class IdTests {
 
 	@Test
 	public void testForBit() {
-		for (int i = 0; i < Id.BIT_LENGTH; i++) {
-			Id id = Id.bitOf(i);
-			assertTrue(id.toInteger().equals(BigInteger.ZERO.setBit(Id.BIT_LENGTH - i - 1)));
+		for (int i = 0; i < Id.SIZE; i++) {
+			Id id = Id.ofBit(i);
+			assertTrue(id.toInteger().equals(BigInteger.ZERO.setBit(Id.SIZE - i - 1)));
 		}
 	}
 
 	@Test
 	public void testAdd() {
-		Id id1 = new Id("0x71e1b2ecdf528b623192f899d984c53f2b13508e21ccd53de5d7158672820636");
-		Id id2 = new Id("0xf897b6cb7969005520e6f6101eb5466d9859926a51653365e36c4a3c42e5de6f");
+		Id id1 = Id.of("0x71e1b2ecdf528b623192f899d984c53f2b13508e21ccd53de5d7158672820636");
+		Id id2 = Id.of("0xf897b6cb7969005520e6f6101eb5466d9859926a51653365e36c4a3c42e5de6f");
 
 		Id id3 = id1.add(id2);
-		assertEquals("6a7969b858bb8bb75279eea9f83a0bacc36ce2f8733208a3c9435fc2b567e4a5", id3.toHexString());
+		assertEquals("0x6a7969b858bb8bb75279eea9f83a0bacc36ce2f8733208a3c9435fc2b567e4a5", id3.toHexString());
 
 		for (int i = 0; i < 1000; i++) {
 			id1 = Id.random();
 			id2 = Id.random();
 
 			id3 = id1.add(id2);
-			BigInteger n = id1.toInteger().add(id2.toInteger()).clearBit(Id.BIT_LENGTH);
+			BigInteger n = id1.toInteger().add(id2.toInteger()).clearBit(Id.SIZE);
 			assertTrue(id3.toInteger().equals(n));
 		}
 	}
 
 	@Test
 	public void testDistance() {
-		Id id1 = new Id("00000000f528d6132c15787ed16f09b08a4e7de7e2c5d3838974711032cb7076");
-		Id id2 = new Id("00000000f0a8d6132c15787ed16f09b08a4e7de7e2c5d3838974711032cb7076");
+		Id id1 = Id.of("0x00000000f528d6132c15787ed16f09b08a4e7de7e2c5d3838974711032cb7076");
+		Id id2 = Id.of("0x00000000f0a8d6132c15787ed16f09b08a4e7de7e2c5d3838974711032cb7076");
 
-		assertEquals("0000000005800000000000000000000000000000000000000000000000000000", Id.distance(id1, id2).toHexString());
+		assertEquals("0x0000000005800000000000000000000000000000000000000000000000000000", Id.distance(id1, id2).toHexString());
 
 		for (int i = 0; i < 1000; i++) {
 			id1 = Id.random();
@@ -147,8 +147,8 @@ public class IdTests {
 
 	@Test
 	public void testApproxDistance() {
-		Id id1 = new Id("00000000f528d6132c15787ed16f09b08a4e7de7e2c5d3838974711032cb7076");
-		Id id2 = new Id("00000000f0a8d6132c15787ed16f09b08a4e7de7e2c5d3838974711032cb7076");
+		Id id1 = Id.of("0x00000000f528d6132c15787ed16f09b08a4e7de7e2c5d3838974711032cb7076");
+		Id id2 = Id.of("0x00000000f0a8d6132c15787ed16f09b08a4e7de7e2c5d3838974711032cb7076");
 
 		assertEquals(219, Id.approxDistance(id1, id2));
 
@@ -164,19 +164,19 @@ public class IdTests {
 
 	@Test
 	public void testThreeWayCompare() {
-		Id id = new Id("4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8ca214a3d09b6676cb8");
-		Id id1 = new Id("4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
-		Id id2 = new Id("4833af415161cbd0a3ef83aa59a55fbadc9bd520a885a8ca214a3d09b6676cb8");
+		Id id = Id.of("0x4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8ca214a3d09b6676cb8");
+		Id id1 = Id.of("0x4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
+		Id id2 = Id.of("0x4833af415161cbd0a3ef83aa59a55fbadc9bd520a885a8ca214a3d09b6676cb8");
 
 		assertTrue(id.threeWayCompare(id1, id2) < 0);
 
-		id1 = new Id("f833af415161cbd0a3ef83aa59a55fbadc9bd520b886a8ca214a3d09b6676cb8");
-		id2 = new Id("f833af415161cbd0a3ef83aa59a55fbadc9bd520b886a8ca214a3d09b6676cb8");
+		id1 = Id.of("0xf833af415161cbd0a3ef83aa59a55fbadc9bd520b886a8ca214a3d09b6676cb8");
+		id2 = Id.of("0xf833af415161cbd0a3ef83aa59a55fbadc9bd520b886a8ca214a3d09b6676cb8");
 
 		assertTrue(id.threeWayCompare(id1, id2) == 0);
 
-		id1 = new Id("4833af415161cbd0a3ef83aa59a55f1adc9bd520a886a8ca214a3d09b6676cb8");
-		id2 = new Id("4833af415161cbd0a3ef83aa59a55fcadc9bd520a886a8ca214a3d09b6676cb8");
+		id1 = Id.of("0x4833af415161cbd0a3ef83aa59a55f1adc9bd520a886a8ca214a3d09b6676cb8");
+		id2 = Id.of("0x4833af415161cbd0a3ef83aa59a55fcadc9bd520a886a8ca214a3d09b6676cb8");
 
 		assertTrue(id.threeWayCompare(id1, id2) > 0);
 
@@ -195,32 +195,32 @@ public class IdTests {
 
 	@Test
 	public void testBitsEqual() {
-		Id id1 = new Id("4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
-		Id id2 = new Id("4833af415166cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
+		Id id1 = Id.of("0x4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
+		Id id2 = Id.of("0x4833af415166cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
 
 		for (int i = 0; i < 45; i++)
 			assertTrue(Id.bitsEqual(id1, id2, i));
 
-		for (int i = 45; i < Id.BIT_LENGTH; i++)
+		for (int i = 45; i < Id.SIZE; i++)
 			assertFalse(Id.bitsEqual(id1, id2, i));
 
-		id2 = new Id(id1);
-		for (int i = 0; i < Id.BIT_LENGTH; i++)
+		id2 = Id.of(id1);
+		for (int i = 0; i < Id.SIZE; i++)
 			assertTrue(Id.bitsEqual(id1, id2, i));
 
-		id2 = new Id("4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb9");
+		id2 = Id.of("0x4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb9");
 
-		for (int i = 0; i < Id.BIT_LENGTH - 1; i++)
+		for (int i = 0; i < Id.SIZE - 1; i++)
 			assertTrue(Id.bitsEqual(id1, id2, i));
 
-		assertFalse(Id.bitsEqual(id1, id2, Id.BIT_LENGTH -1));
+		assertFalse(Id.bitsEqual(id1, id2, Id.SIZE -1));
 	}
 
 	@Test
 	public void testBitsCopy() {
-		Id id1 = new Id("4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
+		Id id1 = Id.of("0x4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
 
-		for (int i = 0; i > Id.BIT_LENGTH; i++) {
+		for (int i = 0; i > Id.SIZE; i++) {
 			Id id2 = Id.random();
 
 			Id.bitsCopy(id1, id2, i);
@@ -235,7 +235,7 @@ public class IdTests {
 		Id id = Id.random();
 		BigInteger bi = id.toInteger();
 
-		assertEquals(bi.toString(16), id.toString());
+		assertEquals(padLeftZeros(bi.toString(16), 64), id.toHexString().substring(2));
 
 		int loops = 1000000;
 
@@ -324,9 +324,9 @@ public class IdTests {
 	public void testMSBPerf() {
 		System.out.println("Testing MSB performance...");
 
-		Id id = new Id(Hex.decode("0000000000000000000000000000000000000000000000000000000000000100"));
+		Id id = Id.of(Hex.decode("0000000000000000000000000000000000000000000000000000000000000100"));
 
-		assertEquals(Id.BIT_LENGTH - id.toInteger().bitLength(), id.getLeadingZeros());
+		assertEquals(Id.SIZE - id.toInteger().bitLength(), id.getLeadingZeros());
 
 		int loops = 100000000;
 
@@ -353,7 +353,7 @@ public class IdTests {
 	public void testLSBPerf() {
 		System.out.println("Testing LSB performance...");
 
-		Id id = new Id(Hex.decode("0010000000000000000000000000000000000000000000000000000000000000"));
+		Id id = Id.of(Hex.decode("0010000000000000000000000000000000000000000000000000000000000000"));
 
 		assertEquals(id.toInteger().getLowestSetBit(), id.getTrailingZeros());
 
@@ -387,7 +387,7 @@ public class IdTests {
 		System.out.println("   Hex format: " + id.toHexString());
 		System.out.println("Base58 format: " + id.toBase58String());
 
-		assertEquals(id.toString(), Hex.encode(Base58.decode(id.toBase58String())));
+		assertEquals(id.toHexString().substring(2), Hex.encode(Base58.decode(id.toBase58String())));
 
 		int loops = 1000000;
 
@@ -408,5 +408,18 @@ public class IdTests {
 		end = System.currentTimeMillis();
 		duration = end - begin;
 		System.out.println("Base58: " + duration + "\n");
+	}
+
+	private static String padLeftZeros(String inputString, int length) {
+	    if (inputString.length() >= length) {
+	        return inputString;
+	    }
+	    StringBuilder sb = new StringBuilder();
+	    while (sb.length() < length - inputString.length()) {
+	        sb.append('0');
+	    }
+	    sb.append(inputString);
+
+	    return sb.toString();
 	}
 }

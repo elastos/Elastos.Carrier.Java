@@ -33,9 +33,9 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
+import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.DHT;
-import elastos.carrier.kademlia.Id;
-import elastos.carrier.kademlia.NodeInfo;
 
 public abstract class LookupResponse extends Message {
 	private List<NodeInfo> nodes4;
@@ -107,7 +107,7 @@ public abstract class LookupResponse extends Message {
 		gen.writeStartArray();
 		for (NodeInfo ni : nodes) {
 			gen.writeStartArray();
-			gen.writeBinary(ni.getId().getBytes());
+			gen.writeBinary(ni.getId().bytes());
 			gen.writeBinary(ni.getAddress().getAddress().getAddress());
 			gen.writeNumber(ni.getAddress().getPort());
 			gen.writeEndArray();
@@ -156,7 +156,7 @@ public abstract class LookupResponse extends Message {
 				throw new IOException("Invalid " + fieldName + " info data, should be array");
 
 			parser.nextToken();
-			Id id = new Id(parser.getBinaryValue());
+			Id id = Id.of(parser.getBinaryValue());
 			parser.nextToken();
 			InetAddress addr = InetAddress.getByAddress(parser.getBinaryValue());
 			parser.nextToken();

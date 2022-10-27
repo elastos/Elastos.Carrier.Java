@@ -29,12 +29,12 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
+import elastos.carrier.PeerInfo;
 import elastos.carrier.kademlia.Constants;
 import elastos.carrier.kademlia.DHT;
-import elastos.carrier.kademlia.Id;
 import elastos.carrier.kademlia.KClosestNodes;
-import elastos.carrier.kademlia.NodeInfo;
-import elastos.carrier.kademlia.PeerInfo;
 import elastos.carrier.kademlia.RPCCall;
 import elastos.carrier.kademlia.messages.FindPeerRequest;
 import elastos.carrier.kademlia.messages.FindPeerResponse;

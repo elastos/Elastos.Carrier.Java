@@ -25,8 +25,8 @@ package elastos.carrier.node;
 import java.net.InetAddress;
 import java.util.concurrent.Callable;
 
-import elastos.carrier.kademlia.Id;
-import elastos.carrier.kademlia.NodeInfo;
+import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
@@ -46,7 +46,7 @@ public class BootstrapCommand implements Callable<Integer> {
 	public Integer call() throws Exception {
 		Id nodeId = null;
 		try {
-			nodeId = new Id(id);
+			nodeId = Id.of(id);
 		} catch (Exception e) {
 			System.out.println("Invalid id: " + id);
 			return -1;

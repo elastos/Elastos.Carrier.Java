@@ -25,9 +25,9 @@ package elastos.carrier.node;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
-import elastos.carrier.kademlia.Id;
-import elastos.carrier.kademlia.LookupOption;
-import elastos.carrier.kademlia.Value;
+import elastos.carrier.Id;
+import elastos.carrier.LookupOption;
+import elastos.carrier.Value;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -53,7 +53,7 @@ public Integer call() throws Exception {
 
 	Id id = null;
 	try {
-		id = new Id(target);
+		id = Id.of(target);
 	} catch (Exception e) {
 		System.out.println("Invalid ID: " + target);
 		return -1;

@@ -29,8 +29,8 @@ import java.util.EnumSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import elastos.carrier.Id;
 import elastos.carrier.kademlia.DHT;
-import elastos.carrier.kademlia.Id;
 import elastos.carrier.kademlia.KBucket;
 import elastos.carrier.kademlia.KBucketEntry;
 import elastos.carrier.kademlia.RPCCall;

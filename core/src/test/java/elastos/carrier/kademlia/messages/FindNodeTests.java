@@ -33,8 +33,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import elastos.carrier.kademlia.Id;
-import elastos.carrier.kademlia.NodeInfo;
+import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.messages.Message.Method;
 import elastos.carrier.kademlia.messages.Message.Type;
 import elastos.carrier.utils.ThreadLocals;

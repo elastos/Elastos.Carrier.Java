@@ -33,6 +33,8 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import elastos.carrier.Id;
+import elastos.carrier.Prefix;
 import elastos.carrier.kademlia.messages.Message;
 import elastos.carrier.utils.ThreadLocals;
 

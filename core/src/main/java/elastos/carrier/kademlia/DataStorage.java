@@ -27,6 +27,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
 
+import elastos.carrier.Id;
+import elastos.carrier.PeerInfo;
+import elastos.carrier.Value;
 import elastos.carrier.kademlia.exceptions.KadException;
 
 public interface DataStorage extends Closeable {

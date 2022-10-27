@@ -47,6 +47,14 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import elastos.carrier.Configuration;
+import elastos.carrier.Id;
+import elastos.carrier.LookupOption;
+import elastos.carrier.NodeInfo;
+import elastos.carrier.NodeStatus;
+import elastos.carrier.NodeStatusListener;
+import elastos.carrier.PeerInfo;
+import elastos.carrier.Value;
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.Signature;
 import elastos.carrier.kademlia.DHT.Type;
@@ -58,7 +66,7 @@ import elastos.carrier.kademlia.tasks.Task;
 import elastos.carrier.kademlia.tasks.TaskFuture;
 import elastos.carrier.utils.AddressUtils;
 
-public class Node {
+public class Node implements elastos.carrier.Node {
 	private Configuration config;
 
 	private Signature.KeyPair keyPair;
@@ -80,14 +88,10 @@ public class Node {
 	private TokenManager tokenMan;
 	private DataStorage storage;
 
-	private Status status;
+	private NodeStatus status;
 	private List<NodeStatusListener> statusListeners;
 
 	private static final Logger log = LoggerFactory.getLogger(Node.class);
-
-	public static enum Status {
-		Stopped, Initializing, Running
-	}
 
 	public Node(Configuration config) throws KadException {
 		if (config.IPv4Address() == null && config.IPv6Address() == null) {
@@ -115,7 +119,7 @@ public class Node {
 		if (keyPair == null) // no existing key
 			initKey(keyFile);
 
-		id = new Id(keyPair.publicKey().bytes());
+		id = Id.of(keyPair.publicKey().bytes());
 		if (persistent) {
 			File idFile = new File(config.storagePath(), "id");
 			writeIdFile(idFile);
@@ -127,7 +131,7 @@ public class Node {
 		tokenMan = new TokenManager();
 
 		defaultLookupOption = LookupOption.CONSERVATIVE;
-		status = Status.Stopped;
+		status = NodeStatus.Stopped;
 
 		this.config = config;
 	}
@@ -180,33 +184,39 @@ public class Node {
 		}
 	}
 
+	@Override
 	public Id getId() {
 		return id;
 	}
 
+	@Override
 	public boolean isLocalId(Id id) {
 		return this.id.equals(id);
 	}
 
+	@Override
 	public Configuration getConfig() {
 		return config;
 	}
 
+	@Override
 	public void setDefaultLookupOption(LookupOption option) {
 		defaultLookupOption = option != null ? option : LookupOption.CONSERVATIVE;
 	}
 
+	@Override
 	public void addStatusListener(NodeStatusListener listener) {
 		statusListeners.add(listener);
 	}
 
+	@Override
 	public void removeStatusListener(NodeStatusListener listener) {
 		statusListeners.remove(listener);
 	}
 
-	private void setStatus(Status expected, Status newStatus) {
+	private void setStatus(NodeStatus expected, NodeStatus newStatus) {
 		if (this.status.equals(expected)) {
-			Status old = this.status;
+			NodeStatus old = this.status;
 			this.status = newStatus;
 			if (!statusListeners.isEmpty()) {
 				for (NodeStatusListener l : statusListeners)
@@ -217,10 +227,12 @@ public class Node {
 		}
 	}
 
+	@Override
 	public ScheduledExecutorService getScheduler() {
 		return scheduler;
 	}
 
+	@Override
 	public void setScheduler(ScheduledExecutorService scheduler) {
 		this.scheduler = scheduler;
 	}
@@ -261,6 +273,7 @@ public class Node {
 		return port <= 0 || port > 65535 ? Constants.DEFAULT_DHT_PORT : port;
 	}
 
+	@Override
 	public void bootstrap(NodeInfo node) throws KadException {
 		checkArgument(node != null, "Invalid bootstrap node");
 
@@ -271,11 +284,12 @@ public class Node {
 			dht6.bootstrap(node);
 	}
 
+	@Override
 	public synchronized void start() throws KadException {
-		if (status != Status.Stopped)
+		if (status != NodeStatus.Stopped)
 			return;
 
-		setStatus(Status.Stopped, Status.Initializing);
+		setStatus(NodeStatus.Stopped, NodeStatus.Initializing);
 		log.info("Carrier node {} is starting...", id);
 
 		try {
@@ -312,16 +326,17 @@ public class Node {
 				numDHTs++;
 			}
 
-			setStatus(Status.Initializing, Status.Running);
+			setStatus(NodeStatus.Initializing, NodeStatus.Running);
 			log.info("Carrier Kademlia node {} started", id);
 		} catch (KadException e) {
-			setStatus(Status.Initializing, Status.Stopped);
+			setStatus(NodeStatus.Initializing, NodeStatus.Stopped);
 			throw e;
 		}
 	}
 
+	@Override
 	public synchronized void stop() {
-		if (status != Status.Stopped)
+		if (status != NodeStatus.Stopped)
 			return;
 
 		log.info("Carrier Kademlia node {} is stopping...", id);
@@ -345,19 +360,21 @@ public class Node {
 
 		storage = null;
 
-		setStatus(Status.Running, Status.Stopped);
+		setStatus(NodeStatus.Running, NodeStatus.Stopped);
 		log.info("Carrier Kademlia node {} stopped", id);
 	}
 
 	/**
 	 * @return the status
 	 */
-	public Status getStatus() {
+	@Override
+	public NodeStatus getStatus() {
 		return status;
 	}
 
+	@Override
 	public boolean isRunning() {
-		return status == Status.Running;
+		return status == NodeStatus.Running;
 	}
 
 	NetworkEngine getNetworkEngine() {
@@ -376,10 +393,7 @@ public class Node {
 		return tokenMan;
 	}
 
-	public CompletableFuture<List<NodeInfo>> findNode(Id id) {
-		return findNode(id, null);
-	}
-
+	@Override
 	public CompletableFuture<List<NodeInfo>> findNode(Id id, LookupOption option) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid node id");
@@ -432,10 +446,7 @@ public class Node {
 		return future;
 	}
 
-	public CompletableFuture<Value> findValue(Id id) {
-		return findValue(id, null);
-	}
-
+	@Override
 	public CompletableFuture<Value> findValue(Id id, LookupOption option) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid value id");
@@ -498,6 +509,7 @@ public class Node {
 		return future;
 	}
 
+	@Override
 	public CompletableFuture<Void> storeValue(Value value) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(value != null, "Invalue value");
@@ -531,10 +543,7 @@ public class Node {
 		return future;
 	}
 
-	public CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected) {
-		return findPeer(id, expected, null);
-	}
-
+	@Override
 	public CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected, LookupOption option) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid peer id");
@@ -603,6 +612,7 @@ public class Node {
 		return future;
 	}
 
+	@Override
 	public CompletableFuture<Void> announcePeer(Id id, int port) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid peer id");
@@ -651,28 +661,28 @@ public class Node {
 		return future;
 	}
 
+	@Override
 	public Value createValue(byte[] data) {
-		return new Value(data);
+		return Value.of(data);
 	}
 
+	@Override
 	public Value createSignedValue(byte[] data) throws KadException {
 		Signature.KeyPair kp = Signature.KeyPair.random();
 		CryptoBox.Nonce nonce = CryptoBox.Nonce.random();
 
-		return new Value(kp, nonce, 0, data);
+		return Value.of(kp, nonce, 0, data);
 	}
 
+	@Override
 	public Value createEncryptedValue(Id recipient, byte[] data) throws KadException {
 		Signature.KeyPair kp = Signature.KeyPair.random();
 		CryptoBox.Nonce nonce = CryptoBox.Nonce.random();
 
-		return new Value(kp, recipient, nonce, 0, data);
+		return Value.of(kp, recipient, nonce, 0, data);
 	}
 
-	public Value createRawValue(Id id, Id recipient, byte[] nonce, int seq, byte[] sig, byte[] data) {
-		return new Value(id, recipient, nonce, seq, sig, data);
-	}
-
+	@Override
 	public Value updateValue(Id valueId, byte[] data) throws KadException {
 		Value old = getStorage().getValue(valueId);
 		if (old == null)
@@ -684,7 +694,7 @@ public class Node {
 		Signature.KeyPair kp = Signature.KeyPair.fromPrivateKey(old.getPrivateKey());
 		CryptoBox.Nonce nonce = CryptoBox.Nonce.fromBytes(old.getNonce());
 
-		return new Value(kp, old.getRecipient(), nonce, old.getSequenceNumber() + 1, data);
+		return Value.of(kp, old.getRecipient(), nonce, old.getSequenceNumber() + 1, data);
 	}
 
 	@Override

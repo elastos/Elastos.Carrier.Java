@@ -20,8 +20,8 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.kademlia;
+package elastos.carrier;
 
-public enum LookupOption {
-	ARBITRARY, OPTIMISTIC, CONSERVATIVE
+public interface NodeStatusListener {
+	public void statusChanged(NodeStatus newStatus, NodeStatus oldStatus);
 }

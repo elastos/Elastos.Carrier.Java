@@ -20,9 +20,7 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.kademlia;
-
-import static com.google.common.base.Preconditions.checkArgument;
+package elastos.carrier;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -35,41 +33,52 @@ public class PeerInfo {
 	private final InetSocketAddress addr;
 
 	public PeerInfo(Id nodeId, InetSocketAddress addr) {
-		checkArgument(nodeId != null, "Invalid node id");
-		checkArgument(addr != null, "Invalid socket address");
+		if (nodeId == null)
+			throw new IllegalArgumentException("Invalid node id: null");
+		if (addr == null)
+			throw new IllegalArgumentException("Invalid socket address: null");
+
 		this.nodeId = nodeId;
 		this.addr = addr;
 	}
 
 	public PeerInfo(Id nodeId, InetAddress addr, int port) {
-		checkArgument(nodeId != null, "Invalid node id");
-		checkArgument(addr != null, "Invalid socket address");
-		checkArgument(port > 0 && port < 65536, "Invalid port");
+		if (nodeId == null)
+			throw new IllegalArgumentException("Invalid node id: null");
+		if (addr == null)
+			throw new IllegalArgumentException("Invalid socket address: null");
+		if (port <= 0 || port > 65535)
+			throw new IllegalArgumentException("Invalid port: " + port);
 
 		this.nodeId = nodeId;
 		this.addr = new InetSocketAddress(addr, port);
 	}
 
 	public PeerInfo(Id nodeId, String addr, int port) {
-		checkArgument(nodeId != null, "Invalid node id");
-		checkArgument(addr != null, "Invalid socket address");
-		checkArgument(port > 0 && port < 65536, "Invalid port");
+		if (nodeId == null)
+			throw new IllegalArgumentException("Invalid node id: null");
+		if (addr == null || addr.isEmpty())
+			throw new IllegalArgumentException("Invalid socket address: " + String.valueOf(addr));
+		if (port <= 0 || port > 65535)
+			throw new IllegalArgumentException("Invalid port: " + port);
 
 		this.nodeId = nodeId;
 		this.addr = new InetSocketAddress(addr, port);
 	}
 
-	protected PeerInfo(Id nodeId, byte[] addr, int port) {
-		checkArgument(nodeId != null, "Invalid node id");
-		checkArgument(addr != null, "Invalid socket address");
-		checkArgument(addr.length == 4 || addr.length == 16, "Invalid address");
-		checkArgument(port > 0 && port < 65536, "Invalid port");
+	public PeerInfo(Id nodeId, byte[] addr, int port) {
+		if (nodeId == null)
+			throw new IllegalArgumentException("Invalid node id: null");
+		if (addr == null)
+			throw new IllegalArgumentException("Invalid socket address: null");
+		if (port <= 0 || port > 65535)
+			throw new IllegalArgumentException("Invalid port: " + port);
 
 		this.nodeId = nodeId;
 		try {
 			this.addr = new InetSocketAddress(InetAddress.getByAddress(addr), port);
 		} catch (UnknownHostException e) {
-			throw new RuntimeException("INTERNAL ERROR - Invalid binary inet address");
+			throw new IllegalArgumentException("Invalid binary inet address", e);
 		}
 	}
 

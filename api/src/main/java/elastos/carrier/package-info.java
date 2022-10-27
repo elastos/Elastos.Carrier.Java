@@ -20,10 +20,4 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.kademlia;
-
-import elastos.carrier.kademlia.Node.Status;
-
-public interface NodeStatusListener {
-	public void statusChanged(Status newStatus, Status oldStatus);
-}
+package elastos.carrier;

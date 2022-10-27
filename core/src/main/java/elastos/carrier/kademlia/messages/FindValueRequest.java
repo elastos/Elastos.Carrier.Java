@@ -27,7 +27,7 @@ import java.io.IOException;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
-import elastos.carrier.kademlia.Id;
+import elastos.carrier.Id;
 
 public class FindValueRequest extends LookupRequest {
 	// Only send the value if the real sequence number greater than this.

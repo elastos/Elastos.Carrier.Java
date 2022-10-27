@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.kademlia;
+package elastos.carrier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -35,33 +35,33 @@ import org.junit.jupiter.api.Test;
 public class PrefixTests {
 	@Test
 	public void testIsPrefixOf() {
-		Id id = new Id("4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
+		Id id = Id.of("0x4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
 		Prefix prefix = new Prefix(id, 64);
 
 		assertTrue(prefix.isPrefixOf(id));
-		assertTrue(prefix.isPrefixOf(new Id("4833af415161cbd0f3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8")));
-		assertTrue(prefix.isPrefixOf(new Id("4833af415161cbd0ffffffffffffffffffffffffffffffffffffffffffffffff")));
-		assertFalse(prefix.isPrefixOf(new Id("4833af415161cbd1f3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8")));
+		assertTrue(prefix.isPrefixOf(Id.of("0x4833af415161cbd0f3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8")));
+		assertTrue(prefix.isPrefixOf(Id.of("0x4833af415161cbd0ffffffffffffffffffffffffffffffffffffffffffffffff")));
+		assertFalse(prefix.isPrefixOf(Id.of("0x4833af415161cbd1f3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8")));
 	}
 
 	@Test
 	public void testIsSplitable() {
-		for (int i = -1; i < Id.BIT_LENGTH - 2; i++) {
+		for (int i = -1; i < Id.SIZE - 2; i++) {
 			Id id = Id.random();
 			Prefix p = new Prefix(id, i);
 			assertTrue(p.isSplittable());
 		}
 
 		Id id = Id.random();
-		Prefix p = new Prefix(id, Id.BIT_LENGTH - 1);
+		Prefix p = new Prefix(id, Id.SIZE - 1);
 		assertFalse(p.isSplittable());
 	}
 
 	@Test
 	public void testIsSiblingOf() {
-		Id id  = new Id("4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
-		Id id2 = new Id("4833af415161cbd0a3ef8faa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
-		Id id3 = new Id("4833af415161cbd0a3ef93aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
+		Id id  = Id.of("0x4833af415161cbd0a3ef83aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
+		Id id2 = Id.of("0x4833af415161cbd0a3ef8faa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
+		Id id3 = Id.of("0x4833af415161cbd0a3ef93aa59a55fbadc9bd520a886a8fa214a3d09b6676cb8");
 
 		Prefix p = new Prefix(id, 84);
 		Prefix p2 = new Prefix(id2, 84);
@@ -73,7 +73,7 @@ public class PrefixTests {
 
 	@Test
 	public void testFirstAndLast() {
-		for (int i = 0; i < Id.BIT_LENGTH - 1; i++) {
+		for (int i = 0; i < Id.SIZE - 1; i++) {
 			Id id = Id.random();
 
 			Prefix p = new Prefix(id, i);
@@ -83,7 +83,7 @@ public class PrefixTests {
 
 			assertTrue(p.isPrefixOf(first));
 			assertTrue(p.isPrefixOf(last));
-			assertFalse(p.isPrefixOf(last.add(new Id("0000000000000000000000000000000000000000000000000000000000000001"))));
+			assertFalse(p.isPrefixOf(last.add(Id.of("0x0000000000000000000000000000000000000000000000000000000000000001"))));
 		}
 
 	}
@@ -95,7 +95,7 @@ public class PrefixTests {
 		Prefix prefix = new Prefix(id, -1);
 		assertEquals(prefix, prefix.getParent());
 
-		for (int i = 0; i < Id.BIT_LENGTH; i++) {
+		for (int i = 0; i < Id.SIZE; i++) {
 			id = Id.MAX_ID;
 
 			prefix = new Prefix(id, i);
@@ -111,7 +111,7 @@ public class PrefixTests {
 
 	@Test
 	public void testCreateRandomId() {
-		for (int i = -1; i < Id.BIT_LENGTH; i++) {
+		for (int i = -1; i < Id.SIZE; i++) {
 			Id id = Id.random();
 			Prefix prefix = new Prefix(id, i);
 
@@ -129,7 +129,7 @@ public class PrefixTests {
 
 	@Test
 	public void testSplitBranch() {
-		for  (int i = -1; i < Id.BIT_LENGTH - 1; i++) {
+		for  (int i = -1; i < Id.SIZE - 1; i++) {
 			Id id = Id.random();
 			Prefix p = new Prefix(id, i);
 
@@ -149,7 +149,7 @@ public class PrefixTests {
 
 	@Test
 	public void testGetCommonPrefix() {
-		for (int depth = -1; depth < Id.BIT_LENGTH; depth++) {
+		for (int depth = -1; depth < Id.SIZE; depth++) {
 			Id id = Id.random();
 			Prefix p = new Prefix(id, depth);
 

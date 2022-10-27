@@ -28,13 +28,13 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
+import elastos.carrier.Value;
 import elastos.carrier.kademlia.Constants;
 import elastos.carrier.kademlia.DHT;
-import elastos.carrier.kademlia.Id;
 import elastos.carrier.kademlia.KClosestNodes;
-import elastos.carrier.kademlia.NodeInfo;
 import elastos.carrier.kademlia.RPCCall;
-import elastos.carrier.kademlia.Value;
 import elastos.carrier.kademlia.messages.FindValueRequest;
 import elastos.carrier.kademlia.messages.FindValueResponse;
 import elastos.carrier.kademlia.messages.Message;
@@ -97,7 +97,7 @@ public class ValueLookup extends TargetedTask {
 
 		FindValueResponse r = (FindValueResponse)response;
 		if (r.getValue() != null) {
-			Value value = Value.of(r);
+			Value value = r.value();
 			if (!value.getId().equals(getTarget())) {
 				log.error("Responsed value id {} mismatched with expected {}", value.getId(), getTarget());
 				return;

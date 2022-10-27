@@ -20,32 +20,35 @@
  * SOFTWARE.
  */
 
-package elastos.carrier.kademlia;
+package elastos.carrier;
 
-import java.io.File;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
-public interface Configuration {
-	public Inet4Address IPv4Address();
+public final class Version {
+	private static final String VERSION_NOT_AVAILABLE = "N/A";
 
-	public Inet6Address IPv6Address();
+	@SuppressWarnings("serial")
+	private static final Map<String, String> names = new HashMap<String, String>() {{
+	    put("OR", "Orca");		// Java super node
+	}};
 
-	public int listeningPort();
+	public static int build(String name, int version) {
+		byte[] nameBytes = name.toUpperCase().getBytes();
 
-	/**
-	 * If a Path that points to an existing, writable directory is returned then the routing table
-	 * will be persisted to that directory periodically and during shutdown
-	 */
-	public File storagePath();
+		return Byte.toUnsignedInt(nameBytes[0]) << 24 |
+				Byte.toUnsignedInt(nameBytes[1]) << 16 |
+				(version & 0x0000FFFF);
+	}
 
-	/**
-	 * if true then attempt to bootstrap through well-known nodes is made.
-	 * you either must have a persisted routing table which can be loaded or
-	 * manually seed the routing table by calling {@link DHT#addDHTNode(String, int)}
-	 */
-	//public boolean routerBootstrap();
+	public static String toString(int version) {
+		if (version == 0)
+			return VERSION_NOT_AVAILABLE;
 
-	public List<NodeInfo> bootstrapNodes();
+		String n = new String(new byte[] { (byte)(version >>> 24),
+				(byte)((version & 0x00ff0000) >>> 16) });
+		String v = Integer.toString(version & 0x0000ffff);
+
+		return names.getOrDefault(n, n) + "/" + v;
+	}
 }

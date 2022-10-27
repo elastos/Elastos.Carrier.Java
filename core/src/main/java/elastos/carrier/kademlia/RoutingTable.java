@@ -50,6 +50,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 
+import elastos.carrier.Id;
+import elastos.carrier.Prefix;
 import elastos.carrier.kademlia.tasks.PingRefreshTask;
 import elastos.carrier.kademlia.tasks.Task;
 import elastos.carrier.utils.ThreadLocals;
