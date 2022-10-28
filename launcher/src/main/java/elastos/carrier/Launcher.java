@@ -51,8 +51,6 @@ public class Launcher {
 
 	private static void parseArgs(String[] args) {
 		DefaultConfiguration.Builder builder = new DefaultConfiguration.Builder();
-		builder.setAutoIPv4Address(true);
-		builder.setAutoIPv6Address(false);
 
 		int i = 0;
 		while (i < args.length) {

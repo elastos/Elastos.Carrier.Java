@@ -79,8 +79,8 @@ public class Shell  implements Callable<Integer> {
 	@Option(names = {"-p", "--port"}, description = "The port to listen.")
 	private int port = 0;
 
-	@Option(names = {"-d", "--dataDir"}, description = "The directory to store the node data.")
-	private String dataDir = null;
+	@Option(names = {"-d", "--dataDir"}, description = "The directory to store the node data, default: ~/.cache/carrier.")
+	private String dataDir = "~/.cache/carrier";
 
 	@Option(names = {"-b", "--bootstrap"}, description = "The bootstrap node.")
 	private String bootstrap = null;

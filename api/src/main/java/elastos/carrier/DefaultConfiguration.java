@@ -85,8 +85,11 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	public static class Builder {
-		private boolean autoAddr4 = true;
-		private boolean autoAddr6 = true;
+		private static final boolean AUTO_IPV4 = true;
+		private static final boolean AUTO_IPV6 = false;
+
+		private boolean autoAddr4 = AUTO_IPV4;
+		private boolean autoAddr6 = AUTO_IPV6;
 		private Inet4Address addr4;
 		private Inet6Address addr6;
 		private int port;
@@ -189,20 +192,14 @@ public class DefaultConfiguration implements Configuration {
 				ObjectMapper mapper = new ObjectMapper();
 				JsonNode root = mapper.readTree(in);
 
-				boolean enabled = true;
-				if (root.has("ipv4"))
-					enabled = root.get("ipv4").asBoolean();
-
+				boolean enabled = root.has("ipv4") ? root.get("ipv4").asBoolean() : AUTO_IPV4;
 				setAutoIPv4Address(enabled);
 				if (enabled) {
 					if (root.has("address4"))
 						setIPv4Address(root.get("address4").asText());
 				}
 
-				enabled = true;
-				if (root.has("ipv6"))
-					enabled = root.get("ipv6").asBoolean();
-
+				enabled = root.has("ipv6") ?  root.get("ipv6").asBoolean() : AUTO_IPV6;
 				setAutoIPv6Address(enabled);
 				if (enabled) {
 					if (root.has("address6"))

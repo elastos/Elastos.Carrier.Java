@@ -73,6 +73,7 @@ public class Node implements elastos.carrier.Node {
 	private Id id;
 
 	private boolean persistent;
+	private File storagePath;
 
 	private static AtomicInteger schedulerThreadIndex;
 	private volatile static ScheduledThreadPoolExecutor defaultScheduler;
@@ -102,12 +103,13 @@ public class Node implements elastos.carrier.Node {
 		if (Constants.DEVELOPMENT_ENVIRONMENT)
 			log.info("Carrier node running in development environment.");
 
-		persistent = checkPersistence(config.storagePath().getAbsoluteFile());
+		storagePath = config.storagePath() != null ? config.storagePath().getAbsoluteFile() : null;
+		persistent = checkPersistence(storagePath);
 
 		File keyFile = null;
 		if (persistent) {
 			// Try to load the existing key
-			keyFile = new File(config.storagePath(), "key");
+			keyFile = new File(storagePath, "key");
 			if (keyFile.exists()) {
 				if (keyFile.isDirectory())
 					log.warn("Key file path {} is an existing directory. DHT node will not be able to persist node key", keyFile);
@@ -121,7 +123,7 @@ public class Node implements elastos.carrier.Node {
 
 		id = Id.of(keyPair.publicKey().bytes());
 		if (persistent) {
-			File idFile = new File(config.storagePath(), "id");
+			File idFile = new File(storagePath, "id");
 			writeIdFile(idFile);
 		}
 
@@ -297,8 +299,8 @@ public class Node implements elastos.carrier.Node {
 			if (this.scheduler == null)
 				this.scheduler = getDefaultScheduler();
 
-			File storageFile = persistent ? new File(config.storagePath(), "node.db") : null;
-			storage = SQLiteStorage.open(storageFile, getScheduler());
+			File dbFile = persistent ? new File(storagePath, "node.db") : null;
+			storage = SQLiteStorage.open(dbFile, getScheduler());
 
 			if (config.IPv4Address() != null) {
 				if (AddressUtils.isLocalUnicast(config.IPv4Address()))
@@ -307,7 +309,7 @@ public class Node implements elastos.carrier.Node {
 				InetSocketAddress addr = new InetSocketAddress(config.IPv4Address(), getPort());
 				dht4 = new DHT(DHT.Type.IPV4, this, addr);
 				if (persistent)
-					dht4.enablePersistence(new File(config.storagePath(), "dht4.cache"));
+					dht4.enablePersistence(new File(storagePath, "dht4.cache"));
 
 				dht4.start(config.bootstrapNodes() != null ? config.bootstrapNodes() : Collections.emptyList());
 				numDHTs++;
@@ -320,7 +322,7 @@ public class Node implements elastos.carrier.Node {
 				InetSocketAddress addr = new InetSocketAddress(config.IPv6Address(), getPort());
 				dht6 = new DHT(DHT.Type.IPV6, this, addr);
 				if (persistent)
-					dht6.enablePersistence(new File(config.storagePath(), "dht6.cache"));
+					dht6.enablePersistence(new File(storagePath, "dht6.cache"));
 
 				dht6.start(config.bootstrapNodes() != null ? config.bootstrapNodes() : Collections.emptyList());
 				numDHTs++;
