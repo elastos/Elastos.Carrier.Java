@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -53,6 +54,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import elastos.carrier.kademlia.NetworkEngine.Selectable;
 
+@Disabled("Internal only!")
 @TestMethodOrder(OrderAnnotation.class)
 public class NetworkEngineTests {
 	private NetworkEngine networkEngine = new NetworkEngine();

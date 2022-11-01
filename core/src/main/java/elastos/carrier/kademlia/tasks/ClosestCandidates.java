@@ -25,7 +25,6 @@ package elastos.carrier.kademlia.tasks;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,19 +32,20 @@ import java.util.stream.Stream;
 import elastos.carrier.Id;
 import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.Constants;
+import elastos.carrier.utils.ConcurrentHashSet;
 
 public class ClosestCandidates {
 	private final Id target;
 	private final int capacity;
 	private final ConcurrentSkipListMap<Id, CandidateNode> closest;
-	private final ConcurrentSkipListSet<Object> dedup;
+	private final ConcurrentHashSet<Object> dedup;
 
 	public ClosestCandidates(Id target, int capacity) {
 		this.target = target;
 		this.capacity = capacity;
 
 		closest = new ConcurrentSkipListMap<>(target::threeWayCompare);
-		dedup = new ConcurrentSkipListSet<>();
+		dedup = new ConcurrentHashSet<>();
 	}
 
 	boolean reachedCapacity() {

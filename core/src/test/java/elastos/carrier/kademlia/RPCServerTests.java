@@ -27,12 +27,15 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.jupiter.api.Disabled;
+
 import elastos.carrier.Id;
 import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.DHT.Type;
 import elastos.carrier.kademlia.exceptions.KadException;
 import elastos.carrier.kademlia.messages.Message;
 
+@Disabled("Internal only!")
 public class RPCServerTests {
 	private final static InetSocketAddress sa1 = new InetSocketAddress("192.168.8.81", 8888);
 	private final static InetSocketAddress sa2 = new InetSocketAddress("192.168.8.81", 9999);
