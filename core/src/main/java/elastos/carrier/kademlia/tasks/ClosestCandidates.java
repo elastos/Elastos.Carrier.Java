@@ -63,8 +63,10 @@ public class ClosestCandidates {
 	private int candidateOrder(CandidateNode cn1, CandidateNode cn2) {
 		if (cn1.getPinged() < cn2.getPinged())
 			return -1;
-
-		return target.threeWayCompare(cn1.getId(), cn2.getId());
+		else if (cn1.getPinged() > cn2.getPinged())
+			return 1;
+		else
+			return target.threeWayCompare(cn1.getId(), cn2.getId());
 	}
 
 	public void add(Collection<? extends NodeInfo> nodes) {
@@ -89,6 +91,7 @@ public class ClosestCandidates {
 
 			if (closest.size() > capacity) {
 				List<Id> toRemove = closest.values().stream()
+						.filter(cn -> !cn.isInFlight())
 						.sorted(this::candidateOrder).skip(capacity)
 						.map(cn -> cn.getId()).collect(Collectors.toList());
 				for (Id id : toRemove)
@@ -117,17 +120,12 @@ public class ClosestCandidates {
 		}
 	}
 
-	private static boolean eligible(CandidateNode cn) {
-		if (cn.getPinged() >= 3)
-			return false;
-
-		return true;
-	}
-
 	public CandidateNode next() {
 		synchronized (closest) {
-			return closest.values().stream().sorted(this::candidateOrder)
-					.filter(ClosestCandidates::eligible).findFirst().orElse(null);
+			return closest.values().stream()
+					.filter(CandidateNode::isEligible)
+					.sorted(this::candidateOrder)
+					.findFirst().orElse(null);
 		}
 	}
 

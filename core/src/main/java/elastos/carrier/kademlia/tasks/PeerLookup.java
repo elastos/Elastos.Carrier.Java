@@ -40,7 +40,7 @@ import elastos.carrier.kademlia.messages.FindPeerRequest;
 import elastos.carrier.kademlia.messages.FindPeerResponse;
 import elastos.carrier.kademlia.messages.Message;
 
-public class PeerLookup extends TargetedTask {
+public class PeerLookup extends LookupTask {
 	Consumer<Collection<PeerInfo>> resultHandler;
 
 	private static final Logger log = LoggerFactory.getLogger(PeerLookup.class);
@@ -62,7 +62,7 @@ public class PeerLookup extends TargetedTask {
 
 	@Override
 	protected void update() {
-		for (;;) {
+		while (canDoRequest()) {
 			CandidateNode cn = getNextCandidate();
 			if (cn == null)
 				return;
@@ -72,17 +72,16 @@ public class PeerLookup extends TargetedTask {
 			q.setWant4(getDHT().getType() == DHT.Type.IPV4);
 			q.setWant6(getDHT().getType() == DHT.Type.IPV6);
 
-			boolean sent = sendCall(cn, q, (c) -> {
+			sendCall(cn, q, (c) -> {
 				cn.setSent();
 			});
-
-			if (!sent)
-				break;
 		}
 	}
 
 	@Override
 	protected void callResponsed(RPCCall call, Message response) {
+		super.callResponsed(call, response);
+
 		if (!call.matchesId())
 			return; // Ignore
 
@@ -115,18 +114,6 @@ public class PeerLookup extends TargetedTask {
 
 			addCandidates(nodes);
 		}
-
-		CandidateNode cn = removeCandidate(call.getTargetId());
-		if (cn != null) {
-			cn.setReplied();
-			cn.setToken(r.getToken());
-			addClosest(cn);
-		}
-	}
-
-	@Override
-	protected boolean isDone() {
-		return getNextCandidate() == null && super.isDone();
 	}
 
 	@Override

@@ -32,14 +32,16 @@ import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.Constants;
 import elastos.carrier.kademlia.DHT;
 import elastos.carrier.kademlia.RPCCall;
+import elastos.carrier.kademlia.messages.LookupResponse;
+import elastos.carrier.kademlia.messages.Message;
 import elastos.carrier.utils.AddressUtils;
 
-public abstract class TargetedTask extends Task {
+public abstract class LookupTask extends Task {
 	private Id target;
 	private ClosestSet closest;
 	private ClosestCandidates candidates;
 
-	public TargetedTask(DHT dht, Id target) {
+	public LookupTask(DHT dht, Id target) {
 		super(dht);
 		this.target = target;
 
@@ -92,20 +94,36 @@ public abstract class TargetedTask extends Task {
 
 	@Override
 	protected boolean isDone() {
-		return (getCandidateSize() == 0 ||
-				(closest.eligible() && (target.threeWayCompare(closest.tail(), candidates.head()) <= 0))) &&
-				super.isDone();
+		return super.isDone() &&
+				(getCandidateSize() == 0 || (closest.isEligible() && (target.threeWayCompare(closest.tail(), candidates.head()) <= 0)));
 	}
 
 	@Override
 	protected void callError(RPCCall call) {
-		candidates.remove(call.getTargetId());
+		CandidateNode cn = (CandidateNode)call.getTarget();
+		// Remove the candidate on error
+		candidates.remove(cn.getId());
 	}
 
 	@Override
 	protected void callTimeout(RPCCall call) {
-		// TODO: move to cached search nodes?
-		candidates.remove(call.getTargetId());
+		CandidateNode cn = (CandidateNode)call.getTarget();
+		if (cn.isUnreachable())
+			// Remove the candidate only when make sure it's unreachable
+			candidates.remove(cn.getId());
+		else
+			// Clear the sent time-stamp and make it available again for the next retry
+			cn.clearSent();
+	}
+
+	@Override
+	protected void callResponsed(RPCCall call, Message response) {
+		CandidateNode cn = removeCandidate(call.getTargetId());
+		if (cn != null) {
+			cn.setReplied();
+			cn.setToken(((LookupResponse)response).getToken());
+			addClosest(cn);
+		}
 	}
 
 	protected String getStatus() {

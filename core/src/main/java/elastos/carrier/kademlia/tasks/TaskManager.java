@@ -52,7 +52,9 @@ public class TaskManager {
 
 		// remove finished and dequeue the queued
 		task.addListener(t -> {
-			running.remove(t);
+			if (!running.remove(t))
+				queued.remove(t);
+
 			dequeue();
 		});
 

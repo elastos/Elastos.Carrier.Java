@@ -102,9 +102,6 @@ public class PingRefreshTask extends Task {
 
 	@Override
 	protected void update() {
-		if (todo.isEmpty())
-			return;
-
 		while (!todo.isEmpty() && canDoRequest()) {
 			KBucketEntry e = todo.peekFirst();
 
@@ -115,12 +112,9 @@ public class PingRefreshTask extends Task {
 			}
 
 			PingRequest pr = new PingRequest();
-			boolean sent = sendCall(e, pr, c -> {
+			sendCall(e, pr, c -> {
 				todo.remove(e);
 			});
-
-			if (!sent) // in flight call queue full
-				break;
 		}
 	}
 

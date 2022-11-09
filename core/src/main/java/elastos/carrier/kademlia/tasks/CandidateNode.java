@@ -64,6 +64,10 @@ public class CandidateNode extends NodeInfo {
 		pinged++;
 	}
 
+	public void clearSent() {
+		lastSent = 0;
+	}
+
 	public boolean isSent() {
 		return lastSent != 0;
 	}
@@ -95,4 +99,18 @@ public class CandidateNode extends NodeInfo {
 	public boolean isReachable() {
 		return reachable;
 	}
+
+	public boolean isUnreachable() {
+		return pinged >= 3;
+	}
+
+	public boolean isInFlight() {
+		return lastSent != 0;
+	}
+
+	public boolean isEligible() {
+		// No pending request and timeout < 3 times
+		return lastSent == 0 && pinged < 3;
+	}
+
 }

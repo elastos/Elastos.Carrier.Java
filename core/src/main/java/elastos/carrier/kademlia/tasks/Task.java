@@ -249,8 +249,8 @@ public abstract class Task implements Comparable<Task> {
 		}
 	}
 
-	protected int getInFlightCalls() {
-		return inFlight.size();
+	public boolean isCancelled() {
+		return state.get() == State.CANCELED;
 	}
 
 	public boolean isFinished() {
@@ -316,7 +316,7 @@ public abstract class Task implements Comparable<Task> {
 	protected abstract void update();
 
 	protected boolean isDone() {
-		return getInFlightCalls() == 0 || isFinished();
+		return inFlight.size() == 0;
 	}
 
 	protected abstract Logger getLogger();
@@ -338,8 +338,8 @@ public abstract class Task implements Comparable<Task> {
 		b.append('#').append(getTaskId());
 		if (name != null && !name.isEmpty())
 			b.append('[').append(name).append(']');
-		if(this instanceof TargetedTask)
-			b.append(" target: ").append(((TargetedTask)this).getTarget()).append(',');
+		if(this instanceof LookupTask)
+			b.append(" target: ").append(((LookupTask)this).getTarget()).append(',');
 		b.append(" DHT: ").append(dht.getType());
 		b.append(", state: ").append(state.get());
 		if (startTime != 0) {

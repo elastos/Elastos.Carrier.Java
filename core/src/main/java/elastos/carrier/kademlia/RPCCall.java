@@ -95,6 +95,10 @@ public class RPCCall {
 		return target.getId();
 	}
 
+	public NodeInfo getTarget() {
+		return target;
+	}
+
 	public RPCCall addListener(RPCCallListener listener) {
 		assert(listener != null) : "Invalid listener";
 		if(state != RPCCall.State.UNSENT)

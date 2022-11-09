@@ -39,7 +39,7 @@ import elastos.carrier.kademlia.messages.FindValueRequest;
 import elastos.carrier.kademlia.messages.FindValueResponse;
 import elastos.carrier.kademlia.messages.Message;
 
-public class ValueLookup extends TargetedTask {
+public class ValueLookup extends LookupTask {
 	int expectedSequence = -1;
 	Consumer<Value> resultHandler;
 
@@ -66,7 +66,7 @@ public class ValueLookup extends TargetedTask {
 
 	@Override
 	protected void update() {
-		for (;;) {
+		while (canDoRequest()) {
 			CandidateNode cn = getNextCandidate();
 			if (cn == null)
 				return;
@@ -78,17 +78,16 @@ public class ValueLookup extends TargetedTask {
 			if (expectedSequence != -1)
 				r.setSequenceNumber(expectedSequence);
 
-			boolean sent = sendCall(cn, r, (c) -> {
+			sendCall(cn, r, (c) -> {
 				cn.setSent();
 			});
-
-			if (!sent)
-				break;
 		}
 	}
 
 	@Override
 	protected void callResponsed(RPCCall call, Message response) {
+		super.callResponsed(call, response);
+
 		if (!call.matchesId())
 			return; // Ignore
 
@@ -123,18 +122,6 @@ public class ValueLookup extends TargetedTask {
 
 			addCandidates(nodes);
 		}
-
-		CandidateNode cn = removeCandidate(call.getTargetId());
-		if (cn != null) {
-			cn.setReplied();
-			cn.setToken(r.getToken());
-			addClosest(cn);
-		}
-	}
-
-	@Override
-	protected boolean isDone() {
-		return getNextCandidate() == null && super.isDone();
 	}
 
 	@Override

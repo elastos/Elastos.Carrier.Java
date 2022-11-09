@@ -160,7 +160,7 @@ public class Value {
 		return publicKey != null;
 	}
 
-	public boolean isEncrupted() {
+	public boolean isEncrypted() {
 		return recipient != null;
 	}
 

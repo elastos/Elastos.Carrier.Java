@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.TreeSet;
 
 import org.junit.jupiter.api.Test;
 
@@ -80,5 +81,66 @@ public class ClosestCandidatesTests {
 			NodeInfo cn = cc.get(node.getId());
 			assertEquals(node, cn);
 		}
+	}
+
+	@Test
+	public void testHeadAndTail() {
+		Id target = Id.random();
+		TreeSet<NodeInfo> result = new TreeSet<>((n1, n2) -> target.threeWayCompare(n1.getId(), n2.getId()));
+		ClosestCandidates cc = new ClosestCandidates(target, 16);
+
+		List<NodeInfo> nodes = new ArrayList<>();
+		for (int i = 0; i < 8; i++) {
+			NodeInfo node = new NodeInfo(Id.random(), "192.168.1." + (i+1), 12345);
+			nodes.add(node);
+			result.add(node);
+		}
+
+		cc.add(nodes);
+
+		assertEquals(8, cc.size());
+		assertEquals(result.first().getId(), cc.head());
+		assertEquals(result.last().getId(), cc.tail());
+
+		nodes.clear();
+		for (int i = 8; i < 12; i++) {
+			NodeInfo node = new NodeInfo(Id.random(), "192.168.1." + (i+1), 12345);
+			nodes.add(node);
+			result.add(node);
+		}
+
+		cc.add(nodes);
+
+		assertEquals(12, cc.size());
+		assertEquals(result.first().getId(), cc.head());
+		assertEquals(result.last().getId(), cc.tail());
+
+		nodes.clear();
+		for (int i = 12; i < 16; i++) {
+			NodeInfo node = new NodeInfo(Id.random(), "192.168.1." + (i+1), 12345);
+			nodes.add(node);
+			result.add(node);
+		}
+
+		cc.add(nodes);
+
+		assertEquals(16, cc.size());
+		assertEquals(result.first().getId(), cc.head());
+		assertEquals(result.last().getId(), cc.tail());
+
+		nodes.clear();
+		for (int i = 16; i < 32; i++) {
+			NodeInfo node = new NodeInfo(Id.random(), "192.168.1." + (i+1), 12345);
+			nodes.add(node);
+			result.add(node);
+			result.remove(result.last());
+		}
+
+		cc.add(nodes);
+
+		assertEquals(16, cc.size());
+		assertEquals(16, result.size());
+		assertEquals(result.first().getId(), cc.head());
+		assertEquals(result.last().getId(), cc.tail());
 	}
 }

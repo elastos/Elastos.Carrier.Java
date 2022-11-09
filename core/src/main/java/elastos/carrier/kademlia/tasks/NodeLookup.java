@@ -39,7 +39,7 @@ import elastos.carrier.kademlia.messages.FindNodeRequest;
 import elastos.carrier.kademlia.messages.FindNodeResponse;
 import elastos.carrier.kademlia.messages.Message;
 
-public class NodeLookup extends TargetedTask {
+public class NodeLookup extends LookupTask {
 	private boolean bootstrap = false;
 	private boolean wantToken = false;
 	private static final Logger log = LoggerFactory.getLogger(NodeLookup.class);
@@ -83,32 +83,26 @@ public class NodeLookup extends TargetedTask {
 
 	@Override
 	protected void update() {
-		CandidateNode start = null;
-
-		for(;;) {
+		while (canDoRequest()) {
 			CandidateNode cn = getNextCandidate();
-			if(cn == null || cn == start) // no candidates or finish a loop
+			if(cn == null) // no candidates
 				return;
-
-			if (start == null)
-				start = cn;
 
 			// send a findNode to the node
 			FindNodeRequest r = new FindNodeRequest(getTarget(), doesWantToken());
 			r.setWant4(getDHT().getType() == DHT.Type.IPV4);
 			r.setWant6(getDHT().getType() == DHT.Type.IPV6);
 
-			boolean sent = sendCall(cn, r, (c) -> {
+			sendCall(cn, r, (c) -> {
 				cn.setSent();
 			});
-
-			if (!sent)
-				break;
 		}
 	}
 
 	@Override
 	protected void callResponsed(RPCCall call, Message response) {
+		super.callResponsed(call, response);
+
 		if (!call.matchesId())
 			return; // Ignore
 
@@ -116,26 +110,12 @@ public class NodeLookup extends TargetedTask {
 			return;
 
 		FindNodeResponse r = (FindNodeResponse)response;
-		CandidateNode cn = removeCandidate(call.getTargetId());
-		if (cn != null) {
-			cn.setReplied();
-			cn.setToken(r.getToken());
-			addClosest(cn);
-		}
-
-		FindNodeResponse fnr = (FindNodeResponse)response;
-
 		// TODO: handle bouth IPv4 & IPv6 result
-		List<NodeInfo> nodes = fnr.getNodes(getDHT().getType());
-		if (nodes == null)
+		List<NodeInfo> nodes = r.getNodes(getDHT().getType());
+		if (nodes.isEmpty())
 			return;
 
 		addCandidates(nodes);
-	}
-
-	@Override
-	protected boolean isDone() {
-		return getNextCandidate() == null && super.isDone();
 	}
 
 	@Override

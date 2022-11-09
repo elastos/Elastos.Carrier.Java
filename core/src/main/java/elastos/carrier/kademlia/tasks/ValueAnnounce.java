@@ -46,9 +46,6 @@ public class ValueAnnounce extends Task {
 
 	@Override
 	protected void update() {
-		if (todo.isEmpty())
-			return;
-
 		while (!todo.isEmpty() && canDoRequest()) {
 			CandidateNode cn = todo.peekFirst();
 
@@ -61,12 +58,9 @@ public class ValueAnnounce extends Task {
 			q.setValue(value.getData());
 			q.setToken(cn.getToken());
 
-			boolean sent = sendCall(cn, q, c -> {
+			sendCall(cn, q, c -> {
 				todo.remove(cn);
 			});
-
-			if (!sent) // in flight call queue full
-				break;
 		}
 	}
 

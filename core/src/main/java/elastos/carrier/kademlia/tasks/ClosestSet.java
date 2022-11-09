@@ -116,7 +116,7 @@ public class ClosestSet {
 		return closest.firstKey();
 	}
 
-	public boolean eligible() {
+	public boolean isEligible() {
 		return reachedCapacity() && insertAttemptsSinceTailModification > capacity;
 	}
 
