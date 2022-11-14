@@ -22,6 +22,7 @@
 
 package elastos.carrier.node;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -69,7 +70,7 @@ import picocli.shell.jline3.PicocliCommands.PicocliCommandsFactory;
 			StorageCommand.class,
 			StopCommand.class,
 		})
-public class Shell  implements Callable<Integer> {
+public class Shell implements Callable<Integer> {
 	@Option(names = {"-4", "--address4"}, description = "IPv4 address to listen.")
 	private String addr4 = null;
 
@@ -94,7 +95,7 @@ public class Shell  implements Callable<Integer> {
 	private SystemRegistry systemRegistry;
 	private Configuration config;
 
-	public void initCommandLine() {
+	private void initCommandLine() {
 		Supplier<Path> workDir = () -> Paths.get(System.getProperty("user.home"));
 		// set up JLine built-in commands
 		Builtins builtins = new Builtins(workDir, null, null);
@@ -165,8 +166,21 @@ public class Shell  implements Callable<Integer> {
 		return carrierNode;
 	}
 
+	private void setLogOutput() {
+		if (dataDir != null || !dataDir.isEmpty()) {
+			File dir = dataDir.startsWith("~") ?
+				new File(System.getProperty("user.home") + dataDir.substring(1)) :
+				new File(dataDir);
+
+			File logFile = new File(dir, "carrier.log").getAbsoluteFile();
+			System.setProperty("CARRIER_LOG", logFile.toString());
+		}
+	}
+
 	@Override
 	public Integer call() throws Exception {
+		setLogOutput();
+
 		initCommandLine();
 		initConfig();
 		initCarrierNode();

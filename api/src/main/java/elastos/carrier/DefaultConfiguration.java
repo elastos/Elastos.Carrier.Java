@@ -278,10 +278,9 @@ public class DefaultConfiguration implements Configuration {
 			if (file == null || file.isEmpty())
 				return null;
 
-			if (file.startsWith("~"))
-				return new File(System.getProperty("user.home") + file.substring(1));
-			else
-				return new File(file);
+			return file.startsWith("~") ?
+				new File(System.getProperty("user.home") + file.substring(1)) :
+			    new File(file);
 		}
 	}
 }
