@@ -43,6 +43,8 @@ import elastos.carrier.utils.Functional.ThrowingSupplier;
 import elastos.carrier.utils.ThreadLocals;
 
 public abstract class Message {
+	private static final int READ_LIMIT = 2048;
+
 	private static final int TYPE_MASK = 0x000000E0;
 	private static final int METHOD_MASK = 0x0000001F;
 
@@ -288,11 +290,11 @@ public abstract class Message {
 
 	public static Message parse(InputStream in) throws MessageException {
 		checkArgument(in.markSupported(), "Input stream shoud support mark()");
-		in.mark(1500);
+		in.mark(READ_LIMIT);
 
 		return parse(() -> {
 			in.reset();
-			in.mark(1500);
+			in.mark(READ_LIMIT);
 			return ThreadLocals.CBORFactory().createParser(in);
 		});
 	}
@@ -323,6 +325,7 @@ public abstract class Message {
 					break;
 				}
 			}
+			parser.close();
 
 			if (typeCode == Integer.MAX_VALUE)
 				throw new MessageException("Missing message type");
@@ -399,6 +402,8 @@ public abstract class Message {
 					}
 				}
 			}
+
+			parser.close();
 		} catch (IOException e) {
 			throw new MessageException("Parse message failed", e).setPartialMessage(PartialMessage.of(msg));
 		}
