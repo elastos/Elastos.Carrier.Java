@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.math.BigInteger;
 import java.util.Random;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import elastos.carrier.utils.Base58;
@@ -38,7 +39,7 @@ import elastos.carrier.utils.Hex;
 
 public class IdTests {
 	@Test
-	public void testIdFromHexString() {
+	public void testOfHex() {
 		String hexWithPrefix = "0x71e1b2ecdf528b623192f899d984c53f2b13508e21ccd53de5d7158672820636";
 		Id id = Id.of(hexWithPrefix);
 		assertEquals(hexWithPrefix, id.toHexString());
@@ -73,7 +74,7 @@ public class IdTests {
 	}
 
 	@Test
-	public void testIdFromBytes() {
+	public void testOfBytes() {
 		byte[] binId = new byte[Id.BYTES];
 		new Random().nextBytes(binId);
 
@@ -89,7 +90,7 @@ public class IdTests {
 	}
 
 	@Test
-	public void testIdFromId() {
+	public void testOfId() {
 		Id id1 = Id.random();
 		Id id2 = Id.of(id1);
 
@@ -103,7 +104,7 @@ public class IdTests {
 	}
 
 	@Test
-	public void testForBit() {
+	public void testOfBit() {
 		for (int i = 0; i < Id.SIZE; i++) {
 			Id id = Id.ofBit(i);
 			assertTrue(id.toInteger().equals(BigInteger.ZERO.setBit(Id.SIZE - i - 1)));
@@ -228,6 +229,7 @@ public class IdTests {
 		}
 	}
 
+	@Disabled("Performance")
 	@Test
 	public void testToHexPerf() {
 		System.out.println("Testing to hex performance...");
@@ -258,6 +260,7 @@ public class IdTests {
 		System.out.println("Bytes to hex: " + duration + "\n");
 	}
 
+	@Disabled("Performance")
 	@Test
 	public void testXorPerf() {
 		System.out.println("Testing XOR performance...");
@@ -289,6 +292,7 @@ public class IdTests {
 		System.out.println("Bytes XOR: " + duration + "\n");
 	}
 
+	@Disabled("Performance")
 	@Test
 	public void testAddPerf() {
 		System.out.println("Testing ADD performance...");
@@ -320,6 +324,7 @@ public class IdTests {
 		System.out.println("Bytes ADD: " + duration + "\n");
 	}
 
+	@Disabled("Performance")
 	@Test
 	public void testMSBPerf() {
 		System.out.println("Testing MSB performance...");
@@ -349,6 +354,7 @@ public class IdTests {
 		System.out.println("Bytes MSB: " + duration + "\n");
 	}
 
+	@Disabled("Performance")
 	@Test
 	public void testLSBPerf() {
 		System.out.println("Testing LSB performance...");
@@ -378,6 +384,7 @@ public class IdTests {
 		System.out.println("Bytes LSB: " + duration + "\n");
 	}
 
+	@Disabled("Performance")
 	@Test
 	public void testToStringPerf() {
 		System.out.println("Testing to hex performance...");

@@ -62,7 +62,6 @@ public class SodiumSignatureTests {
 	void checkDetachedSignVerify() {
 		Signature.KeyPair kp = Signature.KeyPair.random();
 		byte[] signature = Signature.signDetached(Hex.decode("deadbeef"), kp.secretKey());
-		System.out.println(Hex.encode(signature));
 		boolean result = Signature.verifyDetached(Hex.decode("deadbeef"), signature, kp.publicKey());
 		assertTrue(result);
 	}
@@ -71,7 +70,6 @@ public class SodiumSignatureTests {
 	void checkSignAndVerify() {
 		Signature.KeyPair keyPair = Signature.KeyPair.random();
 		byte[] signed = Signature.sign(Hex.decode("deadbeef"), keyPair.secretKey());
-		System.out.println(Hex.encode(signed));
 		byte[] messageBytes = Signature.verify(signed, keyPair.publicKey());
 		assertArrayEquals(Hex.decode("deadbeef"), messageBytes);
 	}

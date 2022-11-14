@@ -121,9 +121,9 @@ public class PrefixTests {
 			assertTrue(prefix.isPrefixOf(rid));
 			assertTrue(Id.bitsEqual(id, rid, i));
 
-			System.out.format("%3d: %s\n", i, id);
-			System.out.format("pre: %s\n", prefix);
-			System.out.format("rid: %s\n\n", rid);
+			// System.out.format("%3d: %s\n", i, id.toHexString());
+			// System.out.format("pre: %s\n", prefix);
+			// System.out.format("rid: %s\n\n", rid.toHexString());
 		}
 	}
 

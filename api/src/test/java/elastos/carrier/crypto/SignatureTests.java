@@ -80,7 +80,6 @@ public class SignatureTests {
 		Signature.KeyPair kp = Signature.KeyPair.random();
 		byte[] sig = Signature.sign(Hex.decode("deadbeef"), kp.privateKey());
 		assertEquals(Signature.length(), sig.length);
-		System.out.println(Hex.encode(sig));
 
 		boolean result = Signature.verify(Hex.decode("deadbeef"), sig, kp.publicKey());
 		assertTrue(result);
@@ -91,7 +90,6 @@ public class SignatureTests {
 		Signature.KeyPair kp = Signature.KeyPair.random();
 		byte[] sig = kp.privateKey().sign(Hex.decode("deadbeef"));
 		assertEquals(Signature.length(), sig.length);
-		System.out.println(Hex.encode(sig));
 
 		boolean result = kp.publicKey().verify(Hex.decode("deadbeef"), sig);
 		assertTrue(result);

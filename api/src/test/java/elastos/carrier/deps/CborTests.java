@@ -22,9 +22,12 @@
 
 package elastos.carrier.deps;
 
+import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
+import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 
@@ -107,7 +111,9 @@ public class CborTests {
 		new Random().nextBytes(BA);
 	}
 
-	private static int LOOPS = 1000000;
+	// For performace tests
+	// private static int LOOPS = 1000000;
+	private static int LOOPS = 100;
 
 	@Test
 	@Order(1)
@@ -124,7 +130,7 @@ public class CborTests {
 			json = mapper.writeValueAsString(pojo);
 
 		long end = System.currentTimeMillis();
-		System.out.format("JSON serialize: %d ms, size %d bytes\n", end - start, json.length());
+		System.out.format("JSON object serialize: %d ms, size %d bytes\n", end - start, json.length());
 	}
 
 	@Test
@@ -143,7 +149,7 @@ public class CborTests {
 			pojo2 = mapper.readValue(json, Pojo.class);
 
 		long end = System.currentTimeMillis();
-		System.out.format("JSON deserialize: %d ms\n", end - start);
+		System.out.format("JSON object deserialize: %d ms\n", end - start);
 	}
 
 	@Test
@@ -161,7 +167,7 @@ public class CborTests {
 			cbor = mapper.writeValueAsBytes(pojo);
 
 		long end = System.currentTimeMillis();
-		System.out.format("CBOR serialize: %d ms, size %d bytes\n", end - start, cbor.length);
+		System.out.format("CBOR object serialize: %d ms, size %d bytes\n", end - start, cbor.length);
 	}
 
 	@Test
@@ -180,43 +186,106 @@ public class CborTests {
 			pojo2 = mapper.readValue(cbor, Pojo.class);
 
 		long end = System.currentTimeMillis();
-		System.out.format("CBOR deserialize: %d ms\n", end - start);
+		System.out.format("CBOR object deserialize: %d ms\n", end - start);
 	}
 
 	@Test
 	@Order(5)
+	public void testCBORStreamSerialize() throws Exception {
+		CBORFactory cf = new CBORFactory();
+
+		Pojo pojo = new Pojo(1024, (byte)8, 'c', "Hello World!", true, IA, CA, BA);
+
+		byte[] cbor = null;
+		long start = System.currentTimeMillis();
+		for (int i = 0; i < LOOPS; i++) {
+			ByteArrayOutputStream bos = new ByteArrayOutputStream();
+			CBORGenerator gen = cf.createGenerator(bos);
+			gen.writeStartObject();
+			gen.writeNumberField("intValue", pojo.intValue);
+			gen.writeNumberField("byteValue", pojo.byteValue);
+			gen.writeNumberField("charValue", pojo.charValue);
+			gen.writeStringField("strValue", pojo.strValue);
+			gen.writeBooleanField("boolValue", pojo.boolValue);
+			gen.writeFieldName("intArray");
+			gen.writeArray(pojo.intArray, 0, pojo.intArray.length);
+			gen.writeFieldName("charArray");
+			gen.writeString(pojo.charArray, 0, pojo.charArray.length);
+			gen.writeBinaryField("byteArray", pojo.byteArray);
+			gen.writeEndObject();
+			gen.close();
+
+			cbor = bos.toByteArray();
+		}
+
+		long end = System.currentTimeMillis();
+		System.out.format("CBOR stream serialize: %d ms, size %d bytes\n", end - start, cbor.length);
+
+		Pojo pojo2 = new CBORMapper().readValue(cbor, Pojo.class);
+	}
+
+	@Test
+	@Order(6)
 	public void testCBORStreamDeserialize() throws Exception {
 		ObjectMapper mapper = new CBORMapper();
+		CBORFactory cf = new CBORFactory();
 
 		Pojo pojo = new Pojo(1024, (byte)8, 'c', "Hello World!", true, IA, CA, BA);
 		byte[] cbor = mapper.writeValueAsBytes(pojo);
 
 		long start = System.currentTimeMillis();
-		CBORParser parser = new CBORFactory().createParser(cbor);
-		while (parser.nextToken() != JsonToken.END_OBJECT) {
-			String fieldName = parser.getCurrentName();
-			if (fieldName != null && fieldName.equals("charValue")) {
+		for (int i = 0; i < LOOPS; i++) {
+			CBORParser parser = cf.createParser(cbor);
+			parser.nextToken(); // Start object
+			Pojo o = new Pojo();
+			while (parser.nextToken() != JsonToken.END_OBJECT) {
+				String fieldName = parser.getCurrentName();
 				parser.nextToken();
-				char c = parser.getText().charAt(0);
-				break;
+				switch (fieldName) {
+				case "intValue":
+					o.intValue = parser.getIntValue();
+					break;
+
+				case "byteValue":
+					o.byteValue = (byte)parser.getShortValue();
+					break;
+
+				case "charValue":
+					o.charValue = parser.getText().charAt(0);
+					break;
+
+				case "strValue":
+					o.strValue = parser.getText();
+					break;
+
+				case "boolValue":
+					o.boolValue = parser.getBooleanValue();
+					break;
+
+				case "intArray":
+					ArrayList<Integer> a = new ArrayList<>();
+					while (parser.nextToken() != JsonToken.END_ARRAY) {
+						a.add(parser.getIntValue());
+					}
+					o.intArray = a.stream().mapToInt(Integer::intValue).toArray();
+					break;
+
+				case "charArray":
+					o.charArray = parser.getText().toCharArray();
+					break;
+
+				case "byteArray":
+					o.byteArray = parser.getBinaryValue();
+					break;
+				}
 			}
+			parser.close();
 		}
 		long end = System.currentTimeMillis();
-		System.out.format("CBOR deserialize: %d ms\n", end - start);
-
-		@SuppressWarnings("unused")
-		Pojo pojo2 = null;
-		start = System.currentTimeMillis();
-
-		for (int i = 0; i < LOOPS; i++)
-			pojo2 = mapper.readValue(cbor, Pojo.class);
-
-		end = System.currentTimeMillis();
-		System.out.format("CBOR deserialize: %d ms\n", end - start);
+		System.out.format("CBOR stream deserialize: %d ms\n", end - start);
 	}
 
-
-	// TODO: remove
+	@Disabled("To be removed")
 	@Test
 	@Order(100)
 	public void testCBORSerializedSize() throws Exception {

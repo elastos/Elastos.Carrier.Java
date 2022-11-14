@@ -33,6 +33,7 @@ import org.apache.tuweni.crypto.sodium.Signature;
 import org.apache.tuweni.crypto.sodium.Sodium;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import elastos.carrier.utils.Hex;
@@ -112,6 +113,7 @@ public class SodiumBoxTests {
 		}
 	}
 
+	@Disabled("To be removed")
 	@Test
 	public void checkBoxKeyPairForSignatureKeyPair() {
 		Signature.KeyPair signKeyPair = Signature.KeyPair.random();
