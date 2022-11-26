@@ -41,7 +41,6 @@ import elastos.carrier.utils.AddressUtils;
  * port of the node and a node id.
  */
 public class KBucketEntry extends NodeInfo {
-
 	private static final double RTT_EMA_WEIGHT = 0.3;
 
 	/**
@@ -60,6 +59,19 @@ public class KBucketEntry extends NodeInfo {
 	 */
 	public static final Comparator<KBucketEntry> KEY_ORDER = Comparator.comparing(KBucketEntry::getId);
 
+	/**
+	 * -1 = never queried / learned about it from incoming requests 0 = last query
+	 * was a success > 0 = query failed
+	 */
+	private ExponentialWeightendMovingAverage avgRTT = new ExponentialWeightendMovingAverage(RTT_EMA_WEIGHT);
+
+	private long created;
+	private long lastSeen;
+	private long lastSend;
+
+	private boolean reachable = false;
+	private int failedRequests;
+
 	public static final class DistanceOrder implements Comparator<KBucketEntry> {
 		final Id target;
 
@@ -73,19 +85,6 @@ public class KBucketEntry extends NodeInfo {
 		}
 	}
 
-	private long created;
-	private long lastSeen;
-	private long lastSend;
-
-	private boolean reachable = false;
-	private int failedRequests;
-
-	/**
-	 * -1 = never queried / learned about it from incoming requests 0 = last query
-	 * was a success > 0 = query failed
-	 */
-	private ExponentialWeightendMovingAverage avgRTT = new ExponentialWeightendMovingAverage(RTT_EMA_WEIGHT);
-
 	/**
 	 * Constructor, set the ip, port and key
 	 *
@@ -94,37 +93,10 @@ public class KBucketEntry extends NodeInfo {
 	 */
 	public KBucketEntry(Id id, InetSocketAddress addr) {
 		super(id, addr);
-		lastSeen = System.currentTimeMillis();
-		created = lastSeen;
-		failedRequests = -1;
-	}
-
-	/**
-	 * Constructor, set the ip, port and key
-	 *
-	 * @param addr      socket address
-	 * @param id        ID of node
-	 * @param timestamp the timestamp when this node last responded
-	 */
-	public KBucketEntry(Id id, InetSocketAddress addr, long timestamp) {
-		super(id, addr);
-		lastSeen = timestamp;
 		created = System.currentTimeMillis();
+		lastSeen = created;
 		failedRequests = 0;
 	}
-
-	/**
-	 * Copy constructor.
-	 *
-	 * @param other KBucketEntry to copy
-	 * @return
-	 */
-	//public KBucketEntry(KBucketEntry other) {
-	//	super(other);
-	//	lastSeen = other.lastSeen;
-	//	failedQueries = other.failedQueries;
-	//	timeCreated = other.timeCreated;
-	//}
 
 	public KBucketEntry(NodeInfo node) {
 		this(node.getId(), node.getAddress());
@@ -154,19 +126,20 @@ public class KBucketEntry extends NodeInfo {
 		return lastSend == 0;
 	}
 
-	public boolean eligibleForNodesList() {
+	public boolean isEligibleForNodesList() {
 		// 1 timeout can occasionally happen. should be fine to hand it out as long as
 		// we've verified it at least once
-		return isReachable() && failedRequests < 2;
+		return isReachable() && failedRequests < 3;
 	}
 
-	public boolean eligibleForLocalLookup() {
+	public boolean isEligibleForLocalLookup() {
 		// allow implicit initial ping during lookups
-		// TODO: make this work now that we don't keep unverified entries in the main
-		// bucket
-		if ((!isReachable() && failedRequests > 0) || failedRequests > 3)
-			return false;
-		return true;
+		// TODO: make this work now that we don't keep unverified entries in the main bucket
+		//if ((!isReachable() && failedRequests > 0) || failedRequests > 3)
+		// 	return false;
+		//return true;
+
+		return (isReachable() && failedRequests <= 3) || failedRequests <= 0;
 	}
 
 	private boolean withinBackoffWindow(long now) {
@@ -203,7 +176,7 @@ public class KBucketEntry extends NodeInfo {
 	}
 
 	// old entries, e.g. from routing table reload
-	private boolean oldAndStale() {
+	public boolean oldAndStale() {
 		return failedRequests > Constants.KBUCKET_OLD_AND_STALE_TIMEOUTS &&
 				System.currentTimeMillis() - lastSeen > Constants.KBUCKET_OLD_AND_STALE_TIME;
 	}
@@ -221,7 +194,7 @@ public class KBucketEntry extends NodeInfo {
 
 	protected boolean needsReplacement() {
 		return (failedRequests > 1 && !isReachable()) ||
-				failedRequests > Constants.KBUCKET_MAX_TIMEOUTS || oldAndStale();
+				(failedRequests > Constants.KBUCKET_MAX_TIMEOUTS && oldAndStale());
 	}
 
 	protected void merge(KBucketEntry other) {
@@ -235,7 +208,7 @@ public class KBucketEntry extends NodeInfo {
 			setReachable(true);
 		if (!Double.isNaN(other.avgRTT.getAverage()))
 			avgRTT.updateAverage(other.avgRTT.getAverage());
-		if (other.failedRequests() >= 0)
+		if (other.failedRequests() > 0)
 			failedRequests = Math.min(failedRequests, other.failedRequests());
 	}
 
@@ -259,7 +232,7 @@ public class KBucketEntry extends NodeInfo {
 		lastSend = Math.max(lastSend, requestSent);
 	}
 
-	public void signalScheduledRequest() {
+	public void signalRequest() {
 		lastSend = System.currentTimeMillis();
 	}
 

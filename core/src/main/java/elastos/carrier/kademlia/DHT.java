@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -97,7 +98,7 @@ public class DHT {
 
 	private File persistFile;
 
-	private List<NodeInfo> bootstrapNodes;
+	private Set<NodeInfo> bootstrapNodes;
 	private AtomicBoolean bootstrapping;
 	private long lastBootstrap;
 
@@ -167,7 +168,7 @@ public class DHT {
 		this.addr = addr;
 		this.scheduledActions = new ArrayList<>();
 		this.routingTable = new RoutingTable(this);
-		this.bootstrapNodes = new ArrayList<>();
+		this.bootstrapNodes = new HashSet<>();
 		this.bootstrapping = new AtomicBoolean(false);
 
 		this.knownNodes = CacheBuilder.newBuilder().initialCapacity(256).expireAfterAccess(5, TimeUnit.MINUTES)
@@ -206,6 +207,14 @@ public class DHT {
 
 	void enablePersistence(File persistFile) {
 		this.persistFile = persistFile;
+	}
+
+	public Collection<NodeInfo> getBootstraps() {
+		return Collections.unmodifiableSet(bootstrapNodes);
+	}
+
+	public Collection<Id> getBootstrapIds() {
+		return bootstrapNodes.stream().map(NodeInfo::getId).collect(Collectors.toUnmodifiableSet());
 	}
 
 	public void bootstrap() {

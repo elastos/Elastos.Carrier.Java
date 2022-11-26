@@ -58,7 +58,10 @@ import elastos.carrier.utils.ThreadLocals;
  *   All methods name leading with _ means that method will WRITE the
  *   list, it can only be called inside the routing table's
  *   pipeline processing.
-
+ *
+ *   Due the heavy implementation the stream operations are significant
+ *   slow than the for-loops. so we should avoid the stream operations
+ *   on the KBucket entries and the cache entries, use for-loop instead.
  */
 public class KBucket implements Comparable<KBucket> {
 	private final Prefix prefix;
@@ -176,28 +179,52 @@ public class KBucket implements Comparable<KBucket> {
 		return entriesRef.isEmpty() ? null : entriesRef.get(ThreadLocals.random().nextInt(entriesRef.size()));
 	}
 
-	public KBucketEntry find(Id id, InetSocketAddress addr) {
+	private KBucketEntry findAny(Predicate<KBucketEntry> predicate) {
+		// Stream is heavy and slow, use for loop(more fast) instead
+		// return getEntries().stream().filter(predicate).findAny().orElse(null);
+
+		KBucketEntry e;
 		List<KBucketEntry> entriesRef = getEntries();
 		for (int i = 0, n = entriesRef.size(); i < n; i++) {
-			KBucketEntry entry = entriesRef.get(i);
-
-			if (entry.getId().equals(id) || entry.getAddress().equals(addr))
-				return entry;
+			e = entriesRef.get(i);
+			if (predicate.test(e))
+				return e;
 		}
-
 		return null;
 	}
 
-	public KBucketEntry findPingableCacheEntry() {
-		List<KBucketEntry> cacheRef = getCache();
-		for (int i = 0; i < cacheRef.size(); i++) {
-			KBucketEntry entry = cacheRef.get(i);
-			if (!entry.isNeverContacted())
-				continue;
-			return entry;
-		}
+	private KBucketEntry cacheFindAny(Predicate<KBucketEntry> predicate) {
+		// Stream is heavy and slow, use for loop(more fast) instead
+		// return getCache().stream().filter(predicate).findAny().orElse(null);
 
+		KBucketEntry e;
+		List<KBucketEntry> entriesRef = getCache();
+		for (int i = 0, n = entriesRef.size(); i < n; i++) {
+			e = entriesRef.get(i);
+			if (predicate.test(e))
+				return e;
+		}
 		return null;
+	}
+
+	private boolean anyMatch(Predicate<KBucketEntry> predicate) {
+		return findAny(predicate) != null;
+	}
+
+	private boolean cacheAnyMatch(Predicate<KBucketEntry> predicate) {
+		return cacheFindAny(predicate) != null;
+	}
+
+	public KBucketEntry find(Id id, InetSocketAddress addr) {
+		return findAny(e -> e.getId().equals(id) || e.getAddress().equals(addr));
+	}
+
+	public boolean exists(Id id) {
+		return findAny(e -> e.getId().equals(id)) != null;
+	}
+
+	public KBucketEntry findPingableCacheEntry() {
+		return cacheFindAny(KBucketEntry::isNeverContacted);
 	}
 
 	/**
@@ -209,18 +236,20 @@ public class KBucket implements Comparable<KBucket> {
 		long now = System.currentTimeMillis();
 		// TODO: timer may be somewhat redundant with needsPing logic
 		return now - lastRefresh > Constants.BUCKET_REFRESH_INTERVAL
-				&& getEntries().stream().anyMatch(KBucketEntry::needsPing);
+				&& anyMatch(KBucketEntry::needsPing);
 	}
 
 	boolean needsCachePing() {
 		long now = System.currentTimeMillis();
 
 		return now - lastRefresh > Constants.BUCKET_CACHE_PING_MIN_INTERVAL
-				&& (stream().anyMatch(KBucketEntry::needsReplacement)
-						|| getEntries().size() < Constants.MAX_ENTRIES_PER_BUCKET)
-				&& cacheStream().anyMatch(KBucketEntry::isNeverContacted);
+				&& (anyMatch(KBucketEntry::needsReplacement) || getEntries().size() < Constants.MAX_ENTRIES_PER_BUCKET)
+				&& cacheAnyMatch(KBucketEntry::isNeverContacted);
 	}
 
+	boolean needsReplacement() {
+		return anyMatch(KBucketEntry::needsReplacement);
+	}
 
 	/**
 	 * Resets the last modified for this Bucket
@@ -228,7 +257,6 @@ public class KBucket implements Comparable<KBucket> {
 	public void updateRefreshTimer() {
 		lastRefresh = System.currentTimeMillis();
 	}
-
 
 	/**
 	 * Notify bucket of new incoming packet from a node, perform update or insert
@@ -334,7 +362,7 @@ public class KBucket implements Comparable<KBucket> {
 	 */
 	void _promoteVerifiedCacheEntry() {
 		List<KBucketEntry> entriesRef = getEntries();
-		KBucketEntry toRemove = entriesRef.stream().filter(KBucketEntry::needsReplacement).findAny().orElse(null);
+		KBucketEntry toRemove = findAny(KBucketEntry::needsReplacement);
 		if (toRemove == null && entriesRef.size() >= Constants.MAX_ENTRIES_PER_BUCKET)
 			return;
 
@@ -367,7 +395,7 @@ public class KBucket implements Comparable<KBucket> {
 	private void _update(KBucketEntry toRemove, KBucketEntry toInsert) {
 		List<KBucketEntry> entriesRef = getEntries();
 
-		if (toInsert != null && entriesRef.stream().anyMatch(toInsert::match))
+		if (toInsert != null && anyMatch(toInsert::match))
 			return;
 
 		List<KBucketEntry> newEntries = new ArrayList<>(entriesRef);
@@ -535,8 +563,16 @@ public class KBucket implements Comparable<KBucket> {
 			KBucketEntry e = entriesRef.get(i);
 			if (e.getId().equals(id)) {
 				e.signalRequestTimeout();
-				// only removes the entry if it is bad
+
+				// NOTICE: Test only - merge buckets
+				//   remove when the entry needs replacement
+				// boolean force = e.needsReplacement();
+				// _removeIfBad(e, force);
+
+				// NOTICE: Product
+				//   only removes the entry if it is bad
 				_removeIfBad(e, false);
+
 				return;
 			}
 		}
@@ -556,7 +592,7 @@ public class KBucket implements Comparable<KBucket> {
 		for (int i = 0, n = entriesRef.size(); i < n; i++) {
 			KBucketEntry e = entriesRef.get(i);
 			if (e.getId().equals(id)) {
-				e.signalScheduledRequest();
+				e.signalRequest();
 				return;
 			}
 		}
@@ -565,7 +601,7 @@ public class KBucket implements Comparable<KBucket> {
 		for (int i = 0, n = entriesRef.size(); i < n; i++) {
 			KBucketEntry e = entriesRef.get(i);
 			if (e.getId().equals(id)) {
-				e.signalScheduledRequest();
+				e.signalRequest();
 				return;
 			}
 		}

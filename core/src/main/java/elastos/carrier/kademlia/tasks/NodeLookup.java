@@ -75,8 +75,8 @@ public class NodeLookup extends LookupTask {
 		Id knsTarget = bootstrap ? getTarget().distance(Id.MAX_ID) : getTarget();
 
 		// delay the filling of the todo list until we actually start the task
-		KClosestNodes kns = new KClosestNodes(getDHT(), knsTarget, Constants.MAX_ENTRIES_PER_BUCKET * 2);
-		kns.filter = KBucketEntry::eligibleForLocalLookup;
+		KClosestNodes kns = new KClosestNodes(getDHT(), knsTarget,
+				Constants.MAX_ENTRIES_PER_BUCKET * 2, KBucketEntry::isEligibleForLocalLookup);
 		kns.fill();
 		addCandidates(kns.entries());
 	}

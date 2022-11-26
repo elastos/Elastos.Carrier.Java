@@ -119,7 +119,7 @@ public class AddressUtilsTests {
 	@Test
 	public void getDefaultAddress() {
 		List<InetAddress> newBindAddrs = AddressUtils.getAllAddresses().filter(Inet4Address.class::isInstance)
-				.filter((a) -> !a.isLoopbackAddress())
+				.filter((a) -> !AddressUtils.isLocalUnicast(a))
 				.distinct()
 				.collect(Collectors.toCollection(() -> new ArrayList<>()));
 

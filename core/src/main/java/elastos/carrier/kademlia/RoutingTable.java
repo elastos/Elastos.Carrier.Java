@@ -288,16 +288,16 @@ public final class RoutingTable {
 			getDHT().getNode().getScheduler().execute(this::processPipeline);
 	}
 
-	private void _put(KBucketEntry toInsert) {
-		Id nodeId = toInsert.getId();
+	private void _put(KBucketEntry entry) {
+		Id nodeId = entry.getId();
 		KBucket bucket = bucketOf(nodeId);
 
-		while (_needsSplit(bucket, toInsert)) {
+		while (_needsSplit(bucket, entry)) {
 			_split(bucket);
 			bucket = bucketOf(nodeId);
 		}
 
-		bucket._put(toInsert);
+		bucket._put(entry);
 	}
 
 	private KBucketEntry _remove(Id id) {
@@ -319,12 +319,14 @@ public final class RoutingTable {
 		bucket._onSend(id);
 	}
 
-	private boolean _needsSplit(KBucket bucket, KBucketEntry toInsert) {
-		if (!bucket.isFull() || !toInsert.isReachable())
+	private boolean _needsSplit(KBucket bucket, KBucketEntry newEntry) {
+		if (!bucket.prefix().isSplittable() || !bucket.isFull() ||
+				!newEntry.isReachable() || bucket.exists(newEntry.getId()) ||
+				bucket.needsReplacement())
 			return false;
 
 		Prefix highBranch = bucket.prefix().splitBranch(true);
-		return highBranch.isPrefixOf(toInsert.getId());
+		return highBranch.isPrefixOf(newEntry.getId());
 	}
 
 	private void _modify(Collection<KBucket> toRemove, Collection<KBucket> toAdd) {
@@ -377,22 +379,20 @@ public final class RoutingTable {
 
 			if (b1.prefix().isSiblingOf(b2.prefix())) {
 				int effectiveSize1 = (int) (b1.stream().filter(e -> !e.removableWithoutReplacement()).count()
-						+ b1.cacheStream().filter(KBucketEntry::eligibleForNodesList).count());
+						+ b1.cacheStream().filter(KBucketEntry::isEligibleForNodesList).count());
 				int effectiveSize2 = (int) (b2.stream().filter(e -> !e.removableWithoutReplacement()).count()
-						+ b2.cacheStream().filter(KBucketEntry::eligibleForNodesList).count());
+						+ b2.cacheStream().filter(KBucketEntry::isEligibleForNodesList).count());
 
+				// check if the buckets can be merged without losing any effective entries
 				if (effectiveSize1 + effectiveSize2 <= Constants.MAX_ENTRIES_PER_BUCKET) {
+					// Insert into a new bucket directly, no splitting to avoid
+					// fibrillation between merge and split operations
 					KBucket newBucket = new KBucket(b1.prefix().getParent(), this::isHomeBucket);
 
-					for (KBucketEntry e : b1.entries())
-						newBucket._put(e);
-					for (KBucketEntry e : b2.entries())
-						newBucket._put(e);
-
-					for (KBucketEntry e : b1.cacheEntries())
-						newBucket._put(e);
-					for (KBucketEntry e : b2.cacheEntries())
-						newBucket._put(e);
+					b1.stream().forEach(newBucket::_put);
+					b2.stream().forEach(newBucket::_put);
+					b1.cacheStream().forEach(newBucket::_put);
+					b2.cacheStream().forEach(newBucket::_put);
 
 					_modify(Arrays.asList(b1, b2), Arrays.asList(newBucket));
 
@@ -418,21 +418,23 @@ public final class RoutingTable {
 
 		_mergeBuckets();
 
+		Id localId = getDHT().getNode().getId();
+		Collection<Id> bootstrapIds = getDHT().getBootstrapIds();
+
 		List<KBucket> bucketsRef = getBuckets();
 		for (KBucket bucket : bucketsRef) {
 			boolean isHome = bucket.isHomeBucket();
-			Id localId = getDHT().getNode().getId();
 
 			List<KBucketEntry> entries = bucket.entries();
-			//boolean wasFull = entries.size() >= Constants.MAX_ENTRIES_PER_BUCKET;
+			boolean wasFull = entries.size() >= Constants.MAX_ENTRIES_PER_BUCKET;
 			for (KBucketEntry entry : entries) {
 				// remove really old entries, ourselves and bootstrap nodes if the bucket is full
-				// if (localIds.contains(entry.getID()) || (wasFull && dht.getBootStrapNodes().contains(entry.getAddress())))
-				if (entry.getId().equals(localId)) {
+				if (entry.getId().equals(localId) || (wasFull && bootstrapIds.contains(entry.getId()))) {
 					bucket._removeIfBad(entry, true);
 					continue;
 				}
 
+				// Fix the wrong entries
 				if (!bucket.prefix().isPrefixOf(entry.getId())) {
 					bucket._removeIfBad(entry, true);
 					put(entry);
@@ -476,7 +478,8 @@ public final class RoutingTable {
 
 			// just try to fill partially populated buckets
 			// not empty ones, they may arise as artifacts from deep splitting
-			if (num > 0 && num < Constants.MAX_ENTRIES_PER_BUCKET) {
+			if (num < Constants.MAX_ENTRIES_PER_BUCKET) {
+				bucket.updateRefreshTimer();
 				Task task = getDHT().findNode(bucket.prefix().createRandomId(), null);
 				task.setName("Filling Bucket - " + bucket.prefix());
 			}

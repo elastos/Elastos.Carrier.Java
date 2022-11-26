@@ -96,7 +96,7 @@ public class PrefixTests {
 		assertEquals(prefix, prefix.getParent());
 
 		for (int i = 0; i < Id.SIZE; i++) {
-			id = Id.MAX_ID;
+			id = Id.random();
 
 			prefix = new Prefix(id, i);
 			Prefix parent = prefix.getParent();
@@ -105,7 +105,30 @@ public class PrefixTests {
 
 			assertTrue(parent.isPrefixOf(prefix));
 			assertTrue(Prefix.bitsEqual(prefix, parent, i - 1));
+		}
+
+		id = Id.MAX_ID;
+		for (int i = 0; i < Id.SIZE; i++) {
+			prefix = new Prefix(id, i);
+			Prefix parent = prefix.getParent();
+
+			assertEquals(prefix.getDepth(), parent.getDepth() + 1);
+
+			assertTrue(parent.isPrefixOf(prefix));
+			assertTrue(Prefix.bitsEqual(prefix, parent, i - 1));
 			assertFalse(Prefix.bitsEqual(prefix, parent, i));
+		}
+
+		id = Id.MIN_ID;
+		for (int i = 0; i < Id.SIZE; i++) {
+			prefix = new Prefix(id, i);
+			Prefix parent = prefix.getParent();
+
+			assertEquals(prefix.getDepth(), parent.getDepth() + 1);
+
+			assertTrue(parent.isPrefixOf(prefix));
+			assertTrue(Prefix.bitsEqual(prefix, parent, i - 1));
+			assertTrue(Prefix.bitsEqual(prefix, parent, i));
 		}
 	}
 
@@ -161,5 +184,62 @@ public class PrefixTests {
 			Prefix cp = Prefix.getCommonPrefix(ids);
 			assertEquals(p, cp);
 		}
+	}
+
+	@Test
+	public void testMisc() {
+		// Root
+		Prefix root = new Prefix();
+
+		// Level 1
+		Prefix p1 = root.splitBranch(false);
+		Prefix p2 = root.splitBranch(true);
+
+		assertTrue(p1.isSiblingOf(p2));
+		assertTrue(p2.isSiblingOf(p1));
+
+		assertTrue(root.isPrefixOf(p1));
+		assertTrue(root.isPrefixOf(p2));
+
+		// Level 2（1.x)
+		Prefix p11 = p1.splitBranch(false);
+		Prefix p12 = p1.splitBranch(true);
+
+		assertTrue(p11.isSiblingOf(p12));
+		assertTrue(p12.isSiblingOf(p11));
+
+		assertFalse(p1.isSiblingOf(p11));
+		assertFalse(p1.isSiblingOf(p12));
+
+		assertFalse(p2.isSiblingOf(p11));
+		assertFalse(p2.isSiblingOf(p12));
+
+		assertTrue(p1.isPrefixOf(p11));
+		assertTrue(p1.isPrefixOf(p12));
+
+		assertFalse(p2.isPrefixOf(p11));
+		assertFalse(p2.isPrefixOf(p12));
+
+		// Level 2 (2.x)
+		Prefix p21 = p2.splitBranch(false);
+		Prefix p22 = p2.splitBranch(true);
+
+		assertTrue(p21.isSiblingOf(p22));
+		assertTrue(p22.isSiblingOf(p21));
+
+		assertFalse(p1.isSiblingOf(p21));
+		assertFalse(p1.isSiblingOf(p22));
+
+		assertFalse(p2.isSiblingOf(p21));
+		assertFalse(p2.isSiblingOf(p22));
+
+		assertTrue(p2.isPrefixOf(p21));
+		assertTrue(p2.isPrefixOf(p22));
+
+		assertFalse(p1.isPrefixOf(p21));
+		assertFalse(p1.isPrefixOf(p22));
+
+		assertFalse(p12.isSiblingOf(p21));
+		assertFalse(p21.isSiblingOf(p12));
 	}
 }

@@ -38,7 +38,7 @@ public class KClosestNodes {
 	private List<KBucketEntry> entries;
 	private int maxEntries;
 	private Comparator<KBucketEntry> cmp;
-	public Predicate<KBucketEntry> filter = KBucketEntry::eligibleForNodesList;
+	private Predicate<KBucketEntry> filter;
 
 	/**
 	 * Constructor sets the key to compare with
@@ -48,10 +48,15 @@ public class KClosestNodes {
 	 * @return
 	 */
 	public KClosestNodes(DHT dht, Id id, int maxEntries) {
+		this(dht, id, maxEntries, KBucketEntry::isEligibleForNodesList);
+	}
+
+	public KClosestNodes(DHT dht, Id id, int maxEntries, Predicate<KBucketEntry> filter) {
 		this.dht = dht;
 		this.target = id;
 		this.maxEntries = maxEntries;
 		this.cmp = new KBucketEntry.DistanceOrder(id);
+		this.filter = filter;
 		this.entries = new ArrayList<>(maxEntries + Constants.MAX_ENTRIES_PER_BUCKET);
 	}
 
