@@ -92,7 +92,7 @@ public class SQLiteStorage implements DataStorage {
 			"VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT(id, family, nodeId) DO UPDATE SET " +
 			"ip=excluded.ip, port=excluded.port, timestamp=excluded.timestamp";
 
-	private Connection connection;
+	private static ThreadLocal<Connection> cp;
 
 	private ScheduledFuture<?> expireFuture;
 
@@ -108,17 +108,24 @@ public class SQLiteStorage implements DataStorage {
 		// SQLite connection global initialization
 		// According to the SQLite documentation, using single connection in
 		// multiple threads is safe and efficient.
+		// But java maybe using green thread on top of the system thread.
+		// So we should use the thread local connection make sure the database
+		// operations are safe.
 		SQLiteDataSource ds = new SQLiteDataSource();
 		ds.setUrl("jdbc:sqlite:" + (path != null ? path.toString() : ":memory:"));
-		try {
-			connection = ds.getConnection();
-		} catch (SQLException e) {
-			log.error("Failed to open the SQLite storage.", e);
-			throw new IOError("Failed to open the SQLite storage", e);
-		}
+
+		cp = ThreadLocal.withInitial(() -> {
+			try {
+				return ds.getConnection();
+			} catch (SQLException e) {
+				log.error("Failed to open the SQLite storage.", e);
+				//throw new IOError("Failed to open the SQLite storage", e);
+				return null;
+			}
+		});
 
 		// Check and initialize the database schema.
-		try (Statement stmt = connection.createStatement()) {
+		try (Statement stmt = getConnection().createStatement()) {
 			// if later we change the schema,
 			// we should check the user version, do the schema update,
 			// then increase the user_version;
@@ -140,6 +147,10 @@ public class SQLiteStorage implements DataStorage {
 		log.info("SQLite storage opened: {}", path != null ? path : "MEMORY");
 	}
 
+	private Connection getConnection() {
+		return cp.get();
+	}
+
 	@Override
 	public void close() throws IOException {
 		expireFuture.cancel(false);
@@ -154,12 +165,14 @@ public class SQLiteStorage implements DataStorage {
 		} catch (CancellationException ignore) {
 		}
 
+		/*
 		try {
 			connection.close();
 		} catch (SQLException e) {
 			log.error("Failed to close the SQLite storage.", e);
 			throw new IOException("Failed to close the SQLite storage.", e);
 		}
+		*/
 	}
 
 	@Override
@@ -168,7 +181,7 @@ public class SQLiteStorage implements DataStorage {
 		ResultSet rs = null;
 
 		try {
-			stmt = connection.prepareStatement("SELECT id from valores ORDER BY id");
+			stmt = getConnection().prepareStatement("SELECT id from valores ORDER BY id");
 			stmt.closeOnCompletion();
 			rs = stmt.executeQuery();
 		} catch (SQLException e) {
@@ -218,7 +231,7 @@ public class SQLiteStorage implements DataStorage {
 
 	@Override
 	public Value getValue(Id valueId) throws KadException {
-		try (PreparedStatement stmt = connection.prepareStatement(SELECT_VALUE)) {
+		try (PreparedStatement stmt = getConnection().prepareStatement(SELECT_VALUE)) {
 			long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
 			stmt.setBytes(1, valueId.bytes());
 			stmt.setLong(2, when);
@@ -263,7 +276,7 @@ public class SQLiteStorage implements DataStorage {
 				throw new CasFail("CAS failure");
 		}
 
-		try (PreparedStatement stmt = connection.prepareStatement(UPSERT_VALUE)) {
+		try (PreparedStatement stmt = getConnection().prepareStatement(UPSERT_VALUE)) {
 			stmt.setBytes(1, value.getId().bytes());
 
 			if (value.getPublicKey() != null)
@@ -289,7 +302,7 @@ public class SQLiteStorage implements DataStorage {
 			if (value.getSignature() != null)
 				stmt.setBytes(6, value.getSignature());
 			else
-				stmt.setNull(7, Types.BLOB);
+				stmt.setNull(6, Types.BLOB);
 
 			stmt.setInt(7, value.getSequenceNumber());
 
@@ -320,7 +333,7 @@ public class SQLiteStorage implements DataStorage {
 		ResultSet rs = null;
 
 		try {
-			stmt = connection.prepareStatement("SELECT DISTINCT id from peers ORDER BY id");
+			stmt = getConnection().prepareStatement("SELECT DISTINCT id from peers ORDER BY id");
 			stmt.closeOnCompletion();
 			rs = stmt.executeQuery();
 		} catch (SQLException e) {
@@ -385,7 +398,7 @@ public class SQLiteStorage implements DataStorage {
 
 		List<PeerInfo> peers = new ArrayList<>((maxPeers > 64 ? 16 : maxPeers) * families.size());
 		for (int f : families) {
-			try (PreparedStatement stmt = connection.prepareStatement(SELECT_PEER)) {
+			try (PreparedStatement stmt = getConnection().prepareStatement(SELECT_PEER)) {
 				long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
 				stmt.setBytes(1, peerId.bytes());
 				stmt.setInt(2, f);
@@ -413,7 +426,7 @@ public class SQLiteStorage implements DataStorage {
 
 	@Override
 	public PeerInfo getPeer(Id peerId, int family, Id nodeId) throws KadException {
-		try (PreparedStatement stmt = connection.prepareStatement(SELECT_PEER_WITH_NODEID)) {
+		try (PreparedStatement stmt = getConnection().prepareStatement(SELECT_PEER_WITH_NODEID)) {
 			long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
 			stmt.setBytes(1, peerId.bytes());
 			stmt.setInt(2, family);
@@ -439,6 +452,7 @@ public class SQLiteStorage implements DataStorage {
 	@Override
 	public void putPeer(Id peerId, Collection<PeerInfo> peers) throws KadException {
 		long now = System.currentTimeMillis();
+		Connection connection = getConnection();
 
 		try {
 			connection.setAutoCommit(false);
@@ -460,6 +474,7 @@ public class SQLiteStorage implements DataStorage {
 
 			stmt.executeBatch();
 			connection.commit();
+			connection.setAutoCommit(true);
 		} catch (SQLException e) {
 			log.error("SQLite storage encounter an error: " + e.getMessage(), e);
 			throw new IOError("SQLite storage encounter an error: " + e.getMessage(), e);
@@ -473,6 +488,7 @@ public class SQLiteStorage implements DataStorage {
 
 	private void expire() {
 		long now = System.currentTimeMillis();
+		Connection connection = getConnection();
 
 		try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM valores WHERE timestamp < ?")) {
 			long ts = now - Constants.MAX_VALUE_AGE;
