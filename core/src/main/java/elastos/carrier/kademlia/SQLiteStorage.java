@@ -112,7 +112,9 @@ public class SQLiteStorage implements DataStorage {
 		// So we should use the thread local connection make sure the database
 		// operations are safe.
 		SQLiteDataSource ds = new SQLiteDataSource();
-		ds.setUrl("jdbc:sqlite:" + (path != null ? path.toString() : ":memory:"));
+
+		// URL for memory db: https://www.sqlite.org/inmemorydb.html
+		ds.setUrl("jdbc:sqlite:" + (path != null ? path.toString() : "file:node?mode=memory&cache=shared"));
 
 		cp = ThreadLocal.withInitial(() -> {
 			try {
