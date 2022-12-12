@@ -32,5 +32,9 @@ public interface ServiceContext {
 
 	public Id getNodeId();
 
-	public Map<String, String> getConfig();
+	public Map<String, Object> getConfiguration();
+
+	public Object setProperty(String name, Object value);
+
+	public Object getProperty(String name);
 }

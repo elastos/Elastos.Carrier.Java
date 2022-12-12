@@ -32,7 +32,7 @@ public class DHTProxy implements CarrierService {
 	@Override
 	public void init(ServiceContext context) throws CarrierServiceException {
 		Node node = context.getNode();
-		int port = Integer.valueOf(context.getConfig().getOrDefault("port", "0"));
+		int port = (int)context.getConfiguration().getOrDefault("port", 0);
 		if (port == 0)
 			port = DEFAULT_PORT;
 

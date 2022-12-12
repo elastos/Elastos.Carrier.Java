@@ -22,30 +22,83 @@
 
 package elastos.carrier;
 
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+
 import elastos.carrier.kademlia.Node;
+import elastos.carrier.service.CarrierService;
+import elastos.carrier.service.CarrierServiceException;
+import elastos.carrier.service.DefaultServiceContext;
+import elastos.carrier.service.ServiceContext;
 
 public class Launcher {
 	private static Configuration config;
 	private static Object shutdown = new Object();
 
-	private static Node carrierNode;
+	private static Node node;
+	private static List<CarrierService> services;
 
 	private static void initCarrierNode() {
 		try {
 			shutdown = new Object();
-			carrierNode = new Node(config);
-			carrierNode.addStatusListener((o, n) -> {
+			node = new Node(config);
+			node.addStatusListener((o, n) -> {
 				if (n == NodeStatus.Stopped) {
 					synchronized(shutdown) {
 						shutdown.notifyAll();
 					}
 				}
 			});
-			carrierNode.start();
+			node.start();
+
+			System.out.format("Carrier node %s is running.\n", node.getId());
 		} catch (Exception e) {
 			System.out.println("Start carrier super node failed, error: " + e.getMessage());
 			e.printStackTrace(System.err);
 			System.exit(-1);
+		}
+	}
+
+	private static void loadServices() {
+		if (config.services().isEmpty())
+			return;
+
+		services = new ArrayList<>(config.services().size());
+
+		config.services().forEach(Launcher::loadService);
+	}
+
+	private static void loadService(String className, Map<String, Object> configuration) {
+		try {
+			Class<?> clazz = Class.forName(className);
+			Object o = clazz.getDeclaredConstructor().newInstance();
+			if (!(o instanceof CarrierService)) {
+				System.out.println("Class isn't a carrier service: " + className);
+				return;
+			}
+
+			CarrierService svc = (CarrierService)o;
+			ServiceContext ctx = new DefaultServiceContext(node, configuration);
+			svc.init(ctx);
+			System.out.format("Service %s[%s] is loaded.\n", svc.getName(), className);
+
+			svc.start().get();
+			System.out.format("Service %s[%s] is started.\n", svc.getName(), className);
+
+			services.add(svc);
+
+		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e) {
+			System.out.println("Can not load service: " + className);
+			e.printStackTrace(System.err);
+		} catch (CarrierServiceException e) {
+			System.out.println("Failed to initialize service: " + className);
+			e.printStackTrace(System.err);
+		} catch (InterruptedException | ExecutionException e) {
+			System.out.println("Failed to start service: " + className);
+			e.printStackTrace(System.err);
 		}
 	}
 
@@ -121,15 +174,16 @@ public class Launcher {
 	}
 
 	public static void main(String[] args) {
-		parseArgs(args);
-
-		initCarrierNode();
-
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-			carrierNode.stop();
+			if (node != null) {
+				node.stop();
+				node = null;
+			}
 		}));
 
-		System.out.println("Carrier node is running!");
+		parseArgs(args);
+		initCarrierNode();
+		loadServices();
 
 		synchronized(shutdown) {
 			try {

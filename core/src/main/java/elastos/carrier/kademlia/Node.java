@@ -514,7 +514,7 @@ public class Node implements elastos.carrier.Node {
 	@Override
 	public CompletableFuture<Void> storeValue(Value value) {
 		checkState(isRunning(), "Node not running");
-		checkArgument(value != null, "Invalue value");
+		checkArgument(value != null, "Invalid value: null");
 
 		try {
 			getStorage().putValue(value);

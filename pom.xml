@@ -39,7 +39,7 @@
     <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
     <maven-resources-plugin.version>3.3.0</maven-resources-plugin.version>
     <maven-dependency-plugin.version>3.3.0</maven-dependency-plugin.version>
-    <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
+    <exec-maven-plugin.version>3.1.0</exec-maven-plugin.version>
     <jdeb-plugin.version>1.10</jdeb-plugin.version>
 
     <guava.version>31.1-jre</guava.version>
@@ -59,8 +59,8 @@
     <module>api</module>
     <module>core</module>
     <module>shell</module>
-    <module>launcher</module>
     <module>services</module>
+    <module>launcher</module>
   </modules>
 
   <build>

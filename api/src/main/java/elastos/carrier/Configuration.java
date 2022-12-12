@@ -26,6 +26,7 @@ import java.io.File;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.util.Collection;
+import java.util.Map;
 
 public interface Configuration {
 	public Inet4Address IPv4Address();
@@ -48,4 +49,6 @@ public interface Configuration {
 	//public boolean routerBootstrap();
 
 	public Collection<NodeInfo> bootstrapNodes();
+
+	public  Map<String, Map<String, Object>> services();
 }

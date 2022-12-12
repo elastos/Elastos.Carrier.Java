@@ -14,6 +14,7 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.handler.BodyHandler;
 
 import elastos.carrier.Id;
 import elastos.carrier.LookupOption;
@@ -48,13 +49,14 @@ public class ProxyServer extends AbstractVerticle {
 		router.get("/id")
 			.handler(this::getId)
 			.failureHandler(this::failureHandler);
-		router.get("/nodes/:d")
+		router.get("/nodes/:id")
 			.handler(this::findNode)
 			.failureHandler(this::failureHandler);
 		router.get("/values/:id")
 			.handler(this::findValue)
 			.failureHandler(this::failureHandler);
 		router.post("/values")
+			.handler(BodyHandler.create())
 			.handler(this::storeValue)
 			.failureHandler(this::failureHandler);
 		router.get("/peers/:id")
@@ -69,7 +71,7 @@ public class ProxyServer extends AbstractVerticle {
 			.listen(port, http -> {
 			if (http.succeeded()) {
 				startPromise.complete();
-				System.out.println("HTTP server started on port " + port);
+				log.info("HTTP server started on port {}", port);
 			} else {
 				startPromise.fail(http.cause());
 			}
@@ -85,7 +87,7 @@ public class ProxyServer extends AbstractVerticle {
 	}
 
 	private void getId(RoutingContext ctx) {
-		ctx.response().end(JsonObject.of("id", node.getId()).toBuffer());
+		ctx.response().end(JsonObject.of("id", node.getId().toString()).toBuffer());
 	}
 
 	private void findNode(RoutingContext ctx) {
@@ -153,7 +155,12 @@ public class ProxyServer extends AbstractVerticle {
 					return;
 				}
 
-				vertx.runOnContext((none) -> ctx.response().setStatusCode(202).end());
+				vertx.runOnContext((none) -> {
+					HttpServerResponse response = ctx.response();
+					response.setStatusCode(202);
+					response.putHeader("content-type", "application/json");
+					response.end(JsonObject.of("id", value.getId().toString()).toBuffer());
+				});
 			});
 		} catch (IllegalArgumentException e) {
 			ctx.fail(400, e);
@@ -262,9 +269,6 @@ public class ProxyServer extends AbstractVerticle {
 		if (!value.isValid())
 			throw new IllegalArgumentException("Invalid json for value");
 
-		return null;
-	}
-
-	public static void main(String[] args) {
+		return value;
 	}
 }

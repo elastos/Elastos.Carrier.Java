@@ -29,13 +29,14 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -46,17 +47,12 @@ public class DefaultConfiguration implements Configuration {
 	private Inet6Address addr6;
 	private int port;
 	private File storagePath;
-	private List<NodeInfo> bootstrapNodes;
+	private Set<NodeInfo> bootstraps;
+	private Map<String, Map<String, Object>> services;
 
-	private DefaultConfiguration(Inet4Address addr4, Inet6Address addr6, int port,
-			File storagePath, Collection<NodeInfo> bootstrapNodes) {
-		this.addr4 = addr4;
-		this.addr6 = addr6;
-		this.port = port;
-		this.storagePath = storagePath;
-		this.bootstrapNodes = Collections.unmodifiableList(
-				(bootstrapNodes.isEmpty()) ?
-				Collections.emptyList() : new ArrayList<>(bootstrapNodes));
+	private DefaultConfiguration() {
+		this.bootstraps = new HashSet<>();
+		this.services = new LinkedHashMap<>();
 	}
 
 	@Override
@@ -81,7 +77,12 @@ public class DefaultConfiguration implements Configuration {
 
 	@Override
 	public Collection<NodeInfo> bootstrapNodes() {
-		return bootstrapNodes;
+		return bootstraps;
+	}
+
+	@Override
+	public Map<String, Map<String, Object>> services() {
+		return services;
 	}
 
 	public static class Builder {
@@ -90,11 +91,15 @@ public class DefaultConfiguration implements Configuration {
 
 		private boolean autoAddr4 = AUTO_IPV4;
 		private boolean autoAddr6 = AUTO_IPV6;
-		private Inet4Address addr4;
-		private Inet6Address addr6;
-		private int port;
-		private File storagePath;
-		private Set<NodeInfo> bootstrapNodes = new HashSet<>();
+
+		private DefaultConfiguration conf;
+
+		private DefaultConfiguration getConfiguration() {
+			if (conf == null)
+				conf = new DefaultConfiguration();
+
+			return conf;
+		}
 
 		public Builder setAutoIPv4Address(boolean auto) {
 			autoAddr4 = auto;
@@ -124,7 +129,7 @@ public class DefaultConfiguration implements Configuration {
 			if (addr != null && !(addr instanceof Inet4Address))
 				throw new IllegalArgumentException("Invalid IPv4 address: " + addr);
 
-			addr4 = (Inet4Address)addr;
+			getConfiguration().addr4 = (Inet4Address)addr;
 			return this;
 		}
 
@@ -140,7 +145,7 @@ public class DefaultConfiguration implements Configuration {
 			if (addr != null && !(addr instanceof Inet6Address))
 				throw new IllegalArgumentException("Invalid IPv6 address: " + addr);
 
-			addr6 = (Inet6Address)addr;
+			getConfiguration().addr6 = (Inet6Address)addr;
 			return this;
 		}
 
@@ -148,30 +153,30 @@ public class DefaultConfiguration implements Configuration {
 			if (port <= 0 || port > 65535)
 				throw new IllegalArgumentException("Invalid port: " + port);
 
-			this.port = port;
+			getConfiguration().port = port;
 			return this;
 		}
 
 		public Builder setStoragePath(String path) {
-			storagePath = path != null ?  toFile(path) : null;
+			getConfiguration().storagePath = path != null ?  toFile(path) : null;
 			return this;
 		}
 
 		public Builder addBootstrap(String id, String addr, int port) {
 			NodeInfo node = new NodeInfo(Id.of(id), addr, port);
-			bootstrapNodes.add(node);
+			getConfiguration().bootstraps.add(node);
 			return this;
 		}
 
 		public Builder addBootstrap(Id id, InetAddress addr, int port) {
 			NodeInfo node = new NodeInfo(id, addr, port);
-			bootstrapNodes.add(node);
+			getConfiguration().bootstraps.add(node);
 			return this;
 		}
 
 		public Builder addBootstrap(Id id, InetSocketAddress addr) {
 			NodeInfo node = new NodeInfo(id, addr);
-			bootstrapNodes.add(node);
+			getConfiguration().bootstraps.add(node);
 			return this;
 		}
 
@@ -179,7 +184,17 @@ public class DefaultConfiguration implements Configuration {
 			if (node == null)
 				throw new IllegalArgumentException("Invaild node info: null");
 
-			bootstrapNodes.add(node);
+			getConfiguration().bootstraps.add(node);
+			return this;
+		}
+
+		public Builder addService(String clazz, Map<String, Object> configuration) {
+			if (clazz == null || clazz.isEmpty())
+				throw new IllegalArgumentException("Invaild service class name");
+
+			getConfiguration().services.put(clazz, Collections.unmodifiableMap(
+					configuration == null || configuration.isEmpty() ?
+					Collections.emptyMap() : configuration));
 			return this;
 		}
 
@@ -232,13 +247,32 @@ public class DefaultConfiguration implements Configuration {
 							InetAddress addr = InetAddress.getByName(bootstrap.get("address").asText());
 							int port = bootstrap.get("port").asInt();
 
-							NodeInfo node = new NodeInfo(id, addr, port);
-							bootstrapNodes.add(node);
+							addBootstrap(id, addr, port);
 						} catch (Exception e) {
 							throw new IOException("Config file error: bootstap node - " +
 									bootstrap.get("id").asText(), e);
 						}
+					}
+				}
 
+				if (root.has("services")) {
+					JsonNode services = root.get("services");
+					if (!services.isArray())
+						throw new IOException("Config file error: services");
+
+					for (JsonNode service : services) {
+						if (!service.has("class"))
+							throw new IOException("Config file error: service class name");
+
+						String clazz = service.get("class").asText();
+
+						Map<String, Object> configuration = null;
+						if (service.has("configuration")) {
+							JsonNode config = service.get("configuration");
+							configuration = mapper.convertValue(config, new TypeReference<Map<String, Object>>(){});
+						}
+
+						addService(clazz, configuration);
 					}
 				}
 			}
@@ -247,31 +281,38 @@ public class DefaultConfiguration implements Configuration {
 		}
 
 		public Builder clear() {
-			autoAddr4 = true;
-			autoAddr6 = true;
-			addr4 = null;
-			addr6 = null;
-			port = 0;
-			storagePath = null;
-			bootstrapNodes.clear();
+			autoAddr4 = AUTO_IPV4;
+			autoAddr6 = AUTO_IPV6;
+			conf = null;
 
 			return this;
 		}
 
 		public Configuration build() {
-			if (addr4 == null && autoAddr4)
-				addr4 = (Inet4Address)AddressUtils.getAllAddresses().filter(Inet4Address.class::isInstance)
+			DefaultConfiguration c = getConfiguration();
+			conf = null;
+
+			if (c.addr4 == null && autoAddr4)
+				c.addr4 = (Inet4Address)AddressUtils.getAllAddresses().filter(Inet4Address.class::isInstance)
 						.filter((a) -> !AddressUtils.isLocalUnicast(a))
 						.distinct()
 						.findFirst().orElse(null);
 
-			if (addr6 == null && autoAddr6)
-				addr6 = (Inet6Address)AddressUtils.getAllAddresses().filter(Inet6Address.class::isInstance)
+			if (c.addr6 == null && autoAddr6)
+				c.addr6 = (Inet6Address)AddressUtils.getAllAddresses().filter(Inet6Address.class::isInstance)
 						.filter((a) -> !AddressUtils.isLocalUnicast(a))
 						.distinct()
 						.findFirst().orElse(null);
 
-			return new DefaultConfiguration(addr4, addr6, port, storagePath, bootstrapNodes);
+			c.bootstraps = Collections.unmodifiableSet(
+					(c.bootstraps == null || c.bootstraps.isEmpty()) ?
+					Collections.emptySet() : c.bootstraps);
+
+			c.services = Collections.unmodifiableMap(
+					(c.services == null || c.services.isEmpty()) ?
+					Collections.emptyMap() : c.services);
+
+			return c;
 		}
 
 		private static File toFile(String file) {

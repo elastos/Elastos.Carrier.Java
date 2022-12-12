@@ -244,7 +244,6 @@ public abstract class Message {
 		return out.toByteArray();
 	}
 
-	// According to my tests, streaming serialization is about 30x faster than the object mapping
 	public void serialize(OutputStream out) throws MessageException {
 		try {
 			CBORGenerator gen = ThreadLocals.CBORFactory().createGenerator(out);
@@ -258,6 +257,7 @@ public abstract class Message {
 	protected void serialize(JsonGenerator gen) throws MessageException, IOException {
 	}
 
+	// According to my tests, streaming serialization is about 30x faster than the object mapping
 	private void serializeInternal(JsonGenerator gen) throws MessageException, IOException {
 		gen.writeStartObject();
 
