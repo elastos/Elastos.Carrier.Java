@@ -73,6 +73,7 @@ public class FindPeerTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindPeerRequest);
 		FindPeerRequest m = (FindPeerRequest)pm;
 
@@ -105,6 +106,7 @@ public class FindPeerTests extends MessageTests {
 
 		Message pm = Message.parse(bin);
 		assertTrue(pm instanceof FindPeerRequest);
+		pm.setId(id);
 		FindPeerRequest m = (FindPeerRequest)pm;
 
 		assertEquals(Type.REQUEST, m.getType());
@@ -134,6 +136,7 @@ public class FindPeerTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindPeerRequest);
 		FindPeerRequest m = (FindPeerRequest)pm;
 
@@ -231,6 +234,7 @@ public class FindPeerTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindPeerResponse);
 		FindPeerResponse m = (FindPeerResponse)pm;
 
@@ -281,6 +285,7 @@ public class FindPeerTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindPeerResponse);
 		FindPeerResponse m = (FindPeerResponse)pm;
 
@@ -345,6 +350,7 @@ public class FindPeerTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindPeerResponse);
 		FindPeerResponse m = (FindPeerResponse)pm;
 

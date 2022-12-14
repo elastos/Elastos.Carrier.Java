@@ -291,7 +291,7 @@ public abstract class Task implements Comparable<Task> {
 
 		inFlight.add(call);
 
-		getLogger().debug("Task#{} sending call to {}", getTaskId(), node, request.getRemote());
+		getLogger().debug("Task#{} sending call to {}", getTaskId(), node, request.getRemoteAddress());
 		// asyncify since we're under a lock here
 		dht.getNode().getScheduler().execute(() -> dht.getServer().sendCall(call));
 

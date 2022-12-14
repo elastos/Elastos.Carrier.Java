@@ -92,10 +92,10 @@ public class CryptoBoxTests {
 	public void encryptDecryptSealed() {
 		CryptoBox.KeyPair receiver = CryptoBox.KeyPair.random();
 
-		byte[] encrypted = CryptoBox.encrypt(Hex.decode("deadbeef"), receiver.publicKey());
+		byte[] encrypted = CryptoBox.encryptSealed(Hex.decode("deadbeef"), receiver.publicKey());
 		assertNotNull(encrypted);
 
-		byte[] decrypted = CryptoBox.decrypt(encrypted, receiver.publicKey(), receiver.privateKey());
+		byte[] decrypted = CryptoBox.decryptSealed(encrypted, receiver.publicKey(), receiver.privateKey());
 		assertNotNull(decrypted);
 		assertArrayEquals(Hex.decode("deadbeef"), decrypted);
 	}

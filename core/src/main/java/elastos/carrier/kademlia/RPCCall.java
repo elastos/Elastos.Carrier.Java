@@ -68,7 +68,7 @@ public class RPCCall {
 		this.request = request;
 		this.listeners = new ArrayList<>(8);
 
-		request.setRemote(target.getAddress());
+		request.setRemote(target.getId(), target.getAddress());
 		if (target instanceof KBucketEntry) {
 			KBucketEntry e = (KBucketEntry)target;
 			sourceWasKnownReachable = e.isReachable();
@@ -113,7 +113,7 @@ public class RPCCall {
 	}
 
 	public boolean matchesAddress() {
-		return response.getOrigin().equals(request.getRemote());
+		return response.getOrigin().equals(request.getRemoteAddress());
 	}
 
 	public Message getRequest() {

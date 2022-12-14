@@ -62,6 +62,7 @@ public class AnnouncePeerTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(nodeId);
 		assertTrue(pm instanceof AnnouncePeerRequest);
 		AnnouncePeerRequest m = (AnnouncePeerRequest)pm;
 
@@ -102,6 +103,7 @@ public class AnnouncePeerTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof AnnouncePeerResponse);
 		AnnouncePeerResponse m = (AnnouncePeerResponse)pm;
 

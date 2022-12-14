@@ -60,6 +60,7 @@ public class PingTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof PingRequest);
 		PingRequest m = (PingRequest)pm;
 
@@ -95,6 +96,7 @@ public class PingTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof PingResponse);
 		PingResponse m = (PingResponse)pm;
 

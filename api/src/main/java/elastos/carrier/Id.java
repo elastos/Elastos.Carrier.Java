@@ -71,14 +71,17 @@ public class Id implements Comparable<Id> {
 		this(id.bytes);
 	}
 
+	protected Id(byte[] id) {
+		this(id, 0);
+	}
 
 	/**
 	 * Construct the kademlia Id from a given binary id
 	 *
 	 * @param id the binary id in bytes
 	 */
-	protected Id(byte[] id) {
-		this.bytes = id.clone();
+	protected Id(byte[] buf, int pos) {
+		this.bytes = Arrays.copyOfRange(buf, pos, pos + BYTES);
 	}
 
 	/**
@@ -91,6 +94,13 @@ public class Id implements Comparable<Id> {
 			throw new IllegalArgumentException("Binary id should be " + BYTES + " bytes long.");
 
 		return new Id(id);
+	}
+
+	public static Id of(byte[] buf, int pos) {
+		if (buf.length - pos < BYTES)
+			throw new IllegalArgumentException("Binary id should be " + BYTES + " bytes long.");
+
+		return new Id(buf, pos);
 	}
 
 	/**

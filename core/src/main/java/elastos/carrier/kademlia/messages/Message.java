@@ -48,8 +48,8 @@ public abstract class Message {
 	private static final int TYPE_MASK = 0x000000E0;
 	private static final int METHOD_MASK = 0x0000001F;
 
-	public static final int MIN_SIZE = 12;
-	protected static final int BASE_SIZE = 56;
+	public static final int MIN_SIZE = 13;
+	protected static final int BASE_SIZE = 20;
 
 	private final int type;
 	private Id id;
@@ -57,7 +57,8 @@ public abstract class Message {
 	private int version;
 
 	private InetSocketAddress origin;
-	private InetSocketAddress remote;
+	private InetSocketAddress remoteAddr;
+	private Id remoteId;
 
 	private RPCServer server;
 	private RPCCall associatedCall;
@@ -210,12 +211,17 @@ public abstract class Message {
 		this.origin = local;
 	}
 
-	public InetSocketAddress getRemote() {
-		return remote;
+	public InetSocketAddress getRemoteAddress() {
+		return remoteAddr;
 	}
 
-	public void setRemote(InetSocketAddress remote) {
-		this.remote = remote;
+	public Id getRemoteId() {
+		return remoteId;
+	}
+
+	public void setRemote(Id id, InetSocketAddress address) {
+		this.remoteId = id;
+		this.remoteAddr = address;
 	}
 
 	public void setServer(RPCServer server) {
@@ -264,10 +270,13 @@ public abstract class Message {
 		gen.writeFieldName("y");
 		gen.writeNumber(type);
 
+		// Id will not included in the encrypted message.
+		/*
 		if (id != null) {
 			gen.writeFieldName("i");
 			gen.writeBinary(id.bytes());
 		}
+		*/
 
 		gen.writeFieldName("t");
 		gen.writeNumber(txid);
@@ -363,6 +372,8 @@ public abstract class Message {
 					case "y":
 						break;
 
+					// Id will not included in the encrypted message.
+					/*
 					case "i":
 						try {
 							msg.id = Id.of(parser.getBinaryValue());
@@ -370,6 +381,7 @@ public abstract class Message {
 							throw new MessageException("Invalid node id for 'i'").setPartialMessage(PartialMessage.of(msg));
 						}
 						break;
+					*/
 
 					case "t":
 						msg.txid = parser.getIntValue();

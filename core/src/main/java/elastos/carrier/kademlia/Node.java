@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
@@ -46,6 +47,12 @@ import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 
 import elastos.carrier.Configuration;
 import elastos.carrier.Id;
@@ -58,6 +65,7 @@ import elastos.carrier.Value;
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.Signature;
 import elastos.carrier.kademlia.DHT.Type;
+import elastos.carrier.kademlia.exceptions.CryptoError;
 import elastos.carrier.kademlia.exceptions.IOError;
 import elastos.carrier.kademlia.exceptions.KadException;
 import elastos.carrier.kademlia.exceptions.NotValueOwner;
@@ -70,6 +78,7 @@ public class Node implements elastos.carrier.Node {
 	private Configuration config;
 
 	private Signature.KeyPair keyPair;
+	private CryptoBox.KeyPair encryptKeyPair;
 	private Id id;
 
 	private boolean persistent;
@@ -85,6 +94,8 @@ public class Node implements elastos.carrier.Node {
 	private DHT dht6;
 	private int numDHTs;
 	private LookupOption defaultLookupOption;
+
+	private LoadingCache<Id, CryptoContext> cryptoContexts;
 
 	private TokenManager tokenMan;
 	private DataStorage storage;
@@ -121,6 +132,8 @@ public class Node implements elastos.carrier.Node {
 		if (keyPair == null) // no existing key
 			initKey(keyFile);
 
+		encryptKeyPair = CryptoBox.KeyPair.fromSignatureKeyPair(keyPair);
+
 		id = Id.of(keyPair.publicKey().bytes());
 		if (persistent) {
 			File idFile = new File(storagePath, "id");
@@ -131,6 +144,8 @@ public class Node implements elastos.carrier.Node {
 
 		statusListeners = new ArrayList<>(4);
 		tokenMan = new TokenManager();
+
+		setupCryptoBoxesCache();
 
 		defaultLookupOption = LookupOption.CONSERVATIVE;
 		status = NodeStatus.Stopped;
@@ -184,6 +199,29 @@ public class Node implements elastos.carrier.Node {
 				throw new IOError("Can not write the id file.", e);
 			}
 		}
+	}
+
+	private void setupCryptoBoxesCache() {
+		CacheLoader<Id, CryptoContext> loader;
+		loader = new CacheLoader<>() {
+			@Override
+			public CryptoContext load(Id id) {
+				return  new CryptoContext(id.toEncryptionKey(), encryptKeyPair);
+			}
+		};
+
+		RemovalListener<Id, CryptoContext> listener;
+		listener = new RemovalListener<Id, CryptoContext>() {
+			@Override
+			public void onRemoval(RemovalNotification<Id, CryptoContext> n) {
+				n.getValue().close();
+			}
+		};
+
+		cryptoContexts = CacheBuilder.newBuilder()
+				.expireAfterAccess(Constants.KBUCKET_OLD_AND_STALE_TIME, TimeUnit.MILLISECONDS)
+				.removalListener(listener)
+				.build(loader);
 	}
 
 	@Override
@@ -393,6 +431,24 @@ public class Node implements elastos.carrier.Node {
 
 	TokenManager getTokenManager() {
 		return tokenMan;
+	}
+
+	public byte[] encrypt(Id recipient, byte[] data) throws CryptoError {
+		try {
+			CryptoContext ctx = cryptoContexts.get(recipient);
+			return ctx.encrypt(data);
+		} catch (ExecutionException e) {
+			throw new CryptoError("can not create the encryption context", e.getCause());
+		}
+	}
+
+	public byte[] decrypt(Id sender, byte[] data) throws CryptoError {
+		try {
+			CryptoContext ctx = cryptoContexts.get(sender);
+			return ctx.decrypt(data);
+		} catch (ExecutionException e) {
+			throw new CryptoError("can not create the encryption context", e.getCause());
+		}
 	}
 
 	@Override

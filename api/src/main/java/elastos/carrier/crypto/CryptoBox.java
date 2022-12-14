@@ -30,6 +30,8 @@ import org.apache.tuweni.crypto.sodium.Box;
 import org.apache.tuweni.crypto.sodium.Sodium;
 
 public class CryptoBox implements AutoCloseable {
+	public static final int MAC_BYTES = 16;
+
 	private Box box;
 
 	public static class PublicKey implements Destroyable {
@@ -336,7 +338,7 @@ public class CryptoBox implements AutoCloseable {
 		return Box.encrypt(plain, receiver.raw(), sender.raw(), nonce.raw());
 	}
 
-	public static byte[] encrypt(byte[] plain, PublicKey receiver) {
+	public static byte[] encryptSealed(byte[] plain, PublicKey receiver) {
 		return Box.encryptSealed(plain, receiver.raw());
 	}
 
@@ -348,7 +350,7 @@ public class CryptoBox implements AutoCloseable {
 		return Box.decrypt(cipher, sender.raw(), receiver.raw(), nonce.raw());
 	}
 
-	public static byte[] decrypt(byte[] cipher, PublicKey pk, PrivateKey sk) {
+	public static byte[] decryptSealed(byte[] cipher, PublicKey pk, PrivateKey sk) {
 		return Box.decryptSealed(cipher, pk.raw(), sk.raw());
 	}
 

@@ -76,6 +76,7 @@ public class FindValueTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindValueRequest);
 		FindValueRequest m = (FindValueRequest)pm;
 
@@ -110,6 +111,7 @@ public class FindValueTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindValueRequest);
 		FindValueRequest m = (FindValueRequest)pm;
 
@@ -143,6 +145,7 @@ public class FindValueTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindValueRequest);
 		FindValueRequest m = (FindValueRequest)pm;
 
@@ -244,6 +247,7 @@ public class FindValueTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindValueResponse);
 		FindValueResponse m = (FindValueResponse)pm;
 
@@ -297,6 +301,7 @@ public class FindValueTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindValueResponse);
 		FindValueResponse m = (FindValueResponse)pm;
 
@@ -356,6 +361,7 @@ public class FindValueTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindValueResponse);
 		FindValueResponse m = (FindValueResponse)pm;
 
@@ -426,6 +432,7 @@ public class FindValueTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindValueResponse);
 		FindValueResponse m = (FindValueResponse)pm;
 

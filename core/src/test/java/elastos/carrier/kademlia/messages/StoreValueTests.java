@@ -96,6 +96,7 @@ public class StoreValueTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(nodeId);
 		assertTrue(pm instanceof StoreValueRequest);
 		StoreValueRequest m = (StoreValueRequest)pm;
 
@@ -141,6 +142,7 @@ public class StoreValueTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof StoreValueResponse);
 		StoreValueResponse m = (StoreValueResponse)pm;
 

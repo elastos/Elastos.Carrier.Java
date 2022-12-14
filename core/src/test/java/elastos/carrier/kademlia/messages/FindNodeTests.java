@@ -73,6 +73,7 @@ public class FindNodeTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindNodeRequest);
 		FindNodeRequest m = (FindNodeRequest)pm;
 
@@ -108,6 +109,7 @@ public class FindNodeTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindNodeRequest);
 		FindNodeRequest m = (FindNodeRequest)pm;
 
@@ -140,6 +142,7 @@ public class FindNodeTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindNodeRequest);
 		FindNodeRequest m = (FindNodeRequest)pm;
 
@@ -172,6 +175,7 @@ public class FindNodeTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindNodeRequest);
 		FindNodeRequest m = (FindNodeRequest)pm;
 
@@ -203,6 +207,7 @@ public class FindNodeTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindNodeRequest);
 		FindNodeRequest m = (FindNodeRequest)pm;
 
@@ -235,6 +240,7 @@ public class FindNodeTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindNodeRequest);
 		FindNodeRequest m = (FindNodeRequest)pm;
 
@@ -305,6 +311,7 @@ public class FindNodeTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindNodeResponse);
 		FindNodeResponse m = (FindNodeResponse)pm;
 
@@ -345,6 +352,7 @@ public class FindNodeTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindNodeResponse);
 		FindNodeResponse m = (FindNodeResponse)pm;
 
@@ -384,6 +392,7 @@ public class FindNodeTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindNodeResponse);
 		FindNodeResponse m = (FindNodeResponse)pm;
 
@@ -424,6 +433,7 @@ public class FindNodeTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindNodeResponse);
 		FindNodeResponse m = (FindNodeResponse)pm;
 
@@ -470,6 +480,7 @@ public class FindNodeTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindNodeResponse);
 		FindNodeResponse m = (FindNodeResponse)pm;
 
@@ -520,6 +531,7 @@ public class FindNodeTests extends MessageTests {
 		printMessage(msg, bin);
 
 		Message pm = Message.parse(bin);
+		pm.setId(id);
 		assertTrue(pm instanceof FindNodeResponse);
 		FindNodeResponse m = (FindNodeResponse)pm;
 

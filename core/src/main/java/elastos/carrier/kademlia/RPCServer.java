@@ -35,6 +35,7 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Formatter;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,14 +51,15 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import elastos.carrier.Id;
+import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.kademlia.NetworkEngine.Selectable;
+import elastos.carrier.kademlia.exceptions.CryptoError;
 import elastos.carrier.kademlia.exceptions.IOError;
 import elastos.carrier.kademlia.messages.ErrorMessage;
 import elastos.carrier.kademlia.messages.Message;
 import elastos.carrier.kademlia.messages.MessageException;
-import elastos.carrier.kademlia.messages.PartialMessage;
 import elastos.carrier.utils.AddressUtils;
-import elastos.carrier.utils.ByteBufferOutputStream;
 
 public class RPCServer implements Selectable {
 	private final static int WRITE_STATE_INITIAL = -1;
@@ -269,15 +271,15 @@ public class RPCServer implements Selectable {
 				break;
 			}
 
-			int delay = outboundThrottle.estimateDeplayAndInc(call.getRequest().getRemote().getAddress());
+			int delay = outboundThrottle.estimateDeplayAndInc(call.getRequest().getRemoteAddress().getAddress());
 			if(delay > 0) {
 				delay += ThreadLocalRandom.current().nextInt(10, 50);
 				log.info("Throttled(delay {}ms) the RPCCall to remote peer {}@{}, {}", delay,
-						call.getTargetId(), AddressUtils.toString(call.getRequest().getRemote()), call.getRequest());
+						call.getTargetId(), AddressUtils.toString(call.getRequest().getRemoteAddress()), call.getRequest());
 				getScheduler().schedule(() -> {
 					callQueue.add(call);
 					processCallQueue();
-					outboundThrottle.saturatingDec(call.getRequest().getRemote().getAddress());
+					outboundThrottle.saturatingDec(call.getRequest().getRemoteAddress().getAddress());
 				}, delay, TimeUnit.MILLISECONDS);
 				continue;
 			}
@@ -331,7 +333,7 @@ public class RPCServer implements Selectable {
 
 	private void dispatchCall(RPCCall call) {
 		Message msg = call.getRequest();
-		assert(msg.getRemote() != null);
+		assert(msg.getRemoteAddress() != null);
 
 		call.addListener(callListener);
 
@@ -352,15 +354,15 @@ public class RPCServer implements Selectable {
 	}
 
 	public void sendMessage(Message msg) {
-		checkArgument(msg.getRemote() != null, "message destination can not be null");
+		checkArgument(msg.getRemoteAddress() != null, "message destination can not be null");
 		fillPipeline(msg);
 	}
-
 
 	private void fillPipeline(Message msg) {
 		if(msg.getId() == null)
 			msg.setId(getNode().getId());
 
+		msg.setServer(this);
 		msg.setVersion(Constants.VERSION);
 
 		RPCCall call = msg.getAssociatedCall();
@@ -387,10 +389,14 @@ public class RPCServer implements Selectable {
 			try {
 				ByteBuffer writeBuffer = RPCServer.writeBuffer.get();
 				writeBuffer.clear();
-				msg.serialize(new ByteBufferOutputStream(writeBuffer));
+
+				byte[] encryptedMsg = getNode().encrypt(msg.getRemoteId(), msg.serialize());
+				writeBuffer.put(msg.getId().bytes());
+				writeBuffer.put(encryptedMsg);
+
 				writeBuffer.flip();
 
-				int bytesSent = channel.send(writeBuffer, msg.getRemote());
+				int bytesSent = channel.send(writeBuffer, msg.getRemoteAddress());
 				if(bytesSent == 0) {
 					log.debug("Awaiting the socket available to send the messages.");
 					pipeline.add(msg);
@@ -402,19 +408,19 @@ public class RPCServer implements Selectable {
 				}
 
 				log.trace("sent {}/{} to {}: [{}]{}", msg.getMethod(), msg.getType(),
-						AddressUtils.toString(msg.getRemote()), bytesSent, msg);
+						AddressUtils.toString(msg.getRemoteAddress()), bytesSent, msg);
 
 				if(msg.getAssociatedCall() != null) {
 					msg.getAssociatedCall().sent(this);
 					// when we send requests to a node we don't want their
 					// replies to get stuck in the filter
-					inboundThrottle.clear(msg.getRemote().getAddress());
+					inboundThrottle.clear(msg.getRemoteAddress().getAddress());
 				}
 
 				sentMessages.incrementAndGet();
 				stats.sentMessage(msg);
 				stats.sentBytes(bytesSent + dht.getType().protocolHeaderSize());
-			} catch (MessageException | IOException e) {
+			} catch (IOException e) {
 				// async close
 				if(!channel.isOpen())
 					return;
@@ -434,12 +440,15 @@ public class RPCServer implements Selectable {
 				}
 
 				log.error("Failed while attempting to send {}/{} to {}: {}", msg.getMethod(), msg.getType(),
-						AddressUtils.toString(msg.getRemote()), msg);
+						AddressUtils.toString(msg.getRemoteAddress()), msg);
 				log.error("Stack trace", e);
 				if(msg.getAssociatedCall() != null)
 					msg.getAssociatedCall().failed();
 
 				break;
+			} catch (CryptoError e) {
+				log.error("Failed to encrypt message {}/{} to {}: {}", msg.getMethod(), msg.getType(),
+						AddressUtils.toString(msg.getRemoteAddress()), msg);
 			}
 		}
 
@@ -451,6 +460,9 @@ public class RPCServer implements Selectable {
 		if(pipeline.peek() != null)
 			getNode().getScheduler().execute(this::processPipeline);
 	}
+
+	// The package format: [32 bytes id][[16 bytes mac][encrypted message]]
+	private static final int MIN_PACKET_SIZE = Message.MIN_SIZE + Id.BYTES + CryptoBox.MAC_BYTES;
 
 	private void processPackets() throws IOException {
 		ByteBuffer readBuffer = RPCServer.readBuffer.get();
@@ -468,16 +480,11 @@ public class RPCServer implements Selectable {
 
 			stats.receivedBytes(readBuffer.limit() + dht.getType().protocolHeaderSize());
 
-			// - no conceivable DHT message is smaller than MIN_SIZE bytes
-			// - all DHT messages start with
-			//   - 0xbf for CBOR Indefinite-length map
-			//   - 0xa4 or 0xa5 for 4 or 5 entries map
+			// - no conceivable DHT message is smaller than MIN_PACKET_SIZE bytes
 			// - port 0 is reserved
 			// - address family may mismatch due to autoconversion from v4-mapped v6 addresses to Inet4Address
 			// immediately discard junk on the read loop, don't even allocate a buffer for it
-			byte b = readBuffer.get(0);
-			if(readBuffer.limit() < Message.MIN_SIZE || (b != (byte)0xbf && b != (byte)0xa4 && b != (byte)0xa5) ||
-					sa.getPort() == 0 || !dht.getType().canUseSocketAddress(sa)) {
+			if(readBuffer.limit() < MIN_PACKET_SIZE || sa.getPort() == 0 || !dht.getType().canUseSocketAddress(sa)) {
 				log.warn("Dropped an invalid packet from {}.", AddressUtils.toString(sa));
 				stats.droppedPacket(readBuffer.limit() + dht.getType().protocolHeaderSize());
 				continue;
@@ -498,18 +505,22 @@ public class RPCServer implements Selectable {
 
 	private void handlePacket(byte[] packet, InetSocketAddress sa) {
 		Message msg = null;
+		Id sender = Id.of(packet, 0);
 
 		try {
-			msg = Message.parse(packet);
+			byte[] encryptedMsg = Arrays.copyOfRange(packet, Id.BYTES, packet.length);
+			byte[] decryptedMsg = getNode().decrypt(sender, encryptedMsg);
+			msg = Message.parse(decryptedMsg);
+			msg.setId(sender);
 		} catch (MessageException e) {
 			log.warn("Got a wrong packet from {}, ignored.", AddressUtils.toString(sa));
 
 			stats.droppedPacket(packet.length);
+			return;
+		} catch (CryptoError e) {
+			log.warn("Decrypt packet error from {}, ignored.", AddressUtils.toString(sa));
 
-			PartialMessage pm = e.getPartialMessage();
-			ErrorMessage err = new ErrorMessage(pm.getMethod(), pm.getTxid(), e.getCode(), e.getMessage());
-			err.setRemote(sa);
-			sendMessage(err);
+			stats.droppedPacket(packet.length);
 			return;
 		}
 
@@ -525,7 +536,7 @@ public class RPCServer implements Selectable {
 			log.warn("Received a message with invalid transaction id.");
 			ErrorMessage err = new ErrorMessage(msg.getMethod(), 0, ErrorCode.ProtocolError.value(),
 					"Received a message with an invalid transaction id, expected a non-zero transaction id");
-			err.setRemote(msg.getOrigin());
+			err.setRemote(msg.getId(), msg.getOrigin());
 			sendMessage(err);
 			return;
 		}
@@ -541,7 +552,7 @@ public class RPCServer implements Selectable {
 		if (call != null) {
 			// message matches transaction ID and origin == destination
 			// we only check the IP address here. the routing table applies more strict checks to also verify a stable port
-			if (call.getRequest().getRemote().getAddress().equals(msg.getOrigin().getAddress())) {
+			if (call.getRequest().getRemoteAddress().getAddress().equals(msg.getOrigin().getAddress())) {
 				// remove call first in case of exception
 				if(calls.remove(msg.getTxid(), call)) {
 					msg.setAssociatedCall(call);
@@ -562,16 +573,16 @@ public class RPCServer implements Selectable {
 			// indicates either port-mangling NAT, a multhomed host listening on any-local address or some kind of attack
 			// ignore response
 			log.warn("Transaction id matched, socket address did not, ignoring message, request: {} -> response: {}, version: {}",
-					call.getRequest().getRemote(), msg.getOrigin(), msg.getReadableVersion());
+					call.getRequest().getRemoteAddress(), msg.getOrigin(), msg.getReadableVersion());
 
 			if(msg.getType() == Message.Type.RESPONSE && dht.getType() == DHT.Type.IPV6) {
 				// this is more likely due to incorrect binding implementation in ipv6. notify peers about that
 				// don't bother with ipv4, there are too many complications
 				Message err = new ErrorMessage(msg.getMethod(), msg.getTxid(), ErrorCode.ProtocolError.value(),
-						"A request was sent to " + call.getRequest().getRemote() +
+						"A request was sent to " + call.getRequest().getRemoteAddress() +
 						" and a response with matching transaction id was received from " + msg.getOrigin() +
 						" . Multihomed nodes should ensure that sockets are properly bound and responses are sent with the correct source socket address. See BEPs 32 and 45.");
-				err.setRemote(call.getRequest().getRemote());
+				err.setRemote(msg.getId(), call.getRequest().getRemoteAddress());
 				sendMessage(err);
 			}
 
@@ -590,7 +601,7 @@ public class RPCServer implements Selectable {
 					? "response" : "error", msg.getTxid());
 			ErrorMessage err = new ErrorMessage(msg.getMethod(), msg.getTxid(), ErrorCode.ProtocolError.value(),
 					"Received a response message whose transaction ID did not match a pending request or transaction expired");
-			err.setRemote(msg.getOrigin());
+			err.setRemote(msg.getId(), msg.getOrigin());
 			sendMessage(err);
 			return;
 		}

@@ -510,7 +510,7 @@ public class DHT {
 
 	private void onPing(PingRequest q) {
 		PingResponse r = new PingResponse(q.getTxid());
-		r.setRemote(q.getOrigin());
+		r.setRemote(q.getId(), q.getOrigin());
 		server.sendMessage(r);
 	}
 
@@ -524,7 +524,7 @@ public class DHT {
 		if (q.doesWantToken())
 			r.setToken(getNode().getTokenManager().generateToken(q.getId(), q.getOrigin(), q.getTarget()));
 
-		r.setRemote(q.getOrigin());
+		r.setRemote(q.getId(), q.getOrigin());
 		server.sendMessage(r);
 	}
 
@@ -560,11 +560,11 @@ public class DHT {
 				populateClosestNodes(r, target, want4, want6);
 			}
 
-			r.setRemote(q.getOrigin());
+			r.setRemote(q.getId(), q.getOrigin());
 			server.sendMessage(r);
 		} catch (KadException e) {
 			ErrorMessage em = new ErrorMessage(q.getMethod(), q.getTxid(), e.getCode(), e.getMessage());
-			em.setRemote(q.getOrigin());
+			em.setRemote(q.getId(), q.getOrigin());
 			server.sendMessage(em);
 		}
 	}
@@ -588,7 +588,7 @@ public class DHT {
 		try {
 			storage.putValue(v, q.getExpectedSequenceNumber());
 			StoreValueResponse r = new StoreValueResponse(q.getTxid());
-			r.setRemote(q.getOrigin());
+			r.setRemote(q.getId(), q.getOrigin());
 			server.sendMessage(r);
 		} catch (KadException e) {
 			sendError(q, e.getCode(), e.getMessage());
@@ -627,11 +627,11 @@ public class DHT {
 				populateClosestNodes(r, q.getTarget(), want4, want6);
 			}
 
-			r.setRemote(q.getOrigin());
+			r.setRemote(q.getId(), q.getOrigin());
 			server.sendMessage(r);
 		} catch (KadException e) {
 			ErrorMessage em = new ErrorMessage(q.getMethod(), q.getTxid(), e.getCode(), e.getMessage());
-			em.setRemote(q.getOrigin());
+			em.setRemote(q.getId(), q.getOrigin());
 			server.sendMessage(em);
 		}
 	}
@@ -663,7 +663,7 @@ public class DHT {
 
 			storage.putPeer(q.getTarget(), peer);
 			AnnouncePeerResponse r = new AnnouncePeerResponse(q.getTxid());
-			r.setRemote(q.getOrigin());
+			r.setRemote(q.getId(), q.getOrigin());
 			server.sendMessage(r);
 		} catch (KadException e) {
 			sendError(q, e.getCode(), e.getMessage());
@@ -701,7 +701,7 @@ public class DHT {
 
 	private void sendError(Message q, int code, String msg) {
 		ErrorMessage em = new ErrorMessage(q.getMethod(), q.getTxid(), code, msg);
-		em.setRemote(q.getOrigin());
+		em.setRemote(q.getId(), q.getOrigin());
 		server.sendMessage(em);
 	}
 
