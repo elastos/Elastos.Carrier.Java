@@ -23,17 +23,14 @@
 package elastos.carrier;
 
 import java.io.File;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
+import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Map;
 
 public interface Configuration {
-	public Inet4Address IPv4Address();
+	public InetSocketAddress IPv4Address();
 
-	public Inet6Address IPv6Address();
-
-	public int listeningPort();
+	public InetSocketAddress IPv6Address();
 
 	/**
 	 * If a Path that points to an existing, writable directory is returned then the routing table

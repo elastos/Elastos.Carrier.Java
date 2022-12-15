@@ -43,9 +43,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import elastos.carrier.utils.AddressUtils;
 
 public class DefaultConfiguration implements Configuration {
-	private Inet4Address addr4;
-	private Inet6Address addr6;
-	private int port;
+	private static final int DEFAULT_DHT_PORT = 39001;
+
+	InetSocketAddress addr4;
+	InetSocketAddress addr6;
+
 	private File storagePath;
 	private Set<NodeInfo> bootstraps;
 	private Map<String, Map<String, Object>> services;
@@ -56,18 +58,13 @@ public class DefaultConfiguration implements Configuration {
 	}
 
 	@Override
-	public Inet4Address IPv4Address() {
+	public InetSocketAddress IPv4Address() {
 		return addr4;
 	}
 
 	@Override
-	public Inet6Address IPv6Address() {
+	public InetSocketAddress IPv6Address() {
 		return addr6;
-	}
-
-	@Override
-	public int listeningPort() {
-		return port;
 	}
 
 	@Override
@@ -91,6 +88,10 @@ public class DefaultConfiguration implements Configuration {
 
 		private boolean autoAddr4 = AUTO_IPV4;
 		private boolean autoAddr6 = AUTO_IPV6;
+
+		private Inet4Address inetAddr4;
+		private Inet6Address inetAddr6;
+		private int port = DEFAULT_DHT_PORT;
 
 		private DefaultConfiguration conf;
 
@@ -129,7 +130,7 @@ public class DefaultConfiguration implements Configuration {
 			if (addr != null && !(addr instanceof Inet4Address))
 				throw new IllegalArgumentException("Invalid IPv4 address: " + addr);
 
-			getConfiguration().addr4 = (Inet4Address)addr;
+			this.inetAddr4 = (Inet4Address)addr;
 			return this;
 		}
 
@@ -145,7 +146,7 @@ public class DefaultConfiguration implements Configuration {
 			if (addr != null && !(addr instanceof Inet6Address))
 				throw new IllegalArgumentException("Invalid IPv6 address: " + addr);
 
-			getConfiguration().addr6 = (Inet6Address)addr;
+			this.inetAddr6 = (Inet6Address)addr;
 			return this;
 		}
 
@@ -153,7 +154,7 @@ public class DefaultConfiguration implements Configuration {
 			if (port <= 0 || port > 65535)
 				throw new IllegalArgumentException("Invalid port: " + port);
 
-			getConfiguration().port = port;
+			this.port = port;
 			return this;
 		}
 
@@ -283,6 +284,11 @@ public class DefaultConfiguration implements Configuration {
 		public Builder clear() {
 			autoAddr4 = AUTO_IPV4;
 			autoAddr6 = AUTO_IPV6;
+
+			inetAddr4 = null;
+			inetAddr6 = null;
+			port = DEFAULT_DHT_PORT;
+
 			conf = null;
 
 			return this;
@@ -292,17 +298,20 @@ public class DefaultConfiguration implements Configuration {
 			DefaultConfiguration c = getConfiguration();
 			conf = null;
 
-			if (c.addr4 == null && autoAddr4)
-				c.addr4 = (Inet4Address)AddressUtils.getAllAddresses().filter(Inet4Address.class::isInstance)
+			if (inetAddr4 == null && autoAddr4)
+				inetAddr4 = (Inet4Address)AddressUtils.getAllAddresses().filter(Inet4Address.class::isInstance)
 						.filter((a) -> !AddressUtils.isLocalUnicast(a))
 						.distinct()
 						.findFirst().orElse(null);
 
-			if (c.addr6 == null && autoAddr6)
-				c.addr6 = (Inet6Address)AddressUtils.getAllAddresses().filter(Inet6Address.class::isInstance)
+			if (inetAddr6 == null && autoAddr6)
+				inetAddr6 = (Inet6Address)AddressUtils.getAllAddresses().filter(Inet6Address.class::isInstance)
 						.filter((a) -> !AddressUtils.isLocalUnicast(a))
 						.distinct()
 						.findFirst().orElse(null);
+
+			c.addr4 = inetAddr4 != null ? new InetSocketAddress(inetAddr4, port) : null;
+			c.addr6 = inetAddr6 != null ? new InetSocketAddress(inetAddr6, port) : null;
 
 			c.bootstraps = Collections.unmodifiableSet(
 					(c.bootstraps == null || c.bootstraps.isEmpty()) ?

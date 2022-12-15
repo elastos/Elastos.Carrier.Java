@@ -29,6 +29,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -308,11 +310,6 @@ public class Node implements elastos.carrier.Node {
 		return defaultScheduler;
 	}
 
-	private int getPort() {
-		int port = config.listeningPort();
-		return port <= 0 || port > 65535 ? Constants.DEFAULT_DHT_PORT : port;
-	}
-
 	@Override
 	public void bootstrap(NodeInfo node) throws KadException {
 		checkArgument(node != null, "Invalid bootstrap node");
@@ -341,11 +338,13 @@ public class Node implements elastos.carrier.Node {
 			storage = SQLiteStorage.open(dbFile, getScheduler());
 
 			if (config.IPv4Address() != null) {
-				if (AddressUtils.isLocalUnicast(config.IPv4Address()))
+				InetSocketAddress addr4 = config.IPv4Address();
+
+				if (!(addr4.getAddress() instanceof Inet4Address) ||
+						AddressUtils.isLocalUnicast(addr4.getAddress()))
 					throw new IOError("Invalid DHT/IPv4 address: " + config.IPv4Address());
 
-				InetSocketAddress addr = new InetSocketAddress(config.IPv4Address(), getPort());
-				dht4 = new DHT(DHT.Type.IPV4, this, addr);
+				dht4 = new DHT(DHT.Type.IPV4, this, addr4);
 				if (persistent)
 					dht4.enablePersistence(new File(storagePath, "dht4.cache"));
 
@@ -354,11 +353,13 @@ public class Node implements elastos.carrier.Node {
 			}
 
 			if (config.IPv6Address() != null) {
-				if (AddressUtils.isLocalUnicast(config.IPv6Address()))
+				InetSocketAddress addr6 = config.IPv4Address();
+
+				if (!(addr6.getAddress() instanceof Inet6Address) ||
+						AddressUtils.isLocalUnicast(addr6.getAddress()))
 					throw new IOError("Invalid DHT/IPv6 address: " + config.IPv6Address());
 
-				InetSocketAddress addr = new InetSocketAddress(config.IPv6Address(), getPort());
-				dht6 = new DHT(DHT.Type.IPV6, this, addr);
+				dht6 = new DHT(DHT.Type.IPV6, this, addr6);
 				if (persistent)
 					dht6.enablePersistence(new File(storagePath, "dht6.cache"));
 
