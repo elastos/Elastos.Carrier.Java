@@ -791,7 +791,7 @@ public class DHT {
 			if (dht6 != null) {
 				KClosestNodes kns = new KClosestNodes(dht6, target, v6);
 				kns.fill(this == dht6);
-				r.setNodes4(kns.asNodeList());
+				r.setNodes6(kns.asNodeList());
 			}
 		}
 	}

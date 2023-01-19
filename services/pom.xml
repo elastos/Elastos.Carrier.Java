@@ -18,7 +18,8 @@
 
   <modules>
     <module>dht-proxy</module>
-  </modules>
+    <module>active-proxy</module>
+   </modules>
 
   <build>
     <defaultGoal>package</defaultGoal>

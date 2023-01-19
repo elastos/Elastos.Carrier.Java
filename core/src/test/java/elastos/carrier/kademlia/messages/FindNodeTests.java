@@ -25,7 +25,6 @@ package elastos.carrier.kademlia.messages;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -90,7 +89,7 @@ public class FindNodeTests extends MessageTests {
 	}
 
 	@Test
-	public void testFindNodeRequest4WithAt() throws Exception {
+	public void testFindNodeRequest4WithToken() throws Exception {
 		Id id = Id.random();
 		Id target = Id.random();
 		int txid = ThreadLocals.random().nextInt();
@@ -157,7 +156,7 @@ public class FindNodeTests extends MessageTests {
 	}
 
 	@Test
-	public void testFindNodeRequest6WithAt() throws Exception {
+	public void testFindNodeRequest6WithToken() throws Exception {
 		Id id = Id.random();
 		Id target = Id.random();
 		int txid = ThreadLocals.random().nextInt();
@@ -222,7 +221,7 @@ public class FindNodeTests extends MessageTests {
 	}
 
 	@Test
-	public void testFindNodeRequest46WithAt() throws Exception {
+	public void testFindNodeRequest46WithToken() throws Exception {
 		Id id = Id.random();
 		Id target = Id.random();
 		int txid = ThreadLocals.random().nextInt();
@@ -489,8 +488,8 @@ public class FindNodeTests extends MessageTests {
 		assertEquals(id, m.getId());
 		assertEquals(txid, m.getTxid());
 		assertEquals(0, m.getVersion());
-		assertNotNull(m.getNodes4());
-		assertNotNull(m.getNodes6());
+		assertFalse(m.getNodes4().isEmpty());
+		assertFalse(m.getNodes6().isEmpty());
 		assertEquals(0, m.getToken());
 
 		List<NodeInfo> nodes = m.getNodes4();
@@ -540,8 +539,8 @@ public class FindNodeTests extends MessageTests {
 		assertEquals(id, m.getId());
 		assertEquals(txid, m.getTxid());
 		assertEquals(0, m.getVersion());
-		assertNotNull(m.getNodes4());
-		assertNotNull(m.getNodes6());
+		assertFalse(m.getNodes4().isEmpty());
+		assertFalse(m.getNodes6().isEmpty());
 		assertEquals(0x87654321, m.getToken());
 
 		List<NodeInfo> nodes = m.getNodes4();

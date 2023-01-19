@@ -135,7 +135,7 @@ public class KBucket implements Comparable<KBucket> {
 		}
 
 		if (includeCache) {
-			for (KBucketEntry e : getEntries()) {
+			for (KBucketEntry e : getCache()) {
 				if (e.getId().equals(id))
 					return e;
 			}

@@ -34,11 +34,12 @@ public final class Version {
 	}};
 
 	public static int build(String name, int version) {
-		byte[] nameBytes = name.toUpperCase().getBytes();
+		byte[] nameBytes = name.getBytes();
 
 		return Byte.toUnsignedInt(nameBytes[0]) << 24 |
 				Byte.toUnsignedInt(nameBytes[1]) << 16 |
-				(version & 0x0000FFFF);
+				(version & 0x0000FF00) |
+				(version & 0x000000FF);
 	}
 
 	public static String toString(int version) {
@@ -47,7 +48,8 @@ public final class Version {
 
 		String n = new String(new byte[] { (byte)(version >>> 24),
 				(byte)((version & 0x00ff0000) >>> 16) });
-		String v = Integer.toString(version & 0x0000ffff);
+		String v = Integer.toString((version & 0x0000ff00) |
+				(version & 0x000000ff));
 
 		return names.getOrDefault(n, n) + "/" + v;
 	}

@@ -25,7 +25,6 @@ package elastos.carrier.kademlia.messages;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -360,10 +359,10 @@ public class FindPeerTests extends MessageTests {
 		assertEquals(txid, m.getTxid());
 		assertEquals(0, m.getVersion());
 		assertEquals(token, m.getToken());
-		assertNotNull(m.getNodes4());
-		assertNotNull(m.getNodes6());
-		assertNotNull(m.getPeers4());
-		assertNotNull(m.getPeers6());
+		assertFalse(m.getNodes4().isEmpty());
+		assertFalse(m.getNodes6().isEmpty());
+		assertFalse(m.getPeers4().isEmpty());
+		assertFalse(m.getPeers6().isEmpty());
 
 		List<NodeInfo> nodes = m.getNodes4();
 		assertArrayEquals(nodes4.toArray(), nodes.toArray());

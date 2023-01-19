@@ -86,8 +86,9 @@ public final class Constants {
 	// Node software name and version
 	///////////////////////////////////////////////////////////////////////////
 	public static final String 	NODE_NAME								= "Orca";
+	public static final String 	NODE_SHORT_NAME							= "OR";
 	public static final int 	NODE_VERSION							= 1;
-	public static final int		VERSION									= Version.build(NODE_NAME, NODE_VERSION);
+	public static final int		VERSION									= Version.build(NODE_SHORT_NAME, NODE_VERSION);
 
 
 	///////////////////////////////////////////////////////////////////////////

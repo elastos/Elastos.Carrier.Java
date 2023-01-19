@@ -208,7 +208,7 @@ public class Node implements elastos.carrier.Node {
 		loader = new CacheLoader<>() {
 			@Override
 			public CryptoContext load(Id id) {
-				return  new CryptoContext(id.toEncryptionKey(), encryptKeyPair);
+				return new CryptoContext(id.toEncryptionKey(), encryptKeyPair);
 			}
 		};
 
@@ -377,7 +377,7 @@ public class Node implements elastos.carrier.Node {
 
 	@Override
 	public synchronized void stop() {
-		if (status != NodeStatus.Stopped)
+		if (status == NodeStatus.Stopped)
 			return;
 
 		log.info("Carrier Kademlia node {} is stopping...", id);
@@ -434,6 +434,7 @@ public class Node implements elastos.carrier.Node {
 		return tokenMan;
 	}
 
+	@Override
 	public byte[] encrypt(Id recipient, byte[] data) throws CryptoError {
 		try {
 			CryptoContext ctx = cryptoContexts.get(recipient);
@@ -443,6 +444,7 @@ public class Node implements elastos.carrier.Node {
 		}
 	}
 
+	@Override
 	public byte[] decrypt(Id sender, byte[] data) throws CryptoError {
 		try {
 			CryptoContext ctx = cryptoContexts.get(sender);

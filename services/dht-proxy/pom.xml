@@ -16,11 +16,6 @@
 
   <name>Carrier DHT Proxy</name>
 
-  <properties>
-    <main.verticle>elastos.carrier.plugin.MainVerticle</main.verticle>
-    <launcher.class>io.vertx.core.Launcher</launcher.class>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>elastos.carrier</groupId>
@@ -36,7 +31,7 @@
 
     <dependency>
       <groupId>io.vertx</groupId>
-      <artifactId>vertx-web-validation</artifactId>
+      <artifactId>vertx-core</artifactId>
       <version>${vertx.version}</version>
     </dependency>
     <dependency>

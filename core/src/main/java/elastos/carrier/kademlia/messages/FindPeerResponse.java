@@ -156,9 +156,9 @@ public class FindPeerResponse extends LookupResponse {
 			b.append(peers4.stream().map(p -> p.toString()).collect(Collectors.joining(",", "[", "]")));
 		}
 
-		if (peers4 != null && !peers4.isEmpty()) {
-			b.append("p4:");
-			b.append(peers4.stream().map(p -> p.toString()).collect(Collectors.joining(",", "[", "]")));
+		if (peers6 != null && !peers6.isEmpty()) {
+			b.append("p6:");
+			b.append(peers6.stream().map(p -> p.toString()).collect(Collectors.joining(",", "[", "]")));
 		}
 	}
 }

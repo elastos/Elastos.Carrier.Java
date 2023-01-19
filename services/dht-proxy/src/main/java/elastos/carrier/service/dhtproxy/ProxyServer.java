@@ -1,3 +1,25 @@
+/*
+ * Copyright (c) 2022 Elastos Foundation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 package elastos.carrier.service.dhtproxy;
 
 import java.io.PrintWriter;
@@ -8,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Promise;
+import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -28,6 +50,8 @@ public class ProxyServer extends AbstractVerticle {
 	private int port;
 	private Node node;
 
+	private HttpServer server;
+
 	private static final Logger log = LoggerFactory.getLogger(ProxyServer.class);
 
 	public ProxyServer(Node node, int port) {
@@ -36,7 +60,7 @@ public class ProxyServer extends AbstractVerticle {
 	}
 
 	@Override
-	public void start(Promise<Void> startPromise) throws Exception {
+	public void start() throws Exception {
 		Router router = Router.router(vertx);
 
 		router.errorHandler(500, ctx -> {
@@ -63,19 +87,24 @@ public class ProxyServer extends AbstractVerticle {
 			.handler(this::findPeer)
 			.failureHandler(this::failureHandler);
 
-		vertx.createHttpServer()
+		server = vertx.createHttpServer()
 			.requestHandler(router)
 			.exceptionHandler((e) -> {
 				log.error("HTTP(s) connection error: " + e.getMessage(), e);
 			})
-			.listen(port, http -> {
-			if (http.succeeded()) {
-				startPromise.complete();
-				log.info("HTTP server started on port {}", port);
-			} else {
-				startPromise.fail(http.cause());
-			}
-		});
+			.listen(port, asyncResult -> {
+				if (asyncResult.succeeded()) {
+					log.info("HTTP server started on port {}", port);
+				} else {
+					log.error("HTTP Server listen failed on {} - {}", port, asyncResult.cause());
+					//throw new CarrierServiceException(asyncResult.cause());
+				}
+			});
+	}
+
+	@Override
+	public void stop() throws Exception {
+		server.close(asyncResult -> log.info("HTTP Server stopped"));
 	}
 
 	private void failureHandler(RoutingContext ctx) {

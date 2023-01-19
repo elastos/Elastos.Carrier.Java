@@ -1,0 +1,3 @@
+[submodule "services/active-proxy"]
+	path = services/active-proxy
+	url = git@github.com:jingyu/Elastos.Carrier.Services.ActiveProxy.git

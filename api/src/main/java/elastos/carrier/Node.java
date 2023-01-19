@@ -53,6 +53,10 @@ public interface Node {
 
 	public boolean isRunning();
 
+	public byte[] encrypt(Id recipient, byte[] data) throws CarrierException;
+
+	public byte[] decrypt(Id sender, byte[] data) throws CarrierException;
+
 	public default CompletableFuture<List<NodeInfo>> findNode(Id id) {
 		return findNode(id, null);
 	}
