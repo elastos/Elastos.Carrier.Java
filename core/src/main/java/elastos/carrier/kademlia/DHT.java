@@ -814,7 +814,7 @@ public class DHT {
 			if (valueRef.get() == null)
 				valueRef.set(v);
 
-			if (option == LookupOption.ARBITRARY) {
+			if (option != LookupOption.CONSERVATIVE || !v.isMutable()) {
 				task.cancel();
 				return;
 			}
@@ -841,7 +841,7 @@ public class DHT {
 			ClosestSet closest = lookup.getClosestSet();
 			if (closest == null || closest.size() == 0) {
 				// this should never happen
-				log.error("!!! Value announce task not started because the node lookup task got the empty closest nodes.");
+				log.warn("!!! Value announce task not started because the node lookup task got the empty closest nodes.");
 				completeHandler.accept(Collections.emptyList());
 				return;
 			}
@@ -872,7 +872,7 @@ public class DHT {
 		task.setReultHandler((ps) -> {
 			peers.addAll(ps);
 
-			if (option == LookupOption.ARBITRARY && peers.size() >= expected) {
+			if (option != LookupOption.CONSERVATIVE && peers.size() >= expected) {
 				task.cancel();
 				return;
 			}
@@ -896,8 +896,7 @@ public class DHT {
 			ClosestSet closest = lookup.getClosestSet();
 			if (closest == null || closest.size() == 0) {
 				// this should never happen
-				log.error(
-						"!!! Peer announce task not started because the node lookup task got the empty closest nodes.");
+				log.warn("!!! Peer announce task not started because the node lookup task got the empty closest nodes.");
 				completeHandler.accept(Collections.emptyList());
 				return;
 			}

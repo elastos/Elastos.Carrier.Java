@@ -58,6 +58,7 @@ import elastos.carrier.kademlia.exceptions.IOError;
 import elastos.carrier.kademlia.exceptions.ImmutableSubstitutionFail;
 import elastos.carrier.kademlia.exceptions.InvalidSignature;
 import elastos.carrier.kademlia.exceptions.KadException;
+import elastos.carrier.kademlia.exceptions.NotValueOwner;
 import elastos.carrier.kademlia.exceptions.SequenceNotMonotonic;
 
 public class SQLiteStorage implements DataStorage {
@@ -292,11 +293,13 @@ public class SQLiteStorage implements DataStorage {
 
 		Value old = getValue(value.getId());
 		if (old != null && old.isMutable()) {
-			if(!value.isMutable())
+			if (!value.isMutable())
 				throw new ImmutableSubstitutionFail("Can not replace mutable value with immutable is not supported");
-			if(value.getSequenceNumber() < old.getSequenceNumber())
+			if (old.hasPrivateKey() && !value.hasPrivateKey())
+				throw new NotValueOwner("Not the owner of the value");
+			if (value.getSequenceNumber() < old.getSequenceNumber())
 				throw new SequenceNotMonotonic("Sequence number less than current");
-			if(expectedSeq >= 0 && old.getSequenceNumber() >= 0 && old.getSequenceNumber() != expectedSeq)
+			if (expectedSeq >= 0 && old.getSequenceNumber() >= 0 && old.getSequenceNumber() != expectedSeq)
 				throw new CasFail("CAS failure");
 		}
 

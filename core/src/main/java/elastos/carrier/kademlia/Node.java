@@ -517,7 +517,7 @@ public class Node implements elastos.carrier.Node {
 		Value local = null;
 		try {
 			local = getStorage().getValue(id);
-			if (local != null && lookupOption == LookupOption.ARBITRARY)
+			if (local != null && (lookupOption == LookupOption.ARBITRARY || !local.isMutable()))
 				return CompletableFuture.completedFuture(local);
 		} catch (KadException e) {
 			return CompletableFuture.failedFuture(e);
@@ -652,7 +652,7 @@ public class Node implements elastos.carrier.Node {
 				log.error("Save peer " + id + " failed", ignore);
 			}
 
-			if ((lookupOption == LookupOption.OPTIMISTIC && expected > 0 && ps.size() >= expected) || c >= numDHTs) {
+			if (c >= numDHTs) {
 				ArrayList<PeerInfo> list = new ArrayList<>(results);
 				Collections.shuffle(list);
 				future.complete(list);
