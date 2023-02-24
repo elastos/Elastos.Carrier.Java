@@ -300,13 +300,13 @@ public class DefaultConfiguration implements Configuration {
 
 			if (inetAddr4 == null && autoAddr4)
 				inetAddr4 = (Inet4Address)AddressUtils.getAllAddresses().filter(Inet4Address.class::isInstance)
-						.filter((a) -> !AddressUtils.isLocalUnicast(a))
+						.filter((a) -> AddressUtils.isAnyUnicast(a))
 						.distinct()
 						.findFirst().orElse(null);
 
 			if (inetAddr6 == null && autoAddr6)
 				inetAddr6 = (Inet6Address)AddressUtils.getAllAddresses().filter(Inet6Address.class::isInstance)
-						.filter((a) -> !AddressUtils.isLocalUnicast(a))
+						.filter((a) -> AddressUtils.isAnyUnicast(a))
 						.distinct()
 						.findFirst().orElse(null);
 

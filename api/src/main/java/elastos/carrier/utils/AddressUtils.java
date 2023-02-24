@@ -113,9 +113,6 @@ public class AddressUtils {
 	}
 
 	public static boolean isGlobalUnicast(InetAddress addr) {
-		// local identification block
-		if (addr instanceof Inet4Address && addr.getAddress()[0] == 0)
-			return false;
 		// this would be rejected by a socket with broadcast disabled anyway, but filter
 		// it to reduce exceptions
 		if (addr instanceof Inet4Address && java.util.Arrays.equals(addr.getAddress(), LOCAL_BROADCAST))
@@ -129,20 +126,8 @@ public class AddressUtils {
 				|| addr.isMulticastAddress() || addr.isSiteLocalAddress());
 	}
 
-	public static boolean isLocalUnicast(InetAddress addr) {
-		// local identification block
-		if (addr instanceof Inet4Address && addr.getAddress()[0] == 0)
-			return true;
-		// this would be rejected by a socket with broadcast disabled anyway, but filter
-		// it to reduce exceptions
-		if (addr instanceof Inet4Address && java.util.Arrays.equals(addr.getAddress(), LOCAL_BROADCAST))
-			return true;
-		if (addr instanceof Inet6Address && (addr.getAddress()[0] & 0xfe) == 0xfc) // fc00::/7
-			return true;
-		if (addr instanceof Inet6Address && (V4_MAPPED.contains(addr) || ((Inet6Address) addr).isIPv4CompatibleAddress()))
-			return true;
-
-		return addr.isLinkLocalAddress() || addr.isLoopbackAddress() || addr.isMulticastAddress();
+	public static boolean isAnyUnicast(InetAddress addr) {
+		return addr.isSiteLocalAddress() || isGlobalUnicast(addr);
 	}
 
 	public static InetAddress fromBytesVerbatim(byte[] raw) throws UnknownHostException {

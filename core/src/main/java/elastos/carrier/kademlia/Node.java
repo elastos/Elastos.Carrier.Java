@@ -341,7 +341,7 @@ public class Node implements elastos.carrier.Node {
 				InetSocketAddress addr4 = config.IPv4Address();
 
 				if (!(addr4.getAddress() instanceof Inet4Address) ||
-						AddressUtils.isLocalUnicast(addr4.getAddress()))
+						!AddressUtils.isAnyUnicast(addr4.getAddress()))
 					throw new IOError("Invalid DHT/IPv4 address: " + config.IPv4Address());
 
 				dht4 = new DHT(DHT.Type.IPV4, this, addr4);
@@ -356,7 +356,7 @@ public class Node implements elastos.carrier.Node {
 				InetSocketAddress addr6 = config.IPv4Address();
 
 				if (!(addr6.getAddress() instanceof Inet6Address) ||
-						AddressUtils.isLocalUnicast(addr6.getAddress()))
+						!AddressUtils.isAnyUnicast(addr6.getAddress()))
 					throw new IOError("Invalid DHT/IPv6 address: " + config.IPv6Address());
 
 				dht6 = new DHT(DHT.Type.IPV6, this, addr6);

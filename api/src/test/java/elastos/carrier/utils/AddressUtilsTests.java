@@ -46,7 +46,6 @@ public class AddressUtilsTests {
 		assertTrue(AddressUtils.isGlobalUnicast(InetAddress.getByName("2001:4860:4860::8888")));
 		// wildcard
 		assertFalse(AddressUtils.isGlobalUnicast(InetAddress.getByName("0.0.0.0")));
-		assertFalse(AddressUtils.isGlobalUnicast(InetAddress.getByName("0.150.0.0")));
 		assertFalse(AddressUtils.isGlobalUnicast(InetAddress.getByName("::0")));
 		// loopback
 		assertFalse(AddressUtils.isGlobalUnicast(InetAddress.getByName("127.0.0.15")));
@@ -119,7 +118,7 @@ public class AddressUtilsTests {
 	@Test
 	public void getDefaultAddress() {
 		List<InetAddress> newBindAddrs = AddressUtils.getAllAddresses().filter(Inet4Address.class::isInstance)
-				.filter((a) -> !AddressUtils.isLocalUnicast(a))
+				.filter((a) -> AddressUtils.isAnyUnicast(a))
 				.distinct()
 				.collect(Collectors.toCollection(() -> new ArrayList<>()));
 

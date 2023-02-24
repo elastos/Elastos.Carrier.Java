@@ -638,7 +638,7 @@ public class DHT {
 
 	private void onAnnouncePeer(AnnouncePeerRequest q) {
 		boolean bogon = Constants.DEVELOPMENT_ENVIRONMENT ?
-				AddressUtils.isLocalUnicast(q.getOrigin().getAddress()) : AddressUtils.isBogon(q.getOrigin());
+				!AddressUtils.isAnyUnicast(q.getOrigin().getAddress()) : AddressUtils.isBogon(q.getOrigin());
 
 		if (bogon) {
 			log.debug("Received an announce peer request from bogon address {}, ignored ",
@@ -708,7 +708,7 @@ public class DHT {
 	void received(Message msg) {
 		InetSocketAddress addr = msg.getOrigin();
 		boolean bogon = Constants.DEVELOPMENT_ENVIRONMENT ?
-				AddressUtils.isLocalUnicast(addr.getAddress()) : AddressUtils.isBogon(addr);
+				!AddressUtils.isAnyUnicast(addr.getAddress()) : AddressUtils.isBogon(addr);
 
 		if (bogon) {
 			log.debug("Received a message from bogon address {}, ignored the potential routing table operation",
@@ -814,12 +814,13 @@ public class DHT {
 			if (valueRef.get() == null)
 				valueRef.set(v);
 
+			// all immutable values will stop the lookup
 			if (option != LookupOption.CONSERVATIVE || !v.isMutable()) {
 				task.cancel();
 				return;
 			}
 
-			if (!v.isMutable() || (v.isMutable() && valueRef.get().getSequenceNumber() < v.getSequenceNumber()))
+			if (valueRef.get().getSequenceNumber() < v.getSequenceNumber())
 				valueRef.set(v);
 		});
 

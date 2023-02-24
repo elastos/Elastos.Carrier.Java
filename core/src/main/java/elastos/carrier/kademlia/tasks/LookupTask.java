@@ -63,7 +63,7 @@ public abstract class LookupTask extends Task {
 
 	private boolean isBogonAddress(InetSocketAddress addr) {
 		return Constants.DEVELOPMENT_ENVIRONMENT ?
-				AddressUtils.isLocalUnicast(addr.getAddress()) : AddressUtils.isBogon(addr);
+				!AddressUtils.isAnyUnicast(addr.getAddress()) : AddressUtils.isBogon(addr);
 	}
 
 	protected void addCandidates(Collection<? extends NodeInfo> nodes) {

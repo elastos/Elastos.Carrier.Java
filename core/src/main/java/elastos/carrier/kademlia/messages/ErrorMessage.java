@@ -94,6 +94,6 @@ public class ErrorMessage extends Message {
 
 	@Override
 	public void toString(StringBuilder b) {
-		b.append(",e:{c:").append(code).append(",m:'").append(String.valueOf(message)).append("'");;
+		b.append(",e:{c:").append(code).append(",m:'").append(String.valueOf(message)).append("'}");;
 	}
 }
