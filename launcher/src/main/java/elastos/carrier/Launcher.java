@@ -102,6 +102,17 @@ public class Launcher {
 		}
 	}
 
+	private static void unloadServices() {
+		for (CarrierService svc : services) {
+			try {
+				svc.stop().get();
+			} catch (InterruptedException | ExecutionException e) {
+				System.out.println("Failed to stop service: " + svc.getName());
+				e.printStackTrace(System.err);
+			}
+		}
+	}
+
 	private static void parseArgs(String[] args) {
 		DefaultConfiguration.Builder builder = new DefaultConfiguration.Builder();
 
@@ -176,6 +187,7 @@ public class Launcher {
 	public static void main(String[] args) {
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 			if (node != null) {
+				unloadServices();
 				node.stop();
 				node = null;
 			}
