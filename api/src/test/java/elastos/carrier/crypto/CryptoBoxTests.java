@@ -26,9 +26,10 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Arrays;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,18 @@ public class CryptoBoxTests {
 	}
 
 	@Test
+	public void keyPairFromZeroedPrivateKey() {
+		byte[] zeroSk = new byte[CryptoBox.PrivateKey.BYTES];
+		Arrays.fill(zeroSk, (byte)0);
+
+		CryptoBox.KeyPair kp = CryptoBox.KeyPair.fromPrivateKey(zeroSk);
+		assert(kp != null);
+
+		assertArrayEquals(zeroSk, kp.privateKey().bytes());
+		assertFalse(Arrays.equals(zeroSk, kp.publicKey().bytes()));
+	}
+
+	@Test
 	public void keyPairFromSeed() {
 		byte[] seed = new byte[32];
 		ThreadLocals.random().nextBytes(seed);
@@ -58,8 +71,8 @@ public class CryptoBoxTests {
 		assertEquals(kp.privateKey(), kp2.privateKey());
 		assertEquals(kp.publicKey(), kp2.publicKey());
 
-		assertEquals(CryptoBox.PrivateKey.length(), kp.privateKey().bytes().length);
-		assertEquals(CryptoBox.PublicKey.length(), kp.publicKey().bytes().length);
+		assertEquals(CryptoBox.PrivateKey.BYTES, kp.privateKey().bytes().length);
+		assertEquals(CryptoBox.PublicKey.BYTES, kp.publicKey().bytes().length);
 	}
 
 	@Test
@@ -71,8 +84,8 @@ public class CryptoBoxTests {
 		assertEquals(kp, otherKp1);
 		assertEquals(kp, otherKp2);
 
-		assertEquals(CryptoBox.PrivateKey.length(), kp.privateKey().bytes().length);
-		assertEquals(CryptoBox.PublicKey.length(), kp.publicKey().bytes().length);
+		assertEquals(CryptoBox.PrivateKey.BYTES, kp.privateKey().bytes().length);
+		assertEquals(CryptoBox.PublicKey.BYTES, kp.publicKey().bytes().length);
 	}
 
 	@Test
@@ -89,7 +102,7 @@ public class CryptoBoxTests {
 	}
 
 	@Test
-	public void encryptDecryptSealed() {
+	public void encryptDecryptSealed() throws CryptoException {
 		CryptoBox.KeyPair receiver = CryptoBox.KeyPair.random();
 
 		byte[] encrypted = CryptoBox.encryptSealed(Hex.decode("deadbeef"), receiver.publicKey());
@@ -98,10 +111,16 @@ public class CryptoBoxTests {
 		byte[] decrypted = CryptoBox.decryptSealed(encrypted, receiver.publicKey(), receiver.privateKey());
 		assertNotNull(decrypted);
 		assertArrayEquals(Hex.decode("deadbeef"), decrypted);
+
+		encrypted[encrypted.length-1] += 1;
+
+		assertThrows(CryptoException.class, () -> {
+			CryptoBox.decryptSealed(encrypted, receiver.publicKey(), receiver.privateKey());
+		});
 	}
 
 	@Test
-	public void checkEncryptAndDecrypt() {
+	public void checkEncryptAndDecrypt() throws CryptoException {
 		CryptoBox.KeyPair alice = CryptoBox.KeyPair.random();
 		CryptoBox.KeyPair bob = CryptoBox.KeyPair.random();
 
@@ -114,16 +133,23 @@ public class CryptoBoxTests {
 		assertNotNull(decrypted);
 		assertArrayEquals(message, decrypted);
 
-		decrypted = CryptoBox.decrypt(encrypted, bob.publicKey(), alice.privateKey(), nonce.increment());
-		assertNull(decrypted);
+		assertThrows(CryptoException.class, () -> {
+			CryptoBox.decrypt(encrypted, bob.publicKey(), alice.privateKey(), nonce.increment());
+		});
 
 		CryptoBox.KeyPair other = CryptoBox.KeyPair.random();
-		encrypted = CryptoBox.decrypt(encrypted, bob.publicKey(), other.privateKey(), nonce);
-		assertNull(encrypted);
+		assertThrows(CryptoException.class, () -> {
+			CryptoBox.decrypt(encrypted, bob.publicKey(), other.privateKey(), nonce);
+		});
+
+		encrypted[encrypted.length-1] += 1;
+		assertThrows(CryptoException.class, () -> {
+			CryptoBox.decrypt(encrypted, bob.publicKey(), other.privateKey(), nonce);
+		});
 	}
 
 	@Test
-	public void checkPrecomputedEncryptAndDecrypt() {
+	public void checkPrecomputedEncryptAndDecrypt() throws CryptoException {
 		CryptoBox.KeyPair alice = CryptoBox.KeyPair.random();
 		CryptoBox.KeyPair bob = CryptoBox.KeyPair.random();
 
@@ -141,18 +167,27 @@ public class CryptoBoxTests {
 			assertArrayEquals(message, decrypted);
 		}
 
+		CryptoBox.KeyPair other = CryptoBox.KeyPair.random();
+		try (CryptoBox precomputed = CryptoBox.fromKeys(bob.publicKey(), other.privateKey())) {
+			assertThrows(CryptoException.class, () -> {
+				precomputed.decrypt(encrypted, nonce);
+			});
+		}
+
 		try (CryptoBox precomputed = CryptoBox.fromKeys(bob.publicKey(), alice.privateKey())) {
 			byte[] decrypted = precomputed.decrypt(encrypted, nonce);
 
 			assertNotNull(decrypted);
 			assertArrayEquals(message, decrypted);
 
-			assertNull(precomputed.decrypt(encrypted, nonce.increment()));
-		}
+			assertThrows(CryptoException.class, () -> {
+				precomputed.decrypt(encrypted, nonce.increment());
+			});
 
-		CryptoBox.KeyPair other = CryptoBox.KeyPair.random();
-		try (CryptoBox precomputed = CryptoBox.fromKeys(bob.publicKey(), other.privateKey())) {
-			assertNull(precomputed.decrypt(encrypted, nonce));
+			encrypted[encrypted.length-1] += 1;
+			assertThrows(CryptoException.class, () -> {
+				precomputed.decrypt(encrypted, nonce);
+			});
 		}
 	}
 
@@ -164,7 +199,7 @@ public class CryptoBoxTests {
 	}
 
 	@Test
-	public void checkBoxKeysFromSignatureKeys() {
+	public void checkBoxKeysFromSignatureKeys() throws CryptoException {
 		Signature.KeyPair keyPair = Signature.KeyPair.random();
 		CryptoBox.PublicKey boxPk = CryptoBox.PublicKey.fromSignatureKey(keyPair.publicKey());
 		CryptoBox.PrivateKey boxSk = CryptoBox.PrivateKey.fromSignatureKey(keyPair.privateKey());

@@ -377,7 +377,7 @@ public class MapDBStorage implements DataStorage {
 			if (value.getPrivateKey() == null) {
 				out.writeByte(0);
 			} else {
-				out.writeByte(Signature.PrivateKey.length());
+				out.writeByte(Signature.PrivateKey.BYTES);
 				out.write(value.getPrivateKey());
 			}
 
@@ -427,8 +427,8 @@ public class MapDBStorage implements DataStorage {
 			byte[] privateKey = null;
 			s = in.readByte();
 			if (s != 0) {
-				assert(s == Signature.PrivateKey.length());
-				privateKey = new byte[Signature.PrivateKey.length()];
+				assert(s == Signature.PrivateKey.BYTES);
+				privateKey = new byte[Signature.PrivateKey.BYTES];
 				in.readFully(privateKey);
 			}
 
@@ -443,8 +443,8 @@ public class MapDBStorage implements DataStorage {
 			byte[] nonce = null;
 			s = in.readByte();
 			if (s != 0) {
-				assert(s == CryptoBox.Nonce.length());
-				nonce = new byte[CryptoBox.Nonce.length()];
+				assert(s == CryptoBox.Nonce.BYTES);
+				nonce = new byte[CryptoBox.Nonce.BYTES];
 				in.readFully(nonce);
 			}
 

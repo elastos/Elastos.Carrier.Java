@@ -28,6 +28,7 @@ import javax.security.auth.Destroyable;
 
 import org.apache.tuweni.crypto.sodium.Box;
 import org.apache.tuweni.crypto.sodium.Sodium;
+import org.apache.tuweni.crypto.sodium.SodiumException;
 
 public class CryptoBox implements AutoCloseable {
 	public static final int MAC_BYTES = 16;
@@ -35,6 +36,8 @@ public class CryptoBox implements AutoCloseable {
 	private Box box;
 
 	public static class PublicKey implements Destroyable {
+		public static final int BYTES = Box.PublicKey.length();
+
 		private Box.PublicKey key;
 		private byte[] bytes;
 
@@ -43,15 +46,16 @@ public class CryptoBox implements AutoCloseable {
 		}
 
 		public static PublicKey fromBytes(byte[] key) {
+			// no SodiumException raised
 			return new PublicKey(Box.PublicKey.fromBytes(key));
 		}
 
-		public static PublicKey fromSignatureKey(Signature.PublicKey key) {
-			return new PublicKey(Box.PublicKey.forSignaturePublicKey(key.raw()));
-		}
-
-		public static int length() {
-			return Box.PublicKey.length();
+		public static PublicKey fromSignatureKey(Signature.PublicKey key) throws CryptoException {
+			try {
+				return new PublicKey(Box.PublicKey.forSignaturePublicKey(key.raw()));
+			} catch (SodiumException e) {
+				throw new CryptoException(e.getMessage(), e);
+			}
 		}
 
 		Box.PublicKey raw() {
@@ -116,6 +120,8 @@ public class CryptoBox implements AutoCloseable {
 	}
 
 	public static class PrivateKey implements Destroyable {
+		public static final int BYTES = Box.SecretKey.length();
+
 		private Box.SecretKey key;
 		private byte[] bytes;
 
@@ -124,15 +130,16 @@ public class CryptoBox implements AutoCloseable {
 		}
 
 		public static PrivateKey fromBytes(byte[] key) {
+			// no SodiumException raised
 			return new PrivateKey(Box.SecretKey.fromBytes(key));
 		}
 
-		public static PrivateKey fromSignatureKey(Signature.PrivateKey key) {
-			return new PrivateKey(Box.SecretKey.forSignatureSecretKey(key.raw()));
-		}
-
-		public static int length() {
-			return Box.SecretKey.length();
+		public static PrivateKey fromSignatureKey(Signature.PrivateKey key) throws CryptoException {
+			try {
+				return new PrivateKey(Box.SecretKey.forSignatureSecretKey(key.raw()));
+			} catch (SodiumException e) {
+				throw new CryptoException(e.getMessage(), e);
+			}
 		}
 
 		Box.SecretKey raw() {
@@ -207,23 +214,28 @@ public class CryptoBox implements AutoCloseable {
 
 		public static KeyPair fromPrivateKey(byte[] privateKey) {
 			Box.SecretKey sk = Box.SecretKey.fromBytes(privateKey);
+			// Normally, should never raise Exception
 			return new KeyPair(Box.KeyPair.forSecretKey(sk));
 		}
 
 		public static KeyPair fromPrivateKey(PrivateKey key) {
+			// Normally, should never raise Exception
 			return new KeyPair(Box.KeyPair.forSecretKey(key.raw()));
 		}
 
 		public static KeyPair fromSeed(byte[] seed) {
 			Box.Seed sd = Box.Seed.fromBytes(seed);
+			// Normally, should never raise Exception
 			return new KeyPair(Box.KeyPair.fromSeed(sd));
 		}
 
-		public static KeyPair fromSignatureKeyPair(Signature.KeyPair keyPair) {
+		public static KeyPair fromSignatureKeyPair(Signature.KeyPair keyPair)  {
+			// Normally, should never raise Exception
 			return new KeyPair(Box.KeyPair.forSignatureKeyPair(keyPair.raw()));
 		}
 
 		public static KeyPair random() {
+			// Normally, should never raise Exception
 			return new KeyPair(Box.KeyPair.random());
 		}
 
@@ -265,6 +277,8 @@ public class CryptoBox implements AutoCloseable {
 	}
 
 	public static class Nonce {
+		public static final int BYTES = Box.Nonce.length();
+
 		private Box.Nonce nonce;
 		private byte[] bytes;
 
@@ -282,10 +296,6 @@ public class CryptoBox implements AutoCloseable {
 
 		public static Nonce zero() {
 			return new Nonce(Box.Nonce.zero());
-		}
-
-		public static int length() {
-			return Box.Nonce.length();
 		}
 
 		Box.Nonce raw() {
@@ -326,32 +336,60 @@ public class CryptoBox implements AutoCloseable {
 		this.box = box;
 	}
 
-	public static CryptoBox fromKeys(PublicKey pk, PrivateKey sk) {
-		return new CryptoBox(Box.forKeys(pk.raw(), sk.raw()));
+	public static CryptoBox fromKeys(PublicKey pk, PrivateKey sk) throws CryptoException {
+		try {
+			return new CryptoBox(Box.forKeys(pk.raw(), sk.raw()));
+		} catch (SodiumException e) {
+			throw new CryptoException(e.getMessage(), e);
+		}
 	}
 
-	public byte[] encrypt(byte[] plain, Nonce nonce) {
-		return box.encrypt(plain, nonce.raw());
+	public byte[] encrypt(byte[] plain, Nonce nonce) throws CryptoException {
+		try {
+			return box.encrypt(plain, nonce.raw());
+		} catch (SodiumException e) {
+			throw new CryptoException(e.getMessage(), e);
+		}
 	}
 
-	public static byte[] encrypt(byte[] plain, PublicKey receiver, PrivateKey sender, Nonce nonce) {
-		return Box.encrypt(plain, receiver.raw(), sender.raw(), nonce.raw());
+	public static byte[] encrypt(byte[] plain, PublicKey receiver, PrivateKey sender, Nonce nonce) throws CryptoException {
+		try {
+			return Box.encrypt(plain, receiver.raw(), sender.raw(), nonce.raw());
+		} catch (SodiumException e) {
+			throw new CryptoException(e.getMessage(), e);
+		}
 	}
 
-	public static byte[] encryptSealed(byte[] plain, PublicKey receiver) {
-		return Box.encryptSealed(plain, receiver.raw());
+	public static byte[] encryptSealed(byte[] plain, PublicKey receiver) throws CryptoException {
+		try {
+			return Box.encryptSealed(plain, receiver.raw());
+		} catch (SodiumException e) {
+			throw new CryptoException(e.getMessage(), e);
+		}
 	}
 
-	public byte[] decrypt(byte[] cipher, Nonce nonce) {
-		return box.decrypt(cipher, nonce.raw());
+	public byte[] decrypt(byte[] cipher, Nonce nonce) throws CryptoException {
+		byte[] plain = box.decrypt(cipher, nonce.raw());
+		if (plain == null)
+			throw new CryptoException("crypto_box_open_easy_afternm: failed");
+
+		return plain;
 	}
 
-	public static byte[] decrypt(byte[] cipher, PublicKey sender, PrivateKey receiver, Nonce nonce) {
-		return Box.decrypt(cipher, sender.raw(), receiver.raw(), nonce.raw());
+	public static byte[] decrypt(byte[] cipher, PublicKey sender, PrivateKey receiver, Nonce nonce) throws CryptoException {
+		byte[] plain = Box.decrypt(cipher, sender.raw(), receiver.raw(), nonce.raw());
+		if (plain == null)
+			throw new CryptoException("crypto_box_open_easy: failed");
+
+		return plain;
 	}
 
-	public static byte[] decryptSealed(byte[] cipher, PublicKey pk, PrivateKey sk) {
-		return Box.decryptSealed(cipher, pk.raw(), sk.raw());
+	public static byte[] decryptSealed(byte[] cipher, PublicKey pk, PrivateKey sk) throws CryptoException {
+		byte[] plain = Box.decryptSealed(cipher, pk.raw(), sk.raw());
+		if (plain == null)
+			throw new CryptoException("crypto_box_seal_open: failed");
+
+		return plain;
 	}
 
 	@Override

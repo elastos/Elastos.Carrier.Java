@@ -45,8 +45,8 @@ public class SignatureTests {
 		assertEquals(kp.privateKey(), kp2.privateKey());
 		assertEquals(kp.publicKey(), kp2.publicKey());
 
-		assertEquals(Signature.PrivateKey.length(), kp.privateKey().bytes().length);
-		assertEquals(Signature.PublicKey.length(), kp.publicKey().bytes().length);
+		assertEquals(Signature.PrivateKey.BYTES, kp.privateKey().bytes().length);
+		assertEquals(Signature.PublicKey.BYTES, kp.publicKey().bytes().length);
 	}
 
 	@Test
@@ -58,8 +58,8 @@ public class SignatureTests {
 		assertEquals(kp, otherKp1);
 		assertEquals(kp, otherKp2);
 
-		assertEquals(Signature.PrivateKey.length(), kp.privateKey().bytes().length);
-		assertEquals(Signature.PublicKey.length(), kp.publicKey().bytes().length);
+		assertEquals(Signature.PrivateKey.BYTES, kp.privateKey().bytes().length);
+		assertEquals(Signature.PublicKey.BYTES, kp.publicKey().bytes().length);
 	}
 
 	@Test
@@ -79,7 +79,7 @@ public class SignatureTests {
 	public void checkSignAndVerify() {
 		Signature.KeyPair kp = Signature.KeyPair.random();
 		byte[] sig = Signature.sign(Hex.decode("deadbeef"), kp.privateKey());
-		assertEquals(Signature.length(), sig.length);
+		assertEquals(Signature.BYTES, sig.length);
 
 		boolean result = Signature.verify(Hex.decode("deadbeef"), sig, kp.publicKey());
 		assertTrue(result);
@@ -89,7 +89,7 @@ public class SignatureTests {
 	public void checkSignAndVerifyWithKey() {
 		Signature.KeyPair kp = Signature.KeyPair.random();
 		byte[] sig = kp.privateKey().sign(Hex.decode("deadbeef"));
-		assertEquals(Signature.length(), sig.length);
+		assertEquals(Signature.BYTES, sig.length);
 
 		boolean result = kp.publicKey().verify(Hex.decode("deadbeef"), sig);
 		assertTrue(result);

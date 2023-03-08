@@ -27,6 +27,7 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 
 import elastos.carrier.crypto.CryptoBox;
+import elastos.carrier.crypto.CryptoException;
 import elastos.carrier.crypto.Signature;
 import elastos.carrier.utils.Base58;
 import elastos.carrier.utils.Hex;
@@ -365,7 +366,7 @@ public class Id implements Comparable<Id> {
 		return Signature.PublicKey.fromBytes(bytes);
 	}
 
-	public CryptoBox.PublicKey toEncryptionKey() {
+	public CryptoBox.PublicKey toEncryptionKey() throws CryptoException {
 		return CryptoBox.PublicKey.fromSignatureKey(toSignatureKey());
 	}
 

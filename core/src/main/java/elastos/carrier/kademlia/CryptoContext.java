@@ -28,28 +28,43 @@ import elastos.carrier.Id;
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.CryptoBox.KeyPair;
 import elastos.carrier.crypto.CryptoBox.PublicKey;
+import elastos.carrier.crypto.CryptoException;
+import elastos.carrier.kademlia.exceptions.CryptoError;
 
 public class CryptoContext implements AutoCloseable {
 	private CryptoBox box;
 	private CryptoBox.Nonce nonce;
 
-	public CryptoContext(PublicKey pk, KeyPair keyPair) {
-		box = CryptoBox.fromKeys(pk, keyPair.privateKey());
+	public CryptoContext(Id id, KeyPair keyPair) throws CryptoError {
+		try {
+			PublicKey pk = id.toEncryptionKey();
+			box = CryptoBox.fromKeys(pk, keyPair.privateKey());
 
-		Id receiver = Id.of(pk.bytes());
-		Id sender = Id.of(keyPair.publicKey().bytes());
+			Id receiver = Id.of(pk.bytes());
+			Id sender = Id.of(keyPair.publicKey().bytes());
 
-		Id dist = Id.distance(sender, receiver);
+			Id dist = Id.distance(sender, receiver);
 
-		nonce = CryptoBox.Nonce.fromBytes(Arrays.copyOf(dist.bytes(), CryptoBox.Nonce.length()));
+			nonce = CryptoBox.Nonce.fromBytes(Arrays.copyOf(dist.bytes(), CryptoBox.Nonce.BYTES));
+		} catch (CryptoException e) {
+			throw new CryptoError(e.getMessage(), e);
+		}
 	}
 
-	public byte[] encrypt(byte[] plain) {
-		return box.encrypt(plain, nonce);
+	public byte[] encrypt(byte[] plain) throws CryptoError {
+		try {
+			return box.encrypt(plain, nonce);
+		} catch (CryptoException e) {
+			throw new CryptoError(e.getMessage(), e);
+		}
 	}
 
-	public byte[] decrypt(byte[] cipher) {
-		return box.decrypt(cipher, nonce);
+	public byte[] decrypt(byte[] cipher) throws CryptoError {
+		try {
+			return box.decrypt(cipher, nonce);
+		} catch (CryptoException e) {
+			throw new CryptoError(e.getMessage(), e);
+		}
 	}
 
 	@Override

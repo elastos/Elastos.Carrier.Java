@@ -65,6 +65,7 @@ import elastos.carrier.NodeStatusListener;
 import elastos.carrier.PeerInfo;
 import elastos.carrier.Value;
 import elastos.carrier.crypto.CryptoBox;
+import elastos.carrier.crypto.CryptoException;
 import elastos.carrier.crypto.Signature;
 import elastos.carrier.kademlia.DHT.Type;
 import elastos.carrier.kademlia.exceptions.CryptoError;
@@ -207,8 +208,8 @@ public class Node implements elastos.carrier.Node {
 		CacheLoader<Id, CryptoContext> loader;
 		loader = new CacheLoader<>() {
 			@Override
-			public CryptoContext load(Id id) {
-				return new CryptoContext(id.toEncryptionKey(), encryptKeyPair);
+			public CryptoContext load(Id id) throws CryptoError {
+				return new CryptoContext(id, encryptKeyPair);
 			}
 		};
 
@@ -732,7 +733,12 @@ public class Node implements elastos.carrier.Node {
 		Signature.KeyPair kp = Signature.KeyPair.random();
 		CryptoBox.Nonce nonce = CryptoBox.Nonce.random();
 
-		return Value.of(kp, nonce, 0, data);
+		try {
+			return Value.of(kp, nonce, 0, data);
+		} catch (CryptoException e) {
+			log.error("INTERNAL ERROR: should never happen!!!");
+			throw new CryptoError(e.getMessage(), e);
+		}
 	}
 
 	@Override
@@ -740,7 +746,12 @@ public class Node implements elastos.carrier.Node {
 		Signature.KeyPair kp = Signature.KeyPair.random();
 		CryptoBox.Nonce nonce = CryptoBox.Nonce.random();
 
-		return Value.of(kp, recipient, nonce, 0, data);
+		try {
+			return Value.of(kp, recipient, nonce, 0, data);
+		} catch (CryptoException e) {
+			log.error("INTERNAL ERROR: should never happen!!!");
+			throw new CryptoError(e.getMessage(), e);
+		}
 	}
 
 	@Override
@@ -755,7 +766,12 @@ public class Node implements elastos.carrier.Node {
 		Signature.KeyPair kp = Signature.KeyPair.fromPrivateKey(old.getPrivateKey());
 		CryptoBox.Nonce nonce = CryptoBox.Nonce.fromBytes(old.getNonce());
 
-		return Value.of(kp, old.getRecipient(), nonce, old.getSequenceNumber() + 1, data);
+		try {
+			return Value.of(kp, old.getRecipient(), nonce, old.getSequenceNumber() + 1, data);
+		} catch (CryptoException e) {
+			log.error("INTERNAL ERROR: should never happen!!!");
+			throw new CryptoError(e.getMessage(), e);
+		}
 	}
 
 	@Override

@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 import elastos.carrier.crypto.CryptoBox;
+import elastos.carrier.crypto.CryptoException;
 import elastos.carrier.crypto.Signature;
 import elastos.carrier.utils.Hex;
 import elastos.carrier.utils.ThreadLocals;
@@ -54,7 +55,7 @@ public class Value {
 		this.data = data;
 	}
 
-	protected Value(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) {
+	protected Value(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoException {
 		this.publicKey = new Id(keypair.publicKey().bytes());
 		this.privateKey = keypair.privateKey().bytes();
 		this.recipient = recipient;
@@ -78,24 +79,24 @@ public class Value {
 	}
 
 	public static Value of(Id publicKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
-		return new Value (publicKey, null, recipient, nonce, sequenceNumber, signature, data);
+		return new Value(publicKey, null, recipient, nonce, sequenceNumber, signature, data);
 	}
 
 	public static Value of(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
-		return new Value (publicKey, privateKey, recipient, nonce, sequenceNumber, signature, data);
+		return new Value(publicKey, privateKey, recipient, nonce, sequenceNumber, signature, data);
 	}
 
-	public static Value of(Signature.KeyPair keypair ,CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) {
-		return new Value (keypair, null, nonce, sequenceNumber, data);
+	public static Value of(Signature.KeyPair keypair ,CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoException {
+		return new Value(keypair, null, nonce, sequenceNumber, data);
 	}
 
-	public static Value of(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) {
+	public static Value of(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoException {
 		return new Value(keypair, recipient, nonce, sequenceNumber, data);
 	}
 
 	private byte[] getSignData() {
 		byte[] toSign = new byte[(recipient != null ? Id.BYTES : 0) +
-				CryptoBox.Nonce.length() + Integer.BYTES + this.data.length];
+				CryptoBox.Nonce.BYTES + Integer.BYTES + this.data.length];
 		ByteBuffer buf = ByteBuffer.wrap(toSign);
 		if (recipient != null)
 			buf.put(recipient.bytes());
@@ -169,10 +170,10 @@ public class Value {
 			return false;
 
 		if (isMutable()) {
-			if (nonce == null || nonce.length != CryptoBox.Nonce.length())
+			if (nonce == null || nonce.length != CryptoBox.Nonce.BYTES)
 				return false;
 
-			if (signature == null || signature.length != Signature.length())
+			if (signature == null || signature.length != Signature.BYTES)
 				return false;
 
 			Signature.PublicKey pk = publicKey.toSignatureKey();
@@ -183,7 +184,7 @@ public class Value {
 		return true;
 	}
 
-	public byte[] decryptData(Signature.PrivateKey recipientSk) {
+	public byte[] decryptData(Signature.PrivateKey recipientSk) throws CryptoException {
 		if (!isValid())
 			return null;
 

@@ -30,6 +30,8 @@ import org.apache.tuweni.crypto.sodium.Sodium;
 
 public class Signature {
 	public static class PublicKey implements Destroyable {
+		public static final int BYTES = org.apache.tuweni.crypto.sodium.Signature.PublicKey.length();
+
 		private org.apache.tuweni.crypto.sodium.Signature.PublicKey key;
 		private byte[] bytes;
 
@@ -38,11 +40,8 @@ public class Signature {
 		}
 
 		public static PublicKey fromBytes(byte[] key) {
+			// No SodiumException raised
 			return new PublicKey(org.apache.tuweni.crypto.sodium.Signature.PublicKey.fromBytes(key));
-		}
-
-		public static int length() {
-			return org.apache.tuweni.crypto.sodium.Signature.PublicKey.length();
 		}
 
 		org.apache.tuweni.crypto.sodium.Signature.PublicKey raw() {
@@ -111,6 +110,8 @@ public class Signature {
 	}
 
 	public static class PrivateKey implements Destroyable {
+		public static final int BYTES = org.apache.tuweni.crypto.sodium.Signature.SecretKey.length();
+
 		private org.apache.tuweni.crypto.sodium.Signature.SecretKey key;
 		private byte[] bytes;
 
@@ -119,11 +120,8 @@ public class Signature {
 		}
 
 		public static PrivateKey fromBytes(byte[] key) {
+			// no SodiumException raised
 			return new PrivateKey(org.apache.tuweni.crypto.sodium.Signature.SecretKey.fromBytes(key));
-		}
-
-		public static int length() {
-			return org.apache.tuweni.crypto.sodium.Signature.SecretKey.length();
 		}
 
 		org.apache.tuweni.crypto.sodium.Signature.SecretKey raw() {
@@ -202,20 +200,24 @@ public class Signature {
 
 		public static KeyPair fromPrivateKey(byte[] privateKey) {
 			org.apache.tuweni.crypto.sodium.Signature.SecretKey sk = org.apache.tuweni.crypto.sodium.Signature.SecretKey.fromBytes(privateKey);
+			// Normally, should never raise Exception
 			return new KeyPair(org.apache.tuweni.crypto.sodium.Signature.KeyPair.forSecretKey(sk));
 		}
 
 		public static KeyPair fromPrivateKey(PrivateKey key) {
+			// Normally, should never raise Exception
 			return new KeyPair(org.apache.tuweni.crypto.sodium.Signature.KeyPair.forSecretKey(key.raw()));
 		}
 
 		/* 32 bytes seed */
 		public static KeyPair fromSeed(byte[] seed) {
 			org.apache.tuweni.crypto.sodium.Signature.Seed sd = org.apache.tuweni.crypto.sodium.Signature.Seed.fromBytes(seed);
+			// Normally, should never raise Exception
 			return new KeyPair(org.apache.tuweni.crypto.sodium.Signature.KeyPair.fromSeed(sd));
 		}
 
 		public static KeyPair random() {
+			// Normally, should never raise Exception
 			return new KeyPair(org.apache.tuweni.crypto.sodium.Signature.KeyPair.random());
 		}
 
@@ -256,17 +258,17 @@ public class Signature {
 		}
 	}
 
-	public static int length() {
-		// Can not access internal method
-		// return (int)Sodium.crypto_sign_bytes();
-		return 64;
-	}
+	// Can not access internal method
+	// should be (int)Sodium.crypto_sign_bytes();
+	public static final int BYTES = 64;
 
 	public static byte[] sign(byte[] data, PrivateKey key) {
+		// Normally, should never raise SodiumException
 		return org.apache.tuweni.crypto.sodium.Signature.signDetached(data, key.raw());
 	}
 
 	public static boolean verify(byte[] data, byte[] signature, PublicKey key) {
+		// Normally, should never raise SodiumException
 		return org.apache.tuweni.crypto.sodium.Signature.verifyDetached(data, signature, key.raw());
 	}
 
