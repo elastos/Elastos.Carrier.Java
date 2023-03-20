@@ -21,11 +21,15 @@
     </encoder>
   </appender>
 
-  <logger name="elastos.carrier.kademlia.NetworkEngine" level="INFO"/>
-  <logger name="elastos.carrier.kademlia.RPCServer" level="TRACE"/>
+  <logger name="io.netty" level="OFF"/>
+  <logger name="io.vertx" level="OFF"/>
+  <logger name="elastos.carrier.kademlia.NetworkEngine" level="WARN"/>
+  <logger name="elastos.carrier.kademlia.RPCServer" level="WARN"/>
 
-  <root level="TRACE">
+  <root level="INFO">
+    <!--
     <appender-ref ref="STDOUT" />
+    -->
     <appender-ref ref="ROLLING" />
   </root>
 </configuration>
