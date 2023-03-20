@@ -493,7 +493,7 @@ public final class RoutingTable {
 	 * @param runWhenLoaded is executed when all load operations are finished
 	 * @throws IOException
 	 */
-	void load(File file) {
+	public void load(File file) {
 		if (!file.exists() || !file.isFile())
 			return;
 
@@ -543,7 +543,7 @@ public final class RoutingTable {
 	 * @param file to save to
 	 * @throws IOException
 	 */
-	void save(File file) throws IOException {
+	public void save(File file) throws IOException {
 		if (file.isDirectory())
 			return;
 

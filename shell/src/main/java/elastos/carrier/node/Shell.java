@@ -69,6 +69,7 @@ import picocli.shell.jline3.PicocliCommands.PicocliCommandsFactory;
 			RoutingTableCommand.class,
 			StorageCommand.class,
 			StopCommand.class,
+			DisplayCache.class
 		})
 public class Shell implements Callable<Integer> {
 	@Option(names = {"-4", "--address4"}, description = "IPv4 address to listen.")
@@ -167,7 +168,7 @@ public class Shell implements Callable<Integer> {
 	}
 
 	private void setLogOutput() {
-		if (dataDir != null || !dataDir.isEmpty()) {
+		if (dataDir != null && !dataDir.isEmpty()) {
 			File dir = dataDir.startsWith("~") ?
 				new File(System.getProperty("user.home") + dataDir.substring(1)) :
 				new File(dataDir);
