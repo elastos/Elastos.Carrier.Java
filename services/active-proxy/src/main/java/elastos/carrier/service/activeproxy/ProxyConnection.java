@@ -260,6 +260,13 @@ public class ProxyConnection implements AutoCloseable {
 			if (ar.failed())
 				close();
 		});
+
+		// Flow control for client -> upstream
+		if (upstreamSocket.writeQueueFull()) {
+			log.trace("Upstream write queue full, pause client reading");
+			clientSocket.pause();
+			upstreamSocket.drainHandler(v -> clientSocket.resume());
+		}
 	}
 
 	private void sendError(short code, String message) {
@@ -388,13 +395,11 @@ public class ProxyConnection implements AutoCloseable {
 			} else if (!ack && type == PacketFlag.DISCONNECT) {
 				handleDisconnect(packet);
 				return;
-			} else if (!ack && type == PacketFlag.PING) {
-				handleKeepAlive(packet);
-				return;
 			} else {
 				log.error("Connection {} got wrong packet, DATA or DISCONNECT excepted", getName());
 				close();
 			}
+			break;
 
 		case Closed:
 			log.error("INTERNAL ERROR: Connection {} got packet after closed!!!", getName());
@@ -500,6 +505,13 @@ public class ProxyConnection implements AutoCloseable {
 		try {
 			byte[] payload = session.decrypt(data.getBytes(PACKET_HEADER_BYTES, data.length()));
 			clientSocket.write(Buffer.buffer(payload));
+			// Flow control for upstream -> client
+			if (clientSocket.writeQueueFull()) {
+				log.trace("Client write queue full, pause upstream reading");
+				upstreamSocket.pause();
+				clientSocket.drainHandler(v-> upstreamSocket.resume());
+			}
+
 		} catch (CryptoException e) {
 			log.error("Connection {} decrypt the DATA payload failed.", getName());
 			close();
@@ -518,6 +530,9 @@ public class ProxyConnection implements AutoCloseable {
 
 		Handler<Void> clientClose = v -> {
 			this.clientSocket = null;
+
+			upstreamSocket.resume();
+			upstreamSocket.drainHandler(null);
 
 			if (needSendDisconnect)
 				sendDisconnect();
@@ -578,12 +593,14 @@ public class ProxyConnection implements AutoCloseable {
 
 		if (clientSocket != null) {
 			clientCloseHandler = null;
+			clientSocket.handler(null);
 			clientSocket.closeHandler(null);
 			clientSocket.close(null);
 			clientSocket = null;
 		}
 
 		if (upstreamSocket != null) {
+			upstreamSocket.handler(null);
 			upstreamSocket.closeHandler(null);
 			upstreamSocket.close();
 			upstreamSocket = null;
