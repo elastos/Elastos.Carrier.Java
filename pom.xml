@@ -10,20 +10,20 @@
   <packaging>pom</packaging>
 
   <name>Elastos Carrier</name>
-  <url>https://github.com/elastos/Elastos.NET.Carrier2.Java</url>
+  <url>https://github.com/elastos/Elastos.Carrier.Java</url>
 
   <licenses>
     <license>
       <name>MIT License</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <url>https://github.com/elastos/Elastos.Carrier.Java/blob/master/LICENSE</url>
       <distribution>repo</distribution>
     </license>
   </licenses>
 
   <scm>
-    <connection>scm:git:git@github.com:elastos/Elastos.NET.Carrier.Java.git</connection>
-    <developerConnection>scm:git:git@github.com:elastos/Elastos.NET.Carrier.Java.git</developerConnection>
-    <url>git@github.com:elastos/Elastos.NET.Carrier.Java.git</url>
+    <connection>scm:git:git@github.com:elastos/Elastos.Carrier.Java.git</connection>
+    <developerConnection>scm:git:git@github.com:elastos/Elastos.Carrier.Java.git</developerConnection>
+    <url>git@github.com:elastos/Elastos.Carrier.Java.git</url>
   </scm>
 
   <properties>
@@ -58,8 +58,8 @@
   <modules>
     <module>api</module>
     <module>core</module>
-    <module>shell</module>
     <module>services</module>
+    <module>shell</module>
     <module>launcher</module>
   </modules>
 
