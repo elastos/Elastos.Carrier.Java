@@ -27,7 +27,7 @@
   </scm>
 
   <properties>
-    <revision>6.0.0-SNAPSHOT</revision>
+    <revision>2.0.1-SNAPSHOT</revision>
 
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
