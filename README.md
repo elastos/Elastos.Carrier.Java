@@ -1,6 +1,6 @@
 # Carrier Java - V2
 
-Elastos Carrier is a decentralized and encrypted peer-to-peer (P2P)  communication framework that facilitates network traffic routing between virtual machines and decentralized Applications (dApps).  Carrier Native is a C++ version of the distribution that runs efficiently on native machines such as **macOS**, **Linux**, and mobile devices like **iOS** and **Android** systems. And the version for **Windows** still under  development.
+Elastos Carrier is a decentralized and encrypted peer-to-peer (P2P)  communication framework that facilitates network traffic routing between virtual machines and decentralized Applications (dApps).  Carrier Java is a Java distribution designed to run on VPS servers with a public IP address, serving as a super Carrier Node service.
 
 Carrier V2 is a new two-layered architecture that features a unified DHT network as the bottom layer and facilitates various application-oriented services on top of the DHT network, where a list of services includes, but is not limited to:
 
