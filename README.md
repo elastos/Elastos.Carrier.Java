@@ -22,8 +22,8 @@ Carrier V2 is a new two-layered architecture that features a unified DHT network
 
 ### Dependencies
 
-- java ≥ 11
-- libsoduium runtime (shared object)
+- Java Virtual Machine (JVM) >= Java 11
+- sodium (libsodium) >= 1.0.16
 
 ### Build instructions
 
@@ -55,4 +55,4 @@ A sincere thank you goes out to all the projects that we rely on directly or ind
 
 ## License
 
-This project is licensed under the terms of the MIT license. We believe that open-source licensing  promotes transparency, collaboration, and innovation, and we encourage others to contribute to the project in accordance with the terms of the license.
+This project is licensed under the terms of the [MIT License](https://github.com/elastos/Elastos.Carrier.Java/blob/master/LICENSE). We believe that open-source licensing  promotes transparency, collaboration, and innovation, and we encourage others to contribute to the project in accordance with the terms of the license.
