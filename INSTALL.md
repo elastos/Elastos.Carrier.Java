@@ -6,13 +6,13 @@
 
 The Carrier daemon has dependencies on the following runtime components:
 
-- Java Virtual Machine (JVM)
-- sodium (libsodium)
+- Java Virtual Machine (JVM) >= Java 11
+- sodium (libsodium) >= 1.0.16
 
 To install these dependencies, please run the following commands:
 
 ```bash
-$ sudo apt install openjdk-17-jre-headless libsodium23
+$ sudo apt install openjdk-11-jre-headless libsodium23
 ```
 
 ### 2. Building Your Debian Package
