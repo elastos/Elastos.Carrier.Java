@@ -26,6 +26,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import elastos.carrier.kademlia.Node;
@@ -39,7 +40,7 @@ public class Launcher {
 	private static Object shutdown = new Object();
 
 	private static Node node;
-	private static List<CarrierService> services;
+	private static List<CarrierService> services = new ArrayList<>();
 
 	private static void initCarrierNode() {
 		try {
@@ -65,8 +66,6 @@ public class Launcher {
 	private static void loadServices() {
 		if (config.services().isEmpty())
 			return;
-
-		services = new ArrayList<>(config.services().size());
 
 		config.services().forEach(Launcher::loadService);
 	}
@@ -103,14 +102,21 @@ public class Launcher {
 	}
 
 	private static void unloadServices() {
+		List<CompletableFuture<Void>> stopFutures = new ArrayList<>(services.size());
+
 		for (CarrierService svc : services) {
-			try {
-				svc.stop().get();
-			} catch (InterruptedException | ExecutionException e) {
+			CompletableFuture<Void> f = svc.stop().thenRun(() -> {
+				System.out.format("Service %s is stopped.\n", svc.getName());
+			}).exceptionally(e -> {
 				System.out.println("Failed to stop service: " + svc.getName());
 				e.printStackTrace(System.err);
-			}
+				return null;
+			});
+
+			stopFutures.add(f);
 		}
+
+		CompletableFuture.allOf(stopFutures.toArray(new CompletableFuture[0]));
 	}
 
 	private static void parseArgs(String[] args) {
