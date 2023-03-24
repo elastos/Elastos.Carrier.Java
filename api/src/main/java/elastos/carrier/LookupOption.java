@@ -23,6 +23,7 @@
 package elastos.carrier;
 
 public enum LookupOption {
+	LOCAL, /* Reserved */
 	ARBITRARY,
 	OPTIMISTIC,
 	CONSERVATIVE
