@@ -27,9 +27,7 @@
   <logger name="elastos.carrier.kademlia.RPCServer" level="WARN"/>
 
   <root level="INFO">
-    <!--
     <appender-ref ref="STDOUT" />
-    -->
     <appender-ref ref="ROLLING" />
   </root>
 </configuration>
