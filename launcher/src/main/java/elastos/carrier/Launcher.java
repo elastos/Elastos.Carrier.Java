@@ -22,7 +22,9 @@
 
 package elastos.carrier;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +36,7 @@ import elastos.carrier.service.CarrierService;
 import elastos.carrier.service.CarrierServiceException;
 import elastos.carrier.service.DefaultServiceContext;
 import elastos.carrier.service.ServiceContext;
+import elastos.carrier.utils.ApplicationLock;
 
 public class Launcher {
 	private static Configuration config;
@@ -200,15 +203,21 @@ public class Launcher {
 		}));
 
 		parseArgs(args);
-		initCarrierNode();
-		loadServices();
 
-		synchronized(shutdown) {
-			try {
-				shutdown.wait();
-				System.out.println("Carrier node stopped.");
-			} catch (InterruptedException ignore) {
+		Path lockFile = config.storagePath().toPath().resolve("lock");
+		try (ApplicationLock lock = new ApplicationLock(lockFile)) {
+			initCarrierNode();
+			loadServices();
+
+			synchronized(shutdown) {
+				try {
+					shutdown.wait();
+					System.out.println("Carrier node stopped.");
+				} catch (InterruptedException ignore) {
+				}
 			}
+		} catch (IOException | IllegalStateException e) {
+			System.out.println("Another carrier instance alreay running at " + config.storagePath());
 		}
 	}
 }

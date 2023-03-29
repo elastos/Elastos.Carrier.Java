@@ -50,6 +50,7 @@ import elastos.carrier.Configuration;
 import elastos.carrier.DefaultConfiguration;
 import elastos.carrier.kademlia.Node;
 import elastos.carrier.kademlia.exceptions.KadException;
+import elastos.carrier.utils.ApplicationLock;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -184,26 +185,34 @@ public class Shell implements Callable<Integer> {
 
 		initCommandLine();
 		initConfig();
-		initCarrierNode();
 
-		System.out.println("Carrier Id: " + carrierNode.getId());
+		Path lockFile = config.storagePath().toPath().resolve("lock");
 
-		String prompt = "Carrier $ ";
-		String rightPrompt = null;
+		try (ApplicationLock lock = new ApplicationLock(lockFile)) {
+			initCarrierNode();
 
-		String line;
-		while (true) {
-			try {
-				systemRegistry.cleanUp();
-				line = reader.readLine(prompt, rightPrompt, (MaskingCallback)null, null);
-				systemRegistry.execute(line);
-			} catch (UserInterruptException e) {
-				// Ignore
-			} catch (EndOfFileException e) {
-				return 0;
-			} catch (Exception e) {
-				systemRegistry.trace(e);
+			System.out.println("Carrier Id: " + carrierNode.getId());
+
+			String prompt = "Carrier $ ";
+			String rightPrompt = null;
+
+			String line;
+			while (true) {
+				try {
+					systemRegistry.cleanUp();
+					line = reader.readLine(prompt, rightPrompt, (MaskingCallback)null, null);
+					systemRegistry.execute(line);
+				} catch (UserInterruptException e) {
+					// Ignore
+				} catch (EndOfFileException e) {
+					return 0;
+				} catch (Exception e) {
+					systemRegistry.trace(e);
+				}
 			}
+		} catch (IOException | IllegalStateException e) {
+			System.out.println("Another carrier instance alreay running at " + config.storagePath());
+			return -1;
 		}
 	}
 
