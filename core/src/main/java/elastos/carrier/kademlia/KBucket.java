@@ -639,13 +639,13 @@ public class KBucket implements Comparable<KBucket> {
 		List<KBucketEntry> entries = getEntries();
 		if (!entries.isEmpty()) {
 			repr.append("  entries[").append(entries.size()).append("]:\n");
-			repr.append(entries.stream().map(KBucketEntry::toString).collect(Collectors.joining(",\n    ", "    ", "\n")));
+			repr.append(entries.stream().map(KBucketEntry::toString).collect(Collectors.joining("\n    ", "    ", "\n")));
 		}
 
 		entries = getCache();
 		if (!entries.isEmpty()) {
 			repr.append("  cache[").append(entries.size()).append("]:\n");
-			repr.append(entries.stream().map(KBucketEntry::toString).collect(Collectors.joining(",\n    ", "    ", "\n")));
+			repr.append(entries.stream().map(KBucketEntry::toString).collect(Collectors.joining("\n    ", "    ", "\n")));
 		}
 
 		return repr.toString();

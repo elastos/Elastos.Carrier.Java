@@ -518,15 +518,17 @@ public final class RoutingTable {
 			}
 
 			nodes = root.get("cache");
-			if (!nodes.isArray())
-				throw new IOException("Invalid node entries");
+			if (nodes != null) {
+				if (!nodes.isArray())
+					throw new IOException("Invalid node entries");
 
-			for (JsonNode node : nodes) {
-				Map<String, Object> map = mapper.convertValue(node, new TypeReference<Map<String, Object>>(){});
-				KBucketEntry entry = KBucketEntry.fromMap(map);
-				if (entry != null) {
-					bucketOf(entry.getId())._insertIntoCache(entry);
-					totalEntries++;
+				for (JsonNode node : nodes) {
+					Map<String, Object> map = mapper.convertValue(node, new TypeReference<Map<String, Object>>(){});
+					KBucketEntry entry = KBucketEntry.fromMap(map);
+					if (entry != null) {
+						bucketOf(entry.getId())._insertIntoCache(entry);
+						totalEntries++;
+					}
 				}
 			}
 
