@@ -182,6 +182,7 @@ public class Launcher {
 				System.out.println("  -4, --address4 <addr4>       IPv4 address to listen.");
 				System.out.println("  -6, --address6 <addr6>       IPv6 address to listen.");
 				System.out.println("  -p, --port <port>            The port to listen.");
+				System.out.println("  -d, --data-dir <DIR>         The directory to store the node data.");
 				System.out.println("  -h, --help                   Show this help message and exit.");
 
 				System.exit(0);
@@ -204,7 +205,9 @@ public class Launcher {
 
 		parseArgs(args);
 
-		Path lockFile = config.storagePath().toPath().resolve("lock");
+		Path lockFile = config.storagePath() != null ?
+				config.storagePath().toPath().resolve("lock") :
+				Path.of("./lock");
 		try (ApplicationLock lock = new ApplicationLock(lockFile)) {
 			initCarrierNode();
 			loadServices();
@@ -217,7 +220,8 @@ public class Launcher {
 				}
 			}
 		} catch (IOException | IllegalStateException e) {
-			System.out.println("Another carrier instance alreay running at " + config.storagePath());
+			System.out.println("Another carrier instance alreay running at " +
+					(config.storagePath() != null ? config.storagePath() : "."));
 		}
 	}
 }
