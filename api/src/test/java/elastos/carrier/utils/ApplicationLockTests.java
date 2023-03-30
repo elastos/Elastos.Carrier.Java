@@ -14,7 +14,7 @@ public class ApplicationLockTests {
 
 	@Test
 	void testLock() {
-		String lockFile = tmpDir + "/carrier.lock";
+		String lockFile = tmpDir + "/carrier/lock";
 
 		try (ApplicationLock lock = new ApplicationLock(lockFile)) {
 			System.out.println("Acquired lock!");

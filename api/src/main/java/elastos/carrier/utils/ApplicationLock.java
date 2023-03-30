@@ -1,5 +1,6 @@
 package elastos.carrier.utils;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -22,6 +23,10 @@ public class ApplicationLock implements AutoCloseable {
 	}
 
 	private void tryLock() throws IOException, IllegalStateException {
+		File parent = lockFile.getParent().toFile();
+		if (!parent.exists())
+			parent.mkdirs();
+
 		fc = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 		lock = fc.tryLock(0, 0, false);
 		if (lock == null)
