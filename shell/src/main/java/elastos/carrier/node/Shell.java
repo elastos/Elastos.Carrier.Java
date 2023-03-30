@@ -73,6 +73,8 @@ import picocli.shell.jline3.PicocliCommands.PicocliCommandsFactory;
 			DisplayCache.class
 		})
 public class Shell implements Callable<Integer> {
+	private static final String DEFAULT_DATA_DIR = "~/.cache/carrier";
+
 	@Option(names = {"-4", "--address4"}, description = "IPv4 address to listen.")
 	private String addr4 = null;
 
@@ -83,7 +85,7 @@ public class Shell implements Callable<Integer> {
 	private int port = 0;
 
 	@Option(names = {"-d", "--dataDir"}, description = "The directory to store the node data, default: ~/.cache/carrier.")
-	private String dataDir = "~/.cache/carrier";
+	private String dataDir = null;
 
 	@Option(names = {"-b", "--bootstrap"}, description = "The bootstrap node.")
 	private String bootstrap = null;
@@ -153,8 +155,12 @@ public class Shell implements Callable<Integer> {
 		if (port != 0)
 			builder.setListeningPort(port);
 
-		if (dataDir != null)
+		if (dataDir != null) {
 			builder.setStoragePath(dataDir);
+		} else {
+			if (!builder.hasStoragePath())
+				builder.setStoragePath(DEFAULT_DATA_DIR);
+		}
 
 		config = builder.build();
 	}
