@@ -158,6 +158,10 @@ public class DefaultConfiguration implements Configuration {
 			return this;
 		}
 
+		public boolean hasStoragePath() {
+			return getConfiguration().storagePath != null;
+		}
+
 		public Builder setStoragePath(String path) {
 			getConfiguration().storagePath = path != null ?  toFile(path) : null;
 			return this;
