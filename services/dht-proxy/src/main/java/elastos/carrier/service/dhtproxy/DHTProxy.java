@@ -33,7 +33,7 @@ import elastos.carrier.service.ServiceContext;
 
 public class DHTProxy implements CarrierService {
 	private static final String NAME = "DHT Proxy";
-	private static final int DEFAULT_PORT = 10080;
+	private static final int DEFAULT_PORT = 8088;
 
 	private ServiceContext context;
 	private ProxyServer server;

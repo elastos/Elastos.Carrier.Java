@@ -363,7 +363,8 @@ public class ProxyConnection implements AutoCloseable {
 				handleAttach(packet);
 				return;
 			} else {
-				log.error("Connection {} got wrong packet, AUTH or ATTACH excepted", getName());
+				log.error("Connection {} got wrong packet {}, AUTH or ATTACH excepted",
+						getName(), PacketFlag.toString(flag));
 				close();
 			}
 			break;
@@ -373,7 +374,8 @@ public class ProxyConnection implements AutoCloseable {
 				handleKeepAlive(packet);
 				return;
 			} else {
-				log.error("Connection {} got wrong packet, PING excepted", getName());
+				log.error("Connection {} got wrong packet {}, PING excepted",
+						getName(), PacketFlag.toString(flag));
 				close();
 			}
 			break;
@@ -383,7 +385,8 @@ public class ProxyConnection implements AutoCloseable {
 				handleConnectAck(packet);
 				return;
 			} else {
-				log.error("Connection {} got wrong packet, CONNECT ACK excepted", getName());
+				log.error("Connection {} got wrong packet {}, CONNECT ACK excepted",
+						getName(), PacketFlag.toString(flag));
 				close();
 			}
 			break;
@@ -396,7 +399,8 @@ public class ProxyConnection implements AutoCloseable {
 				handleDisconnect(packet);
 				return;
 			} else {
-				log.error("Connection {} got wrong packet, DATA or DISCONNECT excepted", getName());
+				log.error("Connection {} got wrong packet {}, DATA or DISCONNECT excepted",
+						getName(), PacketFlag.toString(flag));
 				close();
 			}
 			break;
@@ -546,8 +550,13 @@ public class ProxyConnection implements AutoCloseable {
 
 		clientSocket.closeHandler(clientClose);
 		clientSocket.exceptionHandler(t -> {
-			log.error("Client socket error", t);
-			clientClose.handle(null);
+			if (log.isDebugEnabled())
+				log.error("Client socket error", t);
+			else
+				log.error("Client socket error: {}", t.getMessage());
+
+			clientSocket.close();
+			this.clientSocket = null;
 		});
 		clientSocket.handler(this::handleClientData);
 
@@ -558,10 +567,10 @@ public class ProxyConnection implements AutoCloseable {
 	}
 
 	private void disconnectClient() {
-		if (this.clientSocket != null) {
+		if (clientSocket != null) {
 			needSendDisconnect = false;
-			this.clientSocket.close();
-			this.clientSocket = null;
+			clientSocket.close();
+			clientSocket = null;
 		}
 	}
 
