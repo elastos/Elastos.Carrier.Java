@@ -3,11 +3,11 @@ Version: 2.0.1-1
 Section: java, net
 Priority: optional
 Architecture: all
-Maintainer: Elastos Trinity <contact@trinity-tech.io>
+Maintainer: trinity-tech<contact@trinity-tech.io>
 Installed-Size: 80000
 Pre-Depends: adduser
 Depends: lsb-base (>= 3.0), libc6 (>= 2.14), init-system-helpers (>= 1.18~), libsystemd0, libsodium23, openjdk-11-jre-headless | openjdk-11-jre | openjdk-13-jre-headless | openjdk-13-jre | openjdk-17-jre-headless | openjdk-17-jre
-Homepage: https://elastos.org/
+Homepage: https://trinity-tech.io
 Description: Elastos Carrier Super Node
  Elastos Carrier is a decentralized DHT network and federated service framework.
  .
