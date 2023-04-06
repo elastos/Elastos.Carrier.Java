@@ -1,5 +1,9 @@
 # Carrier Java - V2
 
+|GitHub CI|
+|:-:|
+|[![CI](https://github.com/elastos/Elastos.Carrier.Java/actions/workflows/maven.yml/badge.svg)](https://github.com/elastos/Elastos.Carrier.Java/actions/workflows/maven.yml)|
+
 Elastos Carrier is a decentralized and encrypted peer-to-peer (P2P)  communication framework that facilitates network traffic routing between virtual machines and decentralized Applications (dApps).  Carrier Java is a Java distribution designed to run on VPS servers with a public IP address, serving as a super Carrier Node service.
 
 Carrier V2 is a new two-layered architecture that features a unified DHT network as the bottom layer and facilitates various application-oriented services on top of the DHT network, where a list of services includes, but is not limited to:
