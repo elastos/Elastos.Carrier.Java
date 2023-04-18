@@ -101,14 +101,14 @@ public class NodeLookup extends LookupTask {
 
 	@Override
 	protected void callResponsed(RPCCall call, Message response) {
-		super.callResponsed(call, response);
-
 		if (!call.matchesId())
 			return; // Ignore
 
 		if (response.getType() != Message.Type.RESPONSE || response.getMethod() != Message.Method.FIND_NODE)
 			return;
 
+		super.callResponsed(call, response);
+		
 		FindNodeResponse r = (FindNodeResponse)response;
 		// TODO: handle bouth IPv4 & IPv6 result
 		List<NodeInfo> nodes = r.getNodes(getDHT().getType());
