@@ -99,6 +99,7 @@ public class Node implements elastos.carrier.Node {
 	private LookupOption defaultLookupOption;
 
 	private LoadingCache<Id, CryptoContext> cryptoContexts;
+	private Blacklist blacklist;
 
 	private TokenManager tokenMan;
 	private DataStorage storage;
@@ -145,6 +146,7 @@ public class Node implements elastos.carrier.Node {
 
 		log.info("Carrier Kademlia node: {}", id);
 
+		blacklist = new Blacklist();
 		statusListeners = new ArrayList<>(4);
 		tokenMan = new TokenManager();
 
@@ -433,6 +435,10 @@ public class Node implements elastos.carrier.Node {
 
 	TokenManager getTokenManager() {
 		return tokenMan;
+	}
+
+	Blacklist getBlacklist() {
+		return blacklist;
 	}
 
 	@Override
