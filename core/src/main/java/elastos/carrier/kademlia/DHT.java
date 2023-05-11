@@ -171,8 +171,11 @@ public class DHT {
 		this.bootstrapNodes = new HashSet<>();
 		this.bootstrapping = new AtomicBoolean(false);
 
-		this.knownNodes = CacheBuilder.newBuilder().initialCapacity(256).expireAfterAccess(5, TimeUnit.MINUTES)
-				.concurrencyLevel(4).build();
+		this.knownNodes = CacheBuilder.newBuilder()
+				.initialCapacity(256)
+				.expireAfterAccess(Constants.KBUCKET_OLD_AND_STALE_TIME, TimeUnit.MILLISECONDS)
+				.concurrencyLevel(4)
+				.build();
 
 		this.taskMan = new TaskManager(this);
 	}
@@ -732,8 +735,10 @@ public class DHT {
 		}
 
 		Id knownId = knownNodes.getIfPresent(addr);
-		if (knownId != null && !knownId.equals(id)) {
-			KBucketEntry knownEntry = routingTable.getEntry(knownId, true);
+		KBucketEntry knownEntry = routingTable.getEntry(id, true);
+
+		if ((knownId != null && !knownId.equals(id)) ||
+				(knownEntry != null && !knownEntry.getAddress().equals(addr))) {
 			if (knownEntry != null) {
 				// 1. a node with that address is in our routing table
 				// 2. the ID does not match our routing table entry

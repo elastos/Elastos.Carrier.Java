@@ -507,6 +507,12 @@ public class RPCServer implements Selectable {
 		Message msg = null;
 		Id sender = Id.of(packet, 0);
 
+		Blacklist blacklist = getNode().getBlacklist();
+		if (blacklist.isBanned(sa)) {
+			log.warn("Ignored the message from banned address {}", AddressUtils.toString(sa));
+			return;
+		}
+
 		try {
 			byte[] encryptedMsg = Arrays.copyOfRange(packet, Id.BYTES, packet.length);
 			byte[] decryptedMsg = getNode().decrypt(sender, encryptedMsg);
@@ -516,13 +522,22 @@ public class RPCServer implements Selectable {
 			log.warn("Got a wrong packet from {}, ignored.", AddressUtils.toString(sa));
 
 			stats.droppedPacket(packet.length);
+			blacklist.observeInvalidMessage(sa);
 			return;
 		} catch (CryptoError e) {
 			log.warn("Decrypt packet error from {}, ignored.", AddressUtils.toString(sa));
 
 			stats.droppedPacket(packet.length);
+			blacklist.observeInvalidMessage(sa);
 			return;
 		}
+
+		if (blacklist.isBanned(sender)) {
+			log.warn("Ignored the message from node {}", sender);
+			return;
+		}
+
+		blacklist.observe(sa, sender);
 
 		log.trace("Received {}/{} from {}: [{}]{}", msg.getMethod(), msg.getType(),
 				AddressUtils.toString(sa), packet.length, msg);

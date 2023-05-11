@@ -282,6 +282,8 @@ public class KBucket implements Comparable<KBucket> {
 			if (existing.match(newEntry)) {
 				log.info("New node {} claims same ID or IP as  {}, might be impersonation attack or IP change. "
 						+ "ignoring until old entry times out", newEntry, existing);
+
+				// Should not be so aggressive, keep the existing entry.
 				return;
 			}
 		}
@@ -345,6 +347,8 @@ public class KBucket implements Comparable<KBucket> {
 	 * @param force    if true entry will be removed regardless of its state
 	 */
 	void _removeIfBad(KBucketEntry toRemove, boolean force) {
+		_removeFromCache(toRemove);
+
 		List<KBucketEntry> entriesRef = getEntries();
 		if (entriesRef.contains(toRemove) && (force || toRemove.needsReplacement())) {
 			KBucketEntry replacement = null;
@@ -491,6 +495,7 @@ public class KBucket implements Comparable<KBucket> {
 
 		setCache(newCache);
 	}
+
 
 	private KBucketEntry _pollVerifiedCacheEntry() {
 		List<KBucketEntry> cacheRef = getCache();
