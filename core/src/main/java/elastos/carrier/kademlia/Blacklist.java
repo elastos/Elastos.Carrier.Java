@@ -144,6 +144,19 @@ public class Blacklist {
 		});
 	}
 
+	public boolean underObservation(InetSocketAddress addr) {
+		return observations.getIfPresent(addr) != null;
+	}
+
+	public boolean underObservation(Id id) {
+		return observations.getIfPresent(id) != null;
+	}
+
+	public long getObservationSize() {
+		observations.cleanUp();
+		return observations.size();
+	}
+
 	public boolean isBanned(InetSocketAddress addr, Id id) {
 		return (banned.getIfPresent(addr) != null || banned.getIfPresent(id) != null);
 	}
@@ -156,11 +169,8 @@ public class Blacklist {
 		return banned.getIfPresent(id) != null;
 	}
 
-	public long getObservationSize() {
-		return observations.size();
-	}
-
 	public long getBannedSize() {
+		banned.cleanUp();
 		return banned.size();
 	}
 }

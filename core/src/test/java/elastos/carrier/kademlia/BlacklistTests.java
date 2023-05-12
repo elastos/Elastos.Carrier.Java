@@ -30,6 +30,7 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -38,9 +39,19 @@ import org.junit.jupiter.api.Timeout;
 
 import elastos.carrier.Id;
 
+@Disabled("Manual")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class BlacklistTests {
+	// Observation: 2 minutes
+	// Hits: 10 times
+	// Ban: 2 minutes
+	private static final long observationPeriod = 2;
+	private static final long hits = 10;
+	private static final long banDuration = 2;
+	private static final long timeout = 5;
+
 	private static Blacklist blacklist;
+
 	private static InetSocketAddress bannedAddress1;
 	private static InetSocketAddress bannedAddress2;
 	private static InetSocketAddress bannedAddress3;
@@ -49,117 +60,123 @@ public class BlacklistTests {
 
 	@BeforeAll
 	public static void setup() {
-		// Observation: 5 minutes
-		// Hits: 10 times
-		// Ban: 5 minutes
-		blacklist = new Blacklist(1, 10, 1);
+		blacklist = new Blacklist(observationPeriod, hits, banDuration);
+	}
 
+	@Test
+	@Order(1)
+	public void testBanAddress() {
 		// Add the initial data
 		bannedAddress1 = new InetSocketAddress("192.169.8.100", 39001);
-		blacklist.observe(bannedAddress1, Id.random());
-		blacklist.observe(bannedAddress1, Id.random());
-		blacklist.observe(bannedAddress1, Id.random());
-		blacklist.observe(bannedAddress1, Id.random());
-		blacklist.observe(bannedAddress1, Id.random());
-		blacklist.observe(bannedAddress1, Id.random());
-		blacklist.observe(bannedAddress1, Id.random());
-		blacklist.observe(bannedAddress1, Id.random());
-		blacklist.observe(bannedAddress1, Id.random());
-		blacklist.observe(bannedAddress1, Id.random());
-		blacklist.observe(bannedAddress1, Id.random());
+		for (int i = 0; i <= hits; i++)
+			blacklist.observe(bannedAddress1, Id.random());
+
 		assertFalse(blacklist.isBanned(bannedAddress1));
-		assertEquals(12, blacklist.getObservationSize());
+		assertEquals(hits + 2, blacklist.getObservationSize());
 		assertEquals(0, blacklist.getBannedSize());
 		blacklist.observe(bannedAddress1, Id.random());
 		assertTrue(blacklist.isBanned(bannedAddress1));
-		assertEquals(12, blacklist.getObservationSize());
+		assertEquals(hits + 2, blacklist.getObservationSize());
 		assertEquals(1, blacklist.getBannedSize());
 
 		bannedAddress2 = new InetSocketAddress("192.169.8.200", 39001);
-		blacklist.observe(bannedAddress2, Id.random());
-		blacklist.observe(bannedAddress2, Id.random());
-		blacklist.observe(bannedAddress2, Id.random());
-		blacklist.observe(bannedAddress2, Id.random());
-		blacklist.observe(bannedAddress2, Id.random());
-		blacklist.observe(bannedAddress2, Id.random());
-		blacklist.observe(bannedAddress2, Id.random());
-		blacklist.observe(bannedAddress2, Id.random());
-		blacklist.observe(bannedAddress2, Id.random());
-		blacklist.observe(bannedAddress2, Id.random());
-		blacklist.observe(bannedAddress2, Id.random());
+		for (int i = 0; i <= hits; i++)
+			blacklist.observe(bannedAddress2, Id.random());
+
 		assertFalse(blacklist.isBanned(bannedAddress2));
-		assertEquals(24, blacklist.getObservationSize());
+		assertEquals(2 * (hits + 2), blacklist.getObservationSize());
 		assertEquals(1, blacklist.getBannedSize());
 		blacklist.observe(bannedAddress2, Id.random());
 		assertTrue(blacklist.isBanned(bannedAddress2));
-		assertEquals(24, blacklist.getObservationSize());
+		assertEquals(2 * (hits + 2), blacklist.getObservationSize());
 		assertEquals(2, blacklist.getBannedSize());
+	}
 
+	@Test
+	@Order(2)
+	public void testBanId() {
 		bannedId1 = Id.random();
-		blacklist.observe(new InetSocketAddress("192.168.1.1", 39001), bannedId1);
-		blacklist.observe(new InetSocketAddress("192.168.1.2", 39001), bannedId1);
-		blacklist.observe(new InetSocketAddress("192.168.1.3", 39001), bannedId1);
-		blacklist.observe(new InetSocketAddress("192.168.1.4", 39001), bannedId1);
-		blacklist.observe(new InetSocketAddress("192.168.1.5", 39001), bannedId1);
-		blacklist.observe(new InetSocketAddress("192.168.1.6", 39001), bannedId1);
-		blacklist.observe(new InetSocketAddress("192.168.1.7", 39001), bannedId1);
-		blacklist.observe(new InetSocketAddress("192.168.1.8", 39001), bannedId1);
-		blacklist.observe(new InetSocketAddress("192.168.1.9", 39001), bannedId1);
-		blacklist.observe(new InetSocketAddress("192.168.1.10", 39001), bannedId1);
-		blacklist.observe(new InetSocketAddress("192.168.1.11", 39001), bannedId1);
+		for (int i = 0; i <= hits; i++) {
+			String ip = "192.168.1." + ( i + 1);
+			blacklist.observe(new InetSocketAddress(ip, 39001), bannedId1);
+		}
 		assertFalse(blacklist.isBanned(bannedId1));
-		assertEquals(36, blacklist.getObservationSize());
+		assertEquals(3 * (hits + 2), blacklist.getObservationSize());
 		assertEquals(2, blacklist.getBannedSize());
-		blacklist.observe(new InetSocketAddress("192.168.1.12", 39001), bannedId1);
+		blacklist.observe(new InetSocketAddress("192.168.1.111", 39001), bannedId1);
 		assertTrue(blacklist.isBanned(bannedId1));
-		assertEquals(36, blacklist.getObservationSize());
+		assertEquals(3 * (hits + 2), blacklist.getObservationSize());
 		assertEquals(3, blacklist.getBannedSize());
 
 		bannedId2 = Id.random();
-		blacklist.observe(new InetSocketAddress("192.168.1.1", 39002), bannedId2);
-		blacklist.observe(new InetSocketAddress("192.168.1.2", 39002), bannedId2);
-		blacklist.observe(new InetSocketAddress("192.168.1.3", 39002), bannedId2);
-		blacklist.observe(new InetSocketAddress("192.168.1.4", 39002), bannedId2);
-		blacklist.observe(new InetSocketAddress("192.168.1.5", 39002), bannedId2);
-		blacklist.observe(new InetSocketAddress("192.168.1.6", 39002), bannedId2);
-		blacklist.observe(new InetSocketAddress("192.168.1.7", 39002), bannedId2);
-		blacklist.observe(new InetSocketAddress("192.168.1.8", 39002), bannedId2);
-		blacklist.observe(new InetSocketAddress("192.168.1.9", 39002), bannedId2);
-		blacklist.observe(new InetSocketAddress("192.168.1.10", 39002), bannedId2);
-		blacklist.observe(new InetSocketAddress("192.168.1.11", 39002), bannedId2);
-		assertFalse(blacklist.isBanned(bannedId2));
-		assertEquals(48, blacklist.getObservationSize());
-		assertEquals(3, blacklist.getBannedSize());
-		blacklist.observe(new InetSocketAddress("192.168.1.12", 39002), bannedId2);
-		assertTrue(blacklist.isBanned(bannedId2));
-		assertEquals(48, blacklist.getObservationSize());
-		assertEquals(4, blacklist.getBannedSize());
+		for (int i = 0; i <= hits; i++) {
+			String ip = "192.168.1." + ( i + 1);
+			blacklist.observe(new InetSocketAddress(ip, 39002), bannedId2);
+		}
 
+		assertFalse(blacklist.isBanned(bannedId2));
+		assertEquals(4 * (hits + 2), blacklist.getObservationSize());
+		assertEquals(3, blacklist.getBannedSize());
+		blacklist.observe(new InetSocketAddress("192.168.1.222", 39002), bannedId2);
+		assertTrue(blacklist.isBanned(bannedId2));
+		assertEquals(4 * (hits + 2), blacklist.getObservationSize());
+		assertEquals(4, blacklist.getBannedSize());
+	}
+
+	@Test
+	@Order(3)
+	public void testBanInvalidMessage() {
 		bannedAddress3 = new InetSocketAddress("192.169.8.150", 39001);
-		blacklist.observeInvalidMessage(bannedAddress3);
-		blacklist.observeInvalidMessage(bannedAddress3);
-		blacklist.observeInvalidMessage(bannedAddress3);
-		blacklist.observeInvalidMessage(bannedAddress3);
-		blacklist.observeInvalidMessage(bannedAddress3);
-		blacklist.observeInvalidMessage(bannedAddress3);
-		blacklist.observeInvalidMessage(bannedAddress3);
-		blacklist.observeInvalidMessage(bannedAddress3);
-		blacklist.observeInvalidMessage(bannedAddress3);
-		blacklist.observeInvalidMessage(bannedAddress3);
+		for (int i = 0; i < hits; i++)
+			blacklist.observeInvalidMessage(bannedAddress3);
+
 		assertFalse(blacklist.isBanned(bannedAddress3));
-		assertEquals(49, blacklist.getObservationSize());
+		assertEquals(4 * (hits + 2) + 1, blacklist.getObservationSize());
 		assertEquals(4, blacklist.getBannedSize());
 		blacklist.observeInvalidMessage(bannedAddress3);
 		assertTrue(blacklist.isBanned(bannedAddress3));
-		assertEquals(48, blacklist.getObservationSize());
+		assertEquals(4 * (hits + 2), blacklist.getObservationSize());
 		assertEquals(5, blacklist.getBannedSize());
 	}
 
 	@Test
-	@Order(100)
-	@Timeout(value = 10, unit = TimeUnit.MINUTES)
-	public void testObserve1() throws Exception {
-		TimeUnit.MINUTES.sleep(2);
+	@Order(4)
+	@Timeout(value = timeout, unit = TimeUnit.MINUTES)
+	public void testDecay() throws Exception {
+		for (int i = 0; i <= Math.max(observationPeriod, banDuration); i++) {
+			assertTrue(blacklist.isBanned(bannedAddress1));
+			assertTrue(blacklist.isBanned(bannedAddress3));
+			assertTrue(blacklist.isBanned(bannedId1));
+
+			TimeUnit.MINUTES.sleep(1);
+		}
+
+		assertTrue(blacklist.isBanned(bannedAddress1));
+		assertTrue(blacklist.isBanned(bannedAddress3));
+		assertTrue(blacklist.isBanned(bannedId1));
+
+		assertFalse(blacklist.isBanned(bannedAddress2));
+		assertFalse(blacklist.isBanned(bannedId2));
+	}
+
+	@Test
+	@Order(5)
+	@Timeout(value = timeout, unit = TimeUnit.MINUTES)
+	public void testGetSize() throws Exception {
+		TimeUnit.MINUTES.sleep(Math.max(observationPeriod, banDuration) + 1);
+
+		assertFalse(blacklist.underObservation(bannedAddress1));
+		assertFalse(blacklist.underObservation(bannedAddress2));
+		assertFalse(blacklist.underObservation(bannedAddress3));
+		assertFalse(blacklist.underObservation(bannedId1));
+		assertFalse(blacklist.underObservation(bannedId2));
+
+		assertFalse(blacklist.isBanned(bannedAddress1));
+		assertFalse(blacklist.isBanned(bannedAddress2));
+		assertFalse(blacklist.isBanned(bannedAddress3));
+		assertFalse(blacklist.isBanned(bannedId1));
+		assertFalse(blacklist.isBanned(bannedId2));
+
 		assertEquals(0, blacklist.getObservationSize());
 		assertEquals(0, blacklist.getBannedSize());
 	}
