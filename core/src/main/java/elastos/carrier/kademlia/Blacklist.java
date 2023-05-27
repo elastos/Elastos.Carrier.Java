@@ -36,8 +36,9 @@ import elastos.carrier.utils.AddressUtils;
 
 public class Blacklist {
 	private static final long OBSERVATION_PERIOD = 20; // minutes
-	private static final long OBSERVATION_HITS = 30; // minutes
+	private static final int OBSERVATION_HITS = 30;
 	private static final long BAN_DURATION = 60; // minutes
+
 	private Cache<Object, ObservationData> observations;
 	private Cache<Object, Object> banned;
 
@@ -55,6 +56,7 @@ public class Blacklist {
 			this.lastAddr = addr;
 			this.lastId = id;
 			this.hits = hits;
+			this.decay = 0;
 		}
 
 		ObservationData(InetSocketAddress addr, Id id) {
@@ -66,8 +68,10 @@ public class Blacklist {
 		}
 
 		int hits;
+		int decay;
 		Id lastId;
 		InetSocketAddress lastAddr;
+		long lastHitTime;
 	}
 
 	public Blacklist() {
@@ -105,9 +109,21 @@ public class Blacklist {
 
 			if (o.lastId == null || !o.lastId.equals(id)) {
 				o.lastId = id;
+				o.decay = 0;
+				o.lastHitTime = System.currentTimeMillis();
 				if (++o.hits > observationHits) {
 					ban(addr);
 					return null;
+				}
+			} else {
+				if (o.hits > 0) {
+					if (++o.decay >= (observationHits >> 1)) {
+						long duration = System.currentTimeMillis() - o.lastHitTime;
+						if (duration >= TimeUnit.MINUTES.toMillis((observationPeriod >> 1))) {
+							--o.hits;
+							o.decay = 0;
+						}
+					}
 				}
 			}
 
@@ -120,9 +136,21 @@ public class Blacklist {
 
 			if (o.lastAddr == null || !o.lastAddr.equals(addr)) {
 				o.lastAddr = addr;
+				o.decay = 0;
+				o.lastHitTime = System.currentTimeMillis();
 				if (++o.hits > observationHits) {
 					ban(id);
 					return null;
+				}
+			} else {
+				if (o.hits > 0) {
+					if (++o.decay >= (observationHits >> 1)) {
+						long duration = System.currentTimeMillis() - o.lastHitTime;
+						if (duration >= TimeUnit.MINUTES.toMillis((observationPeriod >> 1))) {
+							--o.hits;
+							o.decay = 0;
+						}
+					}
 				}
 			}
 
@@ -150,6 +178,14 @@ public class Blacklist {
 
 	public boolean underObservation(Id id) {
 		return observations.getIfPresent(id) != null;
+	}
+
+	ObservationData getObservation(InetSocketAddress addr) {
+		return observations.getIfPresent(addr);
+	}
+
+	ObservationData getObservation(Id id) {
+		return observations.getIfPresent(id);
 	}
 
 	public long getObservationSize() {

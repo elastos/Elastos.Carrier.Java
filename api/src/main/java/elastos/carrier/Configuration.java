@@ -25,18 +25,25 @@ package elastos.carrier;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 
 public interface Configuration {
-	public InetSocketAddress IPv4Address();
+	default public InetSocketAddress IPv4Address() {
+		return null;
+	}
 
-	public InetSocketAddress IPv6Address();
+	default public InetSocketAddress IPv6Address() {
+		return null;
+	}
 
 	/**
 	 * If a Path that points to an existing, writable directory is returned then the routing table
 	 * will be persisted to that directory periodically and during shutdown
 	 */
-	public File storagePath();
+	default public File storagePath() {
+		return null;
+	}
 
 	/**
 	 * if true then attempt to bootstrap through well-known nodes is made.
@@ -45,7 +52,11 @@ public interface Configuration {
 	 */
 	//public boolean routerBootstrap();
 
-	public Collection<NodeInfo> bootstrapNodes();
+	default public Collection<NodeInfo> bootstrapNodes() {
+		return Collections.emptyList();
+	}
 
-	public  Map<String, Map<String, Object>> services();
+	default public  Map<String, Map<String, Object>> services() {
+		return Collections.emptyMap();
+	}
 }

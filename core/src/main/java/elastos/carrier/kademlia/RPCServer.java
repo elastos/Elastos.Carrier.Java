@@ -512,6 +512,10 @@ public class RPCServer implements Selectable {
 			log.warn("Ignored the message from banned address {}", AddressUtils.toString(sa));
 			return;
 		}
+		if (blacklist.isBanned(sender)) {
+			log.warn("Ignored the message from banned node {}", sender);
+			return;
+		}
 
 		try {
 			byte[] encryptedMsg = Arrays.copyOfRange(packet, Id.BYTES, packet.length);
@@ -529,11 +533,6 @@ public class RPCServer implements Selectable {
 
 			stats.droppedPacket(packet.length);
 			blacklist.observeInvalidMessage(sa);
-			return;
-		}
-
-		if (blacklist.isBanned(sender)) {
-			log.warn("Ignored the message from node {}", sender);
 			return;
 		}
 
