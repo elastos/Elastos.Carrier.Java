@@ -38,6 +38,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.Timeout;
 
 import elastos.carrier.Id;
+import elastos.carrier.kademlia.Blacklist.ObservationData;
 
 @Disabled("Manual")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -142,7 +143,7 @@ public class BlacklistTests {
 	@Test
 	@Order(4)
 	@Timeout(value = timeout, unit = TimeUnit.MINUTES)
-	public void testDecay() throws Exception {
+	public void testExpire() throws Exception {
 		for (int i = 0; i <= Math.max(observationPeriod, banDuration); i++) {
 			assertTrue(blacklist.isBanned(bannedAddress1));
 			assertTrue(blacklist.isBanned(bannedAddress3));
@@ -179,5 +180,61 @@ public class BlacklistTests {
 
 		assertEquals(0, blacklist.getObservationSize());
 		assertEquals(0, blacklist.getBannedSize());
+	}
+
+	@Test
+	@Order(6)
+	@Timeout(value = timeout, unit = TimeUnit.MINUTES)
+	public void testDecay() throws Exception {
+		// Address
+		InetSocketAddress addr = new InetSocketAddress("192.169.8.100", 39001);
+		Id lastId = null;
+		for (int i = 0; i <= hits; i++) {
+			lastId = Id.random();
+			blacklist.observe(addr, lastId);
+		}
+
+		assertFalse(blacklist.isBanned(addr));
+		assertEquals(0, blacklist.getBannedSize());
+
+		ObservationData od = blacklist.getObservation(addr);
+		assertEquals(hits, od.hits);
+
+		for (int i = 0; i <= hits; i++) {
+			TimeUnit.MILLISECONDS.sleep(observationPeriod*60*1000 / hits);
+			blacklist.observe(addr, lastId);
+
+			od = blacklist.getObservation(addr);
+			System.out.format("ObservationData[hits: %d, decay: %d]\n", od.hits, od.decay);
+		}
+
+		od = blacklist.getObservation(addr);
+		assertEquals(hits-2, od.hits);
+
+		// Id
+		Id id = Id.random();
+		InetSocketAddress lastAddr = null;
+		for (int i = 0; i <= hits; i++) {
+			String ip = "192.168.1." + ( i + 1);
+			lastAddr = new InetSocketAddress(ip, 39001);
+			blacklist.observe(lastAddr, id);
+		}
+
+		assertFalse(blacklist.isBanned(id));
+		assertEquals(0, blacklist.getBannedSize());
+
+		od = blacklist.getObservation(id);
+		assertEquals(hits, od.hits);
+
+		for (int i = 0; i <= hits; i++) {
+			TimeUnit.MILLISECONDS.sleep(observationPeriod*60*1000 / hits);
+			blacklist.observe(lastAddr, id);
+
+			od = blacklist.getObservation(id);
+			System.out.format("ObservationData[hits: %d, decay: %d]\n", od.hits, od.decay);
+		}
+
+		od = blacklist.getObservation(id);
+		assertEquals(hits-2, od.hits);
 	}
 }
