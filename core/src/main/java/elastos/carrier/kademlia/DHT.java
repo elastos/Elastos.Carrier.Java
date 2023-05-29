@@ -345,7 +345,8 @@ public class DHT {
 			routingTable.load(persistFile);
 		}
 
-		Set<NodeInfo> bns = bootstrapNodes.stream().filter(n -> type.canUseAddress(n.getInetAddress()))
+		Set<NodeInfo> bns = bootstrapNodes.stream().filter(
+				n -> type.canUseAddress(n.getInetAddress()) && !node.getId().equals(n.getId()))
 				.collect(Collectors.toSet());
 		this.bootstrapNodes.addAll(bns);
 
