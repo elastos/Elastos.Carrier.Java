@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" 
+<project xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
@@ -28,6 +28,7 @@
       <artifactId>jackson-core</artifactId>
       <version>${jackson.version}</version>
     </dependency>
+
   </dependencies>
 
   <build>
@@ -91,7 +92,7 @@
         <version>${exec-maven-plugin.version}</version>
         <executions>
           <execution>
-            <id>install-services</id>
+            <id>copy-libs</id>
             <phase>package</phase>
             <goals>
               <goal>exec</goal>
@@ -99,7 +100,7 @@
           </execution>
         </executions>
         <configuration>
-          <executable>${basedir}/scripts/install-services.sh</executable>
+          <executable>${basedir}/scripts/copy-libs.sh</executable>
         </configuration>
       </plugin>
       <plugin>

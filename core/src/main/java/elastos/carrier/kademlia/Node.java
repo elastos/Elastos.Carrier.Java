@@ -316,6 +316,7 @@ public class Node implements elastos.carrier.Node {
 	@Override
 	public void bootstrap(NodeInfo node) throws KadException {
 		checkArgument(node != null, "Invalid bootstrap node");
+		checkArgument(!node.getId().equals(id), "It is local node");
 
 		if (dht4 != null)
 			dht4.bootstrap(node);
