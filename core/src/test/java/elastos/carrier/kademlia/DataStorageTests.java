@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.lang.reflect.Method;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -275,10 +276,8 @@ public class DataStorageTests {
 
 		Queue<Id> ids = new LinkedList<>();
 
-		byte[] ipv4Addr = new byte[] { 0x0a, 0x00, 0x00, 0x00 };
-		byte[] ipv6Addr = new byte[] { (byte)0xfc, 0x00,  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 		int basePort = 8000;
+		byte[] sig = new byte[64];
 
 		System.out.println("Writing peers...");
 		for (int i = 1; i <= 64; i++) {
@@ -287,12 +286,12 @@ public class DataStorageTests {
 
 			List<PeerInfo> peers = new ArrayList<PeerInfo>();
 			for (int j = 0; j < i; j++) {
-				increment(ipv4Addr);
-				PeerInfo pi = new PeerInfo(Id.random(), ipv4Addr, basePort + i);
+				new SecureRandom().nextBytes(sig);
+				PeerInfo pi = new PeerInfo(Id.random(), basePort + i, PeerInfo.AF_IPV4,  "", sig);
 				peers.add(pi);
 
-				increment(ipv6Addr);
-				pi = new PeerInfo(Id.random(),ipv6Addr, basePort + i);
+				new SecureRandom().nextBytes(sig);
+				pi = new PeerInfo(Id.random(), Id.random(), basePort + i, PeerInfo.AF_IPV6, "testPutAndGetPeer", sig);
 				peers.add(pi);
 			}
 			ds.putPeer(id, peers);

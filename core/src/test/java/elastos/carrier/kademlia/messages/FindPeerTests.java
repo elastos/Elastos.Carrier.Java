@@ -171,12 +171,13 @@ public class FindPeerTests extends MessageTests {
 		nodes6.add(new NodeInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65528));
 
 		List<PeerInfo> peers4 = new ArrayList<>();
+		byte[] sig = new byte[64];
 		for (int i = 0; i < 32; i++)
-			peers4.add(new PeerInfo(Id.random(), "251.251.251.251", 65535 - i));
+			peers4.add(new PeerInfo(Id.random(),  65535 - i, PeerInfo.AF_IPV4, "251.251.251.251", sig));
 
 		List<PeerInfo> peers6 = new ArrayList<>();
 		for (int i = 0; i < 16; i++)
-			peers6.add(new PeerInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65535 - i));
+			peers6.add(new PeerInfo(Id.random(), 65535 - i, PeerInfo.AF_IPV6, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", sig));
 
 		FindPeerResponse msg = new FindPeerResponse(0xF7654321);
 		msg.setId(Id.random());
@@ -217,8 +218,9 @@ public class FindPeerTests extends MessageTests {
 		nodes4.add(new NodeInfo(Id.random(), "192.168.1.5", 1235));
 
 		List<PeerInfo> peers4 = new ArrayList<>();
+		byte[] sig = new byte[64];
 		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++)
-			peers4.add(new PeerInfo(Id.random(), "251.251.251.251", 65535 - i));
+			peers4.add(new PeerInfo(Id.random(), 65535 - i, PeerInfo.AF_IPV4, "251.251.251.251", sig));
 
 		FindPeerResponse msg = new FindPeerResponse(txid);
 		msg.setId(id);
@@ -268,8 +270,9 @@ public class FindPeerTests extends MessageTests {
 		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7335", 1235));
 
 		List<PeerInfo> peers6 = new ArrayList<>();
+		byte[] sig = new byte[64];
 		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++)
-			peers6.add(new PeerInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7335", 65535 - i));
+			peers6.add(new PeerInfo(Id.random(), 65535 - i, PeerInfo.AF_IPV6, "2001:0db8:85a3:0000:0000:8a2e:0370:7335", sig));
 
 		FindPeerResponse msg = new FindPeerResponse(txid);
 		msg.setId(id);
@@ -325,14 +328,15 @@ public class FindPeerTests extends MessageTests {
 		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7334", 1234));
 		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7335", 1235));
 
+		byte[] sig = new byte[64];
 		List<PeerInfo> peers4 = new ArrayList<>();
 		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++) {
-			peers4.add(new PeerInfo(Id.random(), "192.168.1.2", 65535 - i));
+			peers4.add(new PeerInfo(Id.random(), 65535 - i, PeerInfo.AF_IPV4, "192.168.1.2", sig));
 		}
 
 		List<PeerInfo> peers6 = new ArrayList<>();
 		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++) {
-			peers6.add(new PeerInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7335", 65535 - i));
+			peers6.add(new PeerInfo(Id.random(), 65535 - i, PeerInfo.AF_IPV4, "2001:0db8:85a3:0000:0000:8a2e:0370:7335", sig));
 		}
 
 		FindPeerResponse msg = new FindPeerResponse(txid);

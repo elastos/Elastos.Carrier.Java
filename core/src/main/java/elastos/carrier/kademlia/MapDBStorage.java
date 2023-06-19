@@ -241,7 +241,7 @@ public class MapDBStorage implements DataStorage {
 			return;
 
 		for (PeerInfo peer : peers) {
-			int family = peer.isIPv4() ? 4 : 6;
+			int family = peer.getFamily();
 			PeerInfoEntry entry = new PeerInfoEntry(peer);
 			this.peers.put(new Object[] { peerId.bytes(), (byte)family, peer.getNodeId().bytes() }, entry);
 		}
@@ -337,9 +337,12 @@ public class MapDBStorage implements DataStorage {
 
 			PeerInfo peer = entry.peer;
 			out.write(peer.getNodeId().bytes());
-			out.writeByte(peer.isIPv4() ? 0 : 1);
-			out.write(peer.getInetAddress().getAddress());
+			out.write(peer.getProxyId().bytes());
 			out.writeInt(peer.getPort());
+			out.writeByte(peer.getFamily());
+			out.writeUTF(peer.getAlt());
+			out.write(peer.getSignature());
+			
 		}
 
 		@Override
@@ -350,13 +353,17 @@ public class MapDBStorage implements DataStorage {
 			in.readFully(binId);
 			Id nodeId = Id.of(binId);
 
-			boolean isIPv4 = in.readByte() == 0;
-			byte[] addr = new byte[isIPv4 ? 4 : 16];
-			in.readFully(addr);
+			in.readFully(binId);
+			Id proxyId = Id.of(binId);
 
 			int port = in.readInt();
+			int family = in.readByte();		
+			String alt = in.readUTF();
+			
+			byte[] signature = new byte[64];
+			in.readFully(signature);
 
-			PeerInfo peer = new PeerInfo(nodeId, addr, port);
+			PeerInfo peer = new PeerInfo(nodeId, proxyId, port, family, alt, signature);
 			return new PeerInfoEntry(timestamp, peer);
 		}
 	}

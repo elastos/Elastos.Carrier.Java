@@ -25,6 +25,8 @@ package elastos.carrier.kademlia.messages;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.security.SecureRandom;
+
 import org.junit.jupiter.api.Test;
 
 import elastos.carrier.Id;
@@ -35,7 +37,9 @@ import elastos.carrier.utils.ThreadLocals;
 public class AnnouncePeerTests extends MessageTests {
 	@Test
 	public void testAnnouncePeerRequestSize() throws Exception {
-		AnnouncePeerRequest msg = new AnnouncePeerRequest(Id.random(), 65535, 0x88888888);
+		byte[] sig = new byte[64];
+		new SecureRandom().nextBytes(sig);
+		AnnouncePeerRequest msg = new AnnouncePeerRequest(Id.random(), 65535, "test size", sig, 0x88888888);
 		msg.setId(Id.random());
 		msg.setTxid(0x87654321);
 		msg.setVersion(VERSION);
@@ -52,8 +56,11 @@ public class AnnouncePeerTests extends MessageTests {
 		Id peerId = Id.random();
 		int port = ThreadLocals.random().nextInt(1, 65535);
 		int token = ThreadLocals.random().nextInt();
+		byte[] sig = new byte[64];
+		new SecureRandom().nextBytes(sig);
+		String alt ="test announce peer";
 
-		AnnouncePeerRequest msg = new AnnouncePeerRequest(peerId, port, token);
+		AnnouncePeerRequest msg = new AnnouncePeerRequest(peerId, port, alt, sig, token);
 		msg.setId(nodeId);
 		msg.setTxid(txid);
 		msg.setVersion(VERSION);
@@ -73,6 +80,8 @@ public class AnnouncePeerTests extends MessageTests {
 		assertEquals(VERSION_STR, m.getReadableVersion());
 		assertEquals(peerId, m.getTarget());
 		assertEquals(port, m.getPort());
+		assertEquals(alt, m.getAlt());
+		assertEquals(sig, m.getSignature());
 		assertEquals(token, m.getToken());
 	}
 

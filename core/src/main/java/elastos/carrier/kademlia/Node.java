@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -682,7 +683,7 @@ public class Node implements elastos.carrier.Node {
 	}
 
 	@Override
-	public CompletableFuture<Void> announcePeer(Id id, int port) {
+	public CompletableFuture<Void> announcePeer(Id id, int port, String alt) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid peer id");
 		checkArgument(port != 0, "Invaid peer port");
@@ -717,13 +718,15 @@ public class Node implements elastos.carrier.Node {
 		};
 
 		Task t4 = null, t6 = null;
+		byte[] signature = createPeerSignature(port, alt);
+
 		if (dht4 != null) {
-			t4 = dht4.announcePeer(id, port, completeHandler);
+			t4 = dht4.announcePeer(id, port, alt, signature, completeHandler);
 			future.addTask(t4);
 		}
 
 		if (dht6 != null) {
-			t6 = dht6.announcePeer(id, port, completeHandler);
+			t6 = dht6.announcePeer(id, port, alt, signature, completeHandler);
 			future.addTask(t6);
 		}
 
@@ -779,6 +782,31 @@ public class Node implements elastos.carrier.Node {
 			log.error("INTERNAL ERROR: should never happen!!!");
 			throw new CryptoError(e.getMessage(), e);
 		}
+	}
+	
+	@Override
+	public byte[] createPeerSignature(int port, String alt) {
+		byte[] altBytes = alt.getBytes();
+		byte[] toSign = new byte[Integer.BYTES + altBytes.length];
+		
+		ByteBuffer buf = ByteBuffer.wrap(toSign);
+		buf.putInt(port);
+		buf.put(altBytes);
+		
+		return Signature.sign(toSign, keyPair.privateKey());
+	}
+	
+	@Override
+	public byte[] createPeerSignature(Id clientId, int port, String alt) {
+		byte[] altBytes = alt.getBytes();
+		byte[] toSign = new byte[Id.BYTES + Integer.BYTES + altBytes.length];
+		
+		ByteBuffer buf = ByteBuffer.wrap(toSign);
+		buf.put(clientId.bytes());
+		buf.putInt(port);
+		buf.put(altBytes);
+		
+		return Signature.sign(toSign, keyPair.privateKey());
 	}
 
 	@Override
