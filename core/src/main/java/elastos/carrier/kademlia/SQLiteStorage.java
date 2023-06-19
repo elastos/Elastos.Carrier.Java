@@ -62,7 +62,8 @@ import elastos.carrier.kademlia.exceptions.NotValueOwner;
 import elastos.carrier.kademlia.exceptions.SequenceNotMonotonic;
 
 public class SQLiteStorage implements DataStorage {
-	private static final String SET_USER_VERSION = "PRAGMA user_version = 1";
+	private static final String SET_USER_VERSION = "PRAGMA user_version = 2";
+	private static final String GET_USER_VERSION = "PRAGMA user_version";
 
 	private static final String CREATE_VALUES_TABLE = "CREATE TABLE IF NOT EXISTS valores(" +
 			"id BLOB NOT NULL PRIMARY KEY, " +
@@ -83,9 +84,11 @@ public class SQLiteStorage implements DataStorage {
 			"id BLOB NOT NULL, " +
 			"family INTEGER NOT NULL, " +
 			"nodeId BLOB NOT NULL ," +
-			"ip BLOB NOT NULL, " +
+			"proxyId BLOB, " +
 			"port INTEGER NOT NULL, " +
-			"timestamp BIGINT NOT NULL, " +
+			"alternative VARCHAR(512), " +
+			"signature BLOB NOT NULL, " +
+			"timestamp INTEGER NOT NULL, " +
 			"PRIMARY KEY(id, family, nodeId)" +
 		") WITHOUT ROWID";
 
@@ -111,9 +114,10 @@ public class SQLiteStorage implements DataStorage {
 			"WHERE id = ? and family = ? and nodeId = ? and timestamp >= ?";
 
 	private static final String UPSERT_PEER = "INSERT INTO peers(" +
-			"id, family, nodeId, ip, port, timestamp) " +
-			"VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT(id, family, nodeId) DO UPDATE SET " +
-			"ip=excluded.ip, port=excluded.port, timestamp=excluded.timestamp";
+			"id, family, nodeId, proxyId, port, alternative, signature, timestamp) " +
+			"VALUES(?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id, family, nodeId) DO UPDATE SET " +
+			"proxyId=excluded.proxyId, port=excluded.port, alternative=excluded.alternative, " +
+			"signature=excluded.signature, timestamp=excluded.timestamp";
 
 	private static ThreadLocal<Connection> cp;
 
@@ -148,12 +152,18 @@ public class SQLiteStorage implements DataStorage {
 				return null;
 			}
 		});
+		
+		int userVersion = getUserVersion();
 
 		// Check and initialize the database schema.
 		try (Statement stmt = getConnection().createStatement()) {
-			// if later we change the schema,
+			// if we change the schema,
 			// we should check the user version, do the schema update,
 			// then increase the user_version;
+			if (userVersion == 1) {
+				stmt.executeUpdate("DROP TABLE IF EXISTS peers");
+			}
+			
 			stmt.executeUpdate(SET_USER_VERSION);
 			stmt.executeUpdate(CREATE_VALUES_TABLE);
 			stmt.executeUpdate(CREATE_VALUES_INDEX);
@@ -198,6 +208,21 @@ public class SQLiteStorage implements DataStorage {
 			throw new IOException("Failed to close the SQLite storage.", e);
 		}
 		*/
+	}
+	
+	public int getUserVersion() {
+		int userVersion = 0;
+		try (PreparedStatement stmt = getConnection().prepareStatement(GET_USER_VERSION)) {
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					userVersion = rs.getInt("user_version");
+				}
+			}
+		} catch (SQLException e) {
+			log.error("SQLite get user version an error: " + e.getMessage(), e);
+		}
+		
+		return userVersion;
 	}
 
 	@Override
@@ -435,10 +460,12 @@ public class SQLiteStorage implements DataStorage {
 				try (ResultSet rs = stmt.executeQuery()) {
 					while (rs.next()) {
 						Id nodeId = Id.of(rs.getBytes("nodeId"));
-						byte[] ip = rs.getBytes("ip");
+						Id proxyId = Id.of(rs.getBytes("proxyId"));
 						int port = rs.getInt("port");
+						String alt = rs.getString("alternative");
+						byte[] signature = rs.getBytes("signature");
 
-						PeerInfo peer = new PeerInfo(nodeId, ip, port);
+						PeerInfo peer = new PeerInfo(nodeId, proxyId, port, f, alt, signature);
 						peers.add(peer);
 					}
 				}
@@ -465,10 +492,12 @@ public class SQLiteStorage implements DataStorage {
 					return null;
 
 				nodeId = Id.of(rs.getBytes("nodeId"));
-				byte[] ip = rs.getBytes("ip");
+				Id proxyId = Id.of(rs.getBytes("proxyId"));
 				int port = rs.getInt("port");
+				String alt = rs.getString("alternative");
+				byte[] signature = rs.getBytes("signature");
 
-				return new PeerInfo(nodeId, ip, port);
+				return new PeerInfo(nodeId, proxyId, port, family, alt, signature);
 			}
 		} catch (SQLException e) {
 			log.error("SQLite storage encounter an error: " + e.getMessage(), e);
@@ -493,9 +522,21 @@ public class SQLiteStorage implements DataStorage {
 				stmt.setBytes(1, peerId.bytes());
 				stmt.setInt(2, peer.getInetFamily());
 				stmt.setBytes(3, peer.getNodeId().bytes());
-				stmt.setBytes(4, peer.getInetAddress().getAddress());
+
+				if (peer.getProxyId() != null)
+					stmt.setBytes(4, peer.getProxyId().bytes());
+				else
+					stmt.setNull(4, Types.BLOB);
+
 				stmt.setInt(5, peer.getPort());
-				stmt.setLong(6, now);
+
+				if (peer.getAlt() != null)
+					stmt.setString(6, peer.getAlt());
+				else
+					stmt.setNull(6, Types.VARCHAR);
+
+				stmt.setBytes(7, peer.getSignature());
+				stmt.setLong(8, now);
 				stmt.addBatch();
 			}
 

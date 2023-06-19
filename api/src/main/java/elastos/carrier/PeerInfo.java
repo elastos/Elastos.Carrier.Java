@@ -23,109 +23,118 @@
 package elastos.carrier;
 
 import java.net.Inet4Address;
-import java.net.Inet6Address;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
+import java.util.Objects;
 
 public class PeerInfo {
+	public static final int AF_IPV4 = 4;
+	public static final int AF_IPV6 = 6;
+
 	private final Id nodeId;
-	private final InetSocketAddress addr;
+	private final Id proxyId;
+	private final int port;
+	private final String alt;
+	private final int family;
+	private final byte[] signature;
 
-	public PeerInfo(Id nodeId, InetSocketAddress addr) {
+	private boolean proxied = false;
+	private boolean usedAlt = false;
+
+	public PeerInfo(Id nodeId, Id proxyId, int port, int family, String alt, byte[] signature) {
 		if (nodeId == null)
 			throw new IllegalArgumentException("Invalid node id: null");
-		if (addr == null)
-			throw new IllegalArgumentException("Invalid socket address: null");
-
-		this.nodeId = nodeId;
-		this.addr = addr;
-	}
-
-	public PeerInfo(Id nodeId, InetAddress addr, int port) {
-		if (nodeId == null)
-			throw new IllegalArgumentException("Invalid node id: null");
-		if (addr == null)
-			throw new IllegalArgumentException("Invalid socket address: null");
 		if (port <= 0 || port > 65535)
 			throw new IllegalArgumentException("Invalid port: " + port);
+		if (family != AF_IPV4 && family != AF_IPV6)
+			throw new IllegalArgumentException("Invalid family: " + family);
 
 		this.nodeId = nodeId;
-		this.addr = new InetSocketAddress(addr, port);
+		this.proxyId = proxyId == null ? Id.zero() : proxyId;
+		this.port = port;
+		this.family = family;
+		this.alt = alt == null ? "" : alt;
+		this.signature = signature;
+
+		if (this.proxyId == Id.zero())
+			this.proxied = true;
+		if (!this.alt.equals(""))
+			this.usedAlt = true;
 	}
 
-	public PeerInfo(Id nodeId, String addr, int port) {
-		if (nodeId == null)
-			throw new IllegalArgumentException("Invalid node id: null");
-		if (addr == null || addr.isEmpty())
-			throw new IllegalArgumentException("Invalid socket address: " + String.valueOf(addr));
-		if (port <= 0 || port > 65535)
-			throw new IllegalArgumentException("Invalid port: " + port);
-
-		this.nodeId = nodeId;
-		this.addr = new InetSocketAddress(addr, port);
-	}
-
-	public PeerInfo(Id nodeId, byte[] addr, int port) {
-		if (nodeId == null)
-			throw new IllegalArgumentException("Invalid node id: null");
-		if (addr == null)
-			throw new IllegalArgumentException("Invalid socket address: null");
-		if (port <= 0 || port > 65535)
-			throw new IllegalArgumentException("Invalid port: " + port);
-
-		this.nodeId = nodeId;
-		try {
-			this.addr = new InetSocketAddress(InetAddress.getByAddress(addr), port);
-		} catch (UnknownHostException e) {
-			throw new IllegalArgumentException("Invalid binary inet address", e);
-		}
+	public PeerInfo(Id nodeId, int port, int family, String alt, byte[] signature) {
+		this(nodeId, null, port, family, alt, signature);
 	}
 
 	public Id getNodeId() {
 		return nodeId;
 	}
 
+	public Id getProxyId() {
+		return proxyId;
+	}
+
+	public boolean usingProxy() {
+		return proxied;
+	}
+
 	public int getInetFamily() {
-		return addr.getAddress() instanceof Inet4Address ? 4 : 6;
-	}
-
-	public InetSocketAddress getSocketAddress() {
-		return addr;
-	}
-
-	public InetAddress getInetAddress() {
-		return addr.getAddress();
+		return family;
 	}
 
 	public int getPort() {
-		return addr.getPort();
+		return port;
 	}
 
 	public boolean isIPv4() {
-		return addr.getAddress() instanceof Inet4Address;
+		return family == AF_IPV4;
 	}
 
 	public boolean isIPv6() {
-		return addr.getAddress() instanceof Inet6Address;
+		return family == AF_IPV6;
+	}
+
+	public int getFamily() {
+		return family;
+	}
+
+	public String getAlt() {
+		return alt;
+	}
+
+	public boolean isUsedAlt() {
+		return usedAlt;
+	}
+
+	public byte[] getSignature() {
+		return signature;
 	}
 
 	@Override
 	public int hashCode() {
-		return nodeId.hashCode() + addr.hashCode() + 0x70; // 'p'
+		return nodeId.hashCode() + alt.hashCode() + family + 0x70; // 'p'
 	}
 
 	@Override
 	public boolean equals(Object o) {
 		if (o instanceof PeerInfo) {
 			PeerInfo other = (PeerInfo) o;
-			return this.nodeId.equals(other.nodeId) && this.addr.equals(other.addr);
+			return this.nodeId.equals(other.nodeId) && this.port == other.port
+					&& this.family == other.family && Objects.equals(this.alt, other.alt);
 		}
 		return false;
 	}
 
 	@Override
 	public String toString() {
-		return "<" + nodeId.toString() + "," + addr.getHostString() + "," + addr.getPort() + ">";
+		StringBuilder sb = new StringBuilder();
+		sb.append("<").append(nodeId.toString());
+		if (proxied)
+			sb.append(",").append(proxyId.toString());
+		sb.append(",").append(port);
+		if (usedAlt)
+			sb.append(",").append(alt);
+		sb.append(",").append(signature.toString());
+		sb.append(">");
+		return sb.toString();
 	}
 }

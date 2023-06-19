@@ -659,7 +659,10 @@ public class DHT {
 			return;
 		}
 
-		PeerInfo peer = new PeerInfo(q.getId(), q.getOrigin().getAddress(), q.getPort());
+        InetAddress addr = q.getOrigin().getAddress();
+        assert(addr != null);
+        int family = addr instanceof Inet4Address ? PeerInfo.AF_IPV4 : PeerInfo.AF_IPV6;
+		PeerInfo peer = new PeerInfo(q.getId(), q.getPort(), family, q.getAlt(), q.getSignature());
 
 		try {
 			log.debug("Received an announce peer request from {}, saving peer {}", AddressUtils.toString(q.getOrigin()),
@@ -893,7 +896,7 @@ public class DHT {
 		return task;
 	}
 
-	public Task announcePeer(Id peerId, int port, Consumer<List<NodeInfo>> completeHandler) {
+	public Task announcePeer(Id peerId, int port, String alt, byte[] signature, Consumer<List<NodeInfo>> completeHandler) {
 		NodeLookup lookup = new NodeLookup(this, peerId);
 		lookup.setWantToken(true);
 		lookup.addListener(l -> {
@@ -908,7 +911,7 @@ public class DHT {
 				return;
 			}
 
-			PeerAnnounce announce = new PeerAnnounce(this, closest, peerId, port);
+			PeerAnnounce announce = new PeerAnnounce(this, closest, peerId, port, alt, signature);
 			announce.addListener(a -> {
 				completeHandler.accept(new ArrayList<>(closest.getEntries()));
 			});

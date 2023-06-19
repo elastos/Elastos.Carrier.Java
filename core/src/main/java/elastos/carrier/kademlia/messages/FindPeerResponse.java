@@ -87,8 +87,10 @@ public class FindPeerResponse extends LookupResponse {
 		for (PeerInfo pi : peers) {
 			gen.writeStartArray();
 			gen.writeBinary(pi.getNodeId().bytes());
-			gen.writeBinary(pi.getInetAddress().getAddress());
+			gen.writeBinary(pi.getProxyId().bytes());
 			gen.writeNumber(pi.getPort());
+			gen.writeString(pi.getAlt());
+			gen.writeBinary(pi.getSignature());
 			gen.writeEndArray();
 		}
 		gen.writeEndArray();
@@ -98,11 +100,11 @@ public class FindPeerResponse extends LookupResponse {
 	protected void _parse(String fieldName, CBORParser parser) throws MessageException, IOException {
 		switch (fieldName) {
 		case "p4":
-			peers4 = parsePeers(fieldName, parser);
+			peers4 = parsePeers(fieldName, parser, PeerInfo.AF_IPV4);
 			break;
 
 		case "p6":
-			peers6 = parsePeers(fieldName, parser);
+			peers6 = parsePeers(fieldName, parser, PeerInfo.AF_IPV6);
 			break;
 
 		default:
@@ -111,7 +113,7 @@ public class FindPeerResponse extends LookupResponse {
 		}
 	}
 
-	private List<PeerInfo> parsePeers(String fieldName, CBORParser parser) throws IOException {
+	private List<PeerInfo> parsePeers(String fieldName, CBORParser parser, int family) throws IOException {
 		if (parser.currentToken() != JsonToken.START_ARRAY)
 			throw new IOException("Invalid " + fieldName + " data, should be array");
 
@@ -123,14 +125,18 @@ public class FindPeerResponse extends LookupResponse {
 			parser.nextToken();
 			Id nodeId = Id.of(parser.getBinaryValue());
 			parser.nextToken();
-			InetAddress addr = InetAddress.getByAddress(parser.getBinaryValue());
+			Id proxyId = Id.of(parser.getBinaryValue());
 			parser.nextToken();
 			int port = parser.getIntValue();
+			parser.nextToken();
+			String alt = parser.getText();
+			parser.nextToken();
+			byte[] signature = parser.getBinaryValue();
 
 			if (parser.nextToken() != JsonToken.END_ARRAY)
 				throw new IOException("Invalid " + fieldName + " info data");
 
-			ps.add(new PeerInfo(nodeId, addr, port));
+			ps.add(new PeerInfo(nodeId, proxyId, port, family, alt, signature));
 		}
 
 		return ps.isEmpty() ? null : ps;

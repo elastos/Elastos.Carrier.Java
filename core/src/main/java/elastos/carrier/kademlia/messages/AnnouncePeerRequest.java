@@ -32,14 +32,20 @@ import elastos.carrier.Id;
 
 public class AnnouncePeerRequest extends Message {
 	private Id target;
+	private Id proxyId;
 	private int port;
+	private String alt;
+	private byte[] signature;
 	private int token;
+
 	// private String name;
 
-	public AnnouncePeerRequest(Id target, int port, int token) {
+	public AnnouncePeerRequest(Id target, int port, String alt, byte[] signature, int token) {
 		super(Type.REQUEST, Method.ANNOUNCE_PEER);
 		this.target = target;
 		this.port = port;
+		this.alt = alt;
+		this.signature = signature;
 		this.token = token;
 	}
 
@@ -53,6 +59,10 @@ public class AnnouncePeerRequest extends Message {
 
 	public void setTarget(Id target) {
 		this.target = target;
+	}
+
+	public Id getProxyId() {
+		return proxyId;
 	}
 
 	public int getPort() {
@@ -69,6 +79,14 @@ public class AnnouncePeerRequest extends Message {
 
 	public void setToken(int token) {
 		this.token = token;
+	}
+
+	public String getAlt() {
+		return alt;
+	}
+
+	public byte[] getSignature() {
+		return signature;
 	}
 
 	// public String getName() {
@@ -89,6 +107,14 @@ public class AnnouncePeerRequest extends Message {
 
 		gen.writeFieldName("p");
 		gen.writeNumber(port);
+
+		if (alt != null) {
+			gen.writeFieldName("alt");
+			gen.writeString(alt);
+		}
+
+		gen.writeFieldName("sig");
+		gen.writeBinary(signature);
 
 		gen.writeFieldName("tok");
 		gen.writeNumber(token);
@@ -114,8 +140,20 @@ public class AnnouncePeerRequest extends Message {
 				target = Id.of(parser.getBinaryValue());
 				break;
 
+			case "x":
+				proxyId = Id.of(parser.getBinaryValue());
+				break;
+
 			case "p":
 				port = parser.getIntValue();
+				break;
+
+			case "alt":
+				alt = parser.getValueAsString();
+				break;
+
+			case "sig":
+				signature = parser.getBinaryValue();
 				break;
 
 			case "tok":
@@ -142,7 +180,12 @@ public class AnnouncePeerRequest extends Message {
 	protected void toString(StringBuilder b) {
 		b.append(",q:{");
 		b.append("t:").append(target.toString());
+		if (proxyId != Id.zero())
+			b.append(",x:").append(proxyId.toString());
 		b.append(",p:").append(port);
+		if (alt != null)
+			b.append(",alt:").append(alt);
+		b.append(",sig:").append(signature.toString());
 		b.append(",tok:").append(token);
 		// if (name != null)
 		// 	b.append(",n:").append(name);

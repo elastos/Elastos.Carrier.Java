@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
+import elastos.carrier.crypto.Signature.PrivateKey;
+
 public interface Node {
 	public Id getId();
 
@@ -77,7 +79,7 @@ public interface Node {
 
 	public CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected, LookupOption option);
 
-	public CompletableFuture<Void> announcePeer(Id id, int port) ;
+	public CompletableFuture<Void> announcePeer(Id id, int port, String alt) ;
 
 	public Value createValue(byte[] data);
 
@@ -86,4 +88,8 @@ public interface Node {
 	public Value createEncryptedValue(Id recipient, byte[] data) throws CarrierException;
 
 	public Value updateValue(Id valueId, byte[] data) throws CarrierException;
+
+	public byte[] createPeerSignature(int port, String alt);
+
+	public byte[] createPeerSignature(Id clientId, int port, String alt);
 }

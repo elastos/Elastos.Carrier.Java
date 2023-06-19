@@ -36,14 +36,18 @@ public class PeerAnnounce extends Task {
 	private Deque<CandidateNode> todo;
 	private Id peerId;
 	private int port;
+	private String alt;
+	private byte[] signature;
 
 	private static final Logger log = LoggerFactory.getLogger(ValueAnnounce.class);
 
-	public PeerAnnounce(DHT dht, ClosestSet closest, Id peerId, int port) {
+	public PeerAnnounce(DHT dht, ClosestSet closest, Id peerId, int port, String alt, byte[] signature) {
 		super(dht);
 		this.todo = new ArrayDeque<>(closest.getEntries());
 		this.peerId = peerId;
 		this.port = port;
+		this.alt = alt;
+		this.signature = signature;
 	}
 
 	@Override
@@ -51,7 +55,7 @@ public class PeerAnnounce extends Task {
 		while (!todo.isEmpty() && canDoRequest()) {
 			CandidateNode cn = todo.peekFirst();
 
-			AnnouncePeerRequest q = new AnnouncePeerRequest(peerId, port, cn.getToken());
+			AnnouncePeerRequest q = new AnnouncePeerRequest(peerId, port, alt, signature, cn.getToken());
 			sendCall(cn, q, c -> {
 				todo.remove(cn);
 			});

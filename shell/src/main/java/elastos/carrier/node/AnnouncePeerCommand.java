@@ -34,11 +34,14 @@ import picocli.CommandLine.Parameters;
 @Command(name = "announcepeer", mixinStandardHelpOptions = true, version = "Carrier announcepeer 2.0",
 		description = "Announce a service peer.")
 public class AnnouncePeerCommand implements Callable<Integer> {
-	@Parameters(paramLabel = "NAME", index = "0", description = "The service name to be announce.")
+	@Parameters(paramLabel = "NAME", index = "0", description = "The peer name to be announce.")
 	private String name;
 
-	@Parameters(paramLabel = "PORT", index = "1", description = "The service port to be announce.")
+	@Parameters(paramLabel = "PORT", index = "1", description = "The peer port to be announce.")
 	private int port = 0;
+
+	@Parameters(paramLabel = "ALT", index = "2", description = "The peer alt to be announce.")
+	private String alt;
 
 	@Override
 	public Integer call() throws Exception {
@@ -51,7 +54,7 @@ public class AnnouncePeerCommand implements Callable<Integer> {
 			return -1;
 		}
 
-		CompletableFuture<Void> f = Shell.getCarrierNode().announcePeer(id, port);
+		CompletableFuture<Void> f = Shell.getCarrierNode().announcePeer(id, port, alt);
 		f.get();
 		System.out.println("Peer " + id + " announced.");
 
