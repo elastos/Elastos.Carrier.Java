@@ -336,7 +336,7 @@ public class FindPeerTests extends MessageTests {
 
 		List<PeerInfo> peers6 = new ArrayList<>();
 		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++) {
-			peers6.add(new PeerInfo(Id.random(), 65535 - i, PeerInfo.AF_IPV4, "2001:0db8:85a3:0000:0000:8a2e:0370:7335", sig));
+			peers6.add(new PeerInfo(Id.random(), 65535 - i, PeerInfo.AF_IPV6, "2001:0db8:85a3:0000:0000:8a2e:0370:7335", sig));
 		}
 
 		FindPeerResponse msg = new FindPeerResponse(txid);

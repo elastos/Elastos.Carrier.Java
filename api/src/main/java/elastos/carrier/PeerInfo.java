@@ -109,6 +109,10 @@ public class PeerInfo {
 		return signature;
 	}
 
+	public int estimateSize() {
+        return 1024; //TODO:: should estimate size later
+    }
+
 	@Override
 	public int hashCode() {
 		return nodeId.hashCode() + alt.hashCode() + family + 0x70; // 'p'
@@ -131,10 +135,15 @@ public class PeerInfo {
 		if (proxied)
 			sb.append(",").append(proxyId.toString());
 		sb.append(",").append(port);
+		if (isIPv4())
+			sb.append(",ipv4");
+		else if (isIPv4())
+			sb.append(",ipv6");
 		if (usedAlt)
 			sb.append(",").append(alt);
 		sb.append(",").append(signature.toString());
 		sb.append(">");
 		return sb.toString();
 	}
+
 }

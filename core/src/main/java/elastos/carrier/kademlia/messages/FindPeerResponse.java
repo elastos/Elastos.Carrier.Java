@@ -146,11 +146,15 @@ public class FindPeerResponse extends LookupResponse {
 	public int estimateSize() {
 		int size = super.estimateSize();
 
-		if (peers4 != null && !peers4.isEmpty())
-			size += (44 * peers4.size() + 5);
+        if (peers4 != null && !peers4.isEmpty()) {
+            for (PeerInfo peer : peers4)
+                size += peer.estimateSize();
+        }
 
-		if (peers6 != null && !peers6.isEmpty())
-			size += (56 * peers6.size() + 5);
+        if (peers6 != null && !peers6.isEmpty()) {
+            for (PeerInfo peer : peers6)
+                size += peer.estimateSize();
+        }
 
 		return size;
 	}
