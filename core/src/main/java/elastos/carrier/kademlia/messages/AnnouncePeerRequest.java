@@ -173,17 +173,18 @@ public class AnnouncePeerRequest extends Message {
 
 	@Override
 	public int estimateSize() {
-		return super.estimateSize() + 54; // + (name != null ? name.length() + 5 : 0);
+		// return super.estimateSize() + 54; // + (name != null ? name.length() + 5 : 0);
+        return super.estimateSize() + 1024; //TODO:: should estimate size later
 	}
 
 	@Override
 	protected void toString(StringBuilder b) {
 		b.append(",q:{");
 		b.append("t:").append(target.toString());
-		if (proxyId != Id.zero())
+		if (proxyId != null && proxyId != Id.zero())
 			b.append(",x:").append(proxyId.toString());
 		b.append(",p:").append(port);
-		if (alt != null)
+		if (alt != null && !alt.isEmpty())
 			b.append(",alt:").append(alt);
 		b.append(",sig:").append(signature.toString());
 		b.append(",tok:").append(token);

@@ -22,6 +22,7 @@
 
 package elastos.carrier.kademlia.messages;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -81,7 +82,7 @@ public class AnnouncePeerTests extends MessageTests {
 		assertEquals(peerId, m.getTarget());
 		assertEquals(port, m.getPort());
 		assertEquals(alt, m.getAlt());
-		assertEquals(sig, m.getSignature());
+		assertArrayEquals(sig, m.getSignature());
 		assertEquals(token, m.getToken());
 	}
 
