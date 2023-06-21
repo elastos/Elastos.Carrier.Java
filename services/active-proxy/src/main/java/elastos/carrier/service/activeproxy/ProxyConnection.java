@@ -44,6 +44,8 @@ import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.CryptoBox.Nonce;
 import elastos.carrier.crypto.CryptoBox.PublicKey;
 import elastos.carrier.crypto.CryptoException;
+import elastos.carrier.crypto.Signature;
+import elastos.carrier.utils.Hex;
 import elastos.carrier.utils.ThreadLocals;
 
 public class ProxyConnection implements AutoCloseable {
@@ -128,10 +130,10 @@ public class ProxyConnection implements AutoCloseable {
 		dest[pos + 1] = (byte) (num & 0x000000ff);
 	}
 
-	void sendAuthAck(Id nodeId, PublicKey sessionPk, Nonce nonce, int port,
+	void sendAuthAck(Id clientNodeId, PublicKey sessionPk, Nonce nonce, int port,
 			Handler<AsyncResult<Void>> handler) {
 		log.trace("Connection {} sending AUTH ACK to {}@{}",
-				getName(), nodeId, upstreamSocket.remoteAddress());
+				getName(), clientNodeId, upstreamSocket.remoteAddress());
 
 
 		// Vert.x Buffer or ByteBuffer both are too heavy,
@@ -139,19 +141,19 @@ public class ProxyConnection implements AutoCloseable {
 		byte[] payload = new byte[PublicKey.BYTES + Nonce.BYTES + Short.BYTES];
 
 		int pos = 0;
-		byte[] binPk = sessionPk.bytes();
-		System.arraycopy(binPk, 0, payload, pos, binPk.length);
+		System.arraycopy(sessionPk.bytes(), 0, payload, pos, PublicKey.BYTES);
+
 		pos += PublicKey.BYTES;
-		byte[] binNonce = nonce.bytes();
-		System.arraycopy(binNonce, 0, payload, pos, binNonce.length);
+		System.arraycopy(nonce.bytes(), 0, payload, pos, Nonce.BYTES);
+
 		pos += Nonce.BYTES;
 		shortToNetwork(port, payload, pos);
 
 		byte[] cipher = null;
 		try {
-			cipher = server.encrypt(nodeId, payload);
+			cipher = server.encrypt(clientNodeId, payload);
 		} catch (CarrierException e) {
-			log.error("Send AUTH ACK to " + nodeId + "@" + upstreamSocket.remoteAddress() +
+			log.error("Send AUTH ACK to " + clientNodeId + "@" + upstreamSocket.remoteAddress() +
 					" failed - encrypt error", e);
 			handler.handle(Future.failedFuture(e));
 			return;
@@ -168,6 +170,30 @@ public class ProxyConnection implements AutoCloseable {
 
 		state = State.Idling;
 		upstreamSocket.write(buf, handler);
+	}
+
+	void sendSignature(Id clientNodeId, int port, String alt) {
+		log.trace("Connection {} sending signature to {}@{}",
+				getName(), clientNodeId, upstreamSocket.remoteAddress());
+
+
+		byte[] altBytes =  alt.getBytes();
+		byte[] payload = new byte[Short.BYTES + alt.getBytes().length + Signature.BYTES];
+
+		int pos = 0;
+		shortToNetwork(port, payload, pos);
+
+		pos += Short.BYTES;
+		System.arraycopy(altBytes, 0, payload, pos, altBytes.length);
+		pos += altBytes.length;
+
+		byte[] signature = server.getNode().createPeerSignature(clientNodeId, port, alt);
+		System.arraycopy(signature, 0, payload, pos, signature.length);
+
+		sendPacket(PacketFlag.signature(), payload, ar -> {
+			if (ar.failed())
+				close();
+		});
 	}
 
 	private void sendPacket(byte flag, byte[] payload, Handler<AsyncResult<Void>> handler) {
@@ -195,9 +221,12 @@ public class ProxyConnection implements AutoCloseable {
 			}
 		}
 
+		String h = Hex.encode(cipher);
+		log.info(h);
+
 		byte[] padding = null;
 		byte type = PacketFlag.getType(flag);
-		if (type != PacketFlag.DATA && type != PacketFlag.ERROR) {
+		if (type != PacketFlag.DATA && type != PacketFlag.ERROR && type != PacketFlag.SIGNATURE) {
 			padding = randomPadding();
 			size += padding.length;
 		}

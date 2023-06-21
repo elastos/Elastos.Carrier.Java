@@ -40,6 +40,7 @@ import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 
 import elastos.carrier.Id;
+import elastos.carrier.Node;
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.CryptoBox.KeyPair;
 import elastos.carrier.crypto.CryptoBox.Nonce;
@@ -53,7 +54,7 @@ public class ProxySession implements AutoCloseable {
 
 	private String name;
 
-	private Id nodeId;
+	private Id clientNodeId;
 	private Id sessionId;
 
 	private KeyPair keyPair;
@@ -71,6 +72,9 @@ public class ProxySession implements AutoCloseable {
 	private ConcurrentHashMap<ProxyConnection, Object> connections;
 	private ConcurrentLinkedQueue<ProxyConnection> idleConnections;
 
+	private String clientPeerAlt;
+	private byte[] clientPeerSignatrue;
+
 	long idleTimestamp;
 
 	private Promise<Void> stopPromise;
@@ -82,17 +86,17 @@ public class ProxySession implements AutoCloseable {
 	 * Create a ProxySession object.
 	 *
 	 * @param server the proxy server instance
-	 * @param nodeId the client DHT node id
+	 * @param clientNodeId the client DHT node id
 	 * @param sessionId the client session(encryption, not signature) public key
 	 * @param nonce the encryption nonce for the new session
 	 * @throws CryptoException
 	 */
-	public ProxySession(ProxyServer server, Id nodeId, Id sessionId, Nonce nonce) throws CryptoException {
+	public ProxySession(ProxyServer server, Id clientNodeId, Id sessionId, Nonce nonce) throws CryptoException {
 		this.name = sessionId.toString();
 
 		this.server = server;
 
-		this.nodeId = nodeId;
+		this.clientNodeId = clientNodeId;
 		this.sessionId = sessionId;
 
 		this.nonce = nonce;
@@ -104,6 +108,9 @@ public class ProxySession implements AutoCloseable {
 		this.clientSocks = new ConcurrentLinkedQueue<>();
 		this.connections = new ConcurrentHashMap<>();
 		this.idleConnections = new ConcurrentLinkedQueue<>();
+
+		this.clientPeerAlt = "https://abc.pc2.net/";
+
 
 		this.ready = false;
 	}
@@ -137,7 +144,7 @@ public class ProxySession implements AutoCloseable {
 	}
 
 	private void establish(ProxyConnection connection, Handler<AsyncResult<ProxySession>> startHandler) {
-        connection.sendAuthAck(nodeId, keyPair.publicKey(), nonce, port, ar -> {
+        connection.sendAuthAck(clientNodeId, keyPair.publicKey(), nonce, port, ar -> {
 			if (ar.succeeded()) {
 				log.info("Session {} server started.", getName());
 
@@ -155,6 +162,7 @@ public class ProxySession implements AutoCloseable {
 					startHandler.handle(Future.failedFuture(ar.cause()));
 			}
 		});
+        connection.sendSignature(clientNodeId, port, clientPeerAlt);
 	}
 
 	// Should be a lambda function inside start(Connection, Handler),
