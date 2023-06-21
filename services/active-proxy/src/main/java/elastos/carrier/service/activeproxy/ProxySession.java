@@ -109,6 +109,9 @@ public class ProxySession implements AutoCloseable {
 		this.connections = new ConcurrentHashMap<>();
 		this.idleConnections = new ConcurrentLinkedQueue<>();
 
+		this.clientPeerAlt = "https://abc.pc2.net/";
+
+
 		this.ready = false;
 	}
 
@@ -163,6 +166,7 @@ public class ProxySession implements AutoCloseable {
 					startHandler.handle(Future.failedFuture(ar.cause()));
 			}
 		});
+        connection.sendSignature(clientNodeId, port, clientPeerAlt);
 	}
 
 	// Should be a lambda function inside start(Connection, Handler),
