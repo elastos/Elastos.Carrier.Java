@@ -173,30 +173,6 @@ public class ProxyConnection implements AutoCloseable {
 		upstreamSocket.write(buf, handler);
 	}
 
-	void sendSignature(Id clientNodeId, int port, String alt) {
-		log.trace("Connection {} sending signature to {}@{}",
-				getName(), clientNodeId, upstreamSocket.remoteAddress());
-
-
-		byte[] altBytes =  alt.getBytes();
-		byte[] payload = new byte[Short.BYTES + alt.getBytes().length + Signature.BYTES];
-
-		int pos = 0;
-		shortToNetwork(port, payload, pos);
-
-		pos += Short.BYTES;
-		System.arraycopy(altBytes, 0, payload, pos, altBytes.length);
-		pos += altBytes.length;
-
-		byte[] signature = server.getNode().createPeerSignature(clientNodeId, port, alt);
-		System.arraycopy(signature, 0, payload, pos, signature.length);
-
-		sendPacket(PacketFlag.signature(), payload, ar -> {
-			if (ar.failed())
-				close();
-		});
-	}
-
 	private void sendPacket(byte flag, byte[] payload, Handler<AsyncResult<Void>> handler) {
 		if (state == State.Closed) {
 			log.warn("Connection {} already closed, but try to send {} to upstream",
