@@ -22,6 +22,7 @@
 
 package elastos.carrier.service.activeproxy;
 
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -172,30 +173,6 @@ public class ProxyConnection implements AutoCloseable {
 		upstreamSocket.write(buf, handler);
 	}
 
-	void sendSignature(Id clientNodeId, int port, String alt) {
-		log.trace("Connection {} sending signature to {}@{}",
-				getName(), clientNodeId, upstreamSocket.remoteAddress());
-
-
-		byte[] altBytes =  alt.getBytes();
-		byte[] payload = new byte[Short.BYTES + alt.getBytes().length + Signature.BYTES];
-
-		int pos = 0;
-		shortToNetwork(port, payload, pos);
-
-		pos += Short.BYTES;
-		System.arraycopy(altBytes, 0, payload, pos, altBytes.length);
-		pos += altBytes.length;
-
-		byte[] signature = server.getNode().createPeerSignature(clientNodeId, port, alt);
-		System.arraycopy(signature, 0, payload, pos, signature.length);
-
-		sendPacket(PacketFlag.signature(), payload, ar -> {
-			if (ar.failed())
-				close();
-		});
-	}
-
 	private void sendPacket(byte flag, byte[] payload, Handler<AsyncResult<Void>> handler) {
 		if (state == State.Closed) {
 			log.warn("Connection {} already closed, but try to send {} to upstream",
@@ -259,7 +236,6 @@ public class ProxyConnection implements AutoCloseable {
 		});
 	}
 
-
 	private void sendConnect(InetAddress address, int port) {
 		byte[] addr = address.getAddress();
 
@@ -296,6 +272,38 @@ public class ProxyConnection implements AutoCloseable {
 			clientSocket.pause();
 			upstreamSocket.drainHandler(v -> clientSocket.resume());
 		}
+	}
+
+    void sendSignature(String alt) {
+        Id clientNodeId = session.getClientNodeId();
+        int port = session.getPort();
+
+		log.trace("Connection {} sending signature to {}@{}",
+				getName(), clientNodeId, upstreamSocket.remoteAddress());
+
+        int altLength = 0;
+        if (alt != null) {
+            altLength = alt.getBytes().length;
+        }
+
+		byte[] payload = new byte[Short.BYTES + Signature.BYTES + altLength];
+
+		int pos = 0;
+		shortToNetwork(port, payload, pos);
+
+		pos += Short.BYTES;
+        if (alt != null) {
+            System.arraycopy(alt.getBytes(), 0, payload, pos, altLength);
+            pos += altLength;
+        }
+
+		byte[] signature = server.getNode().createPeerSignature(clientNodeId, port, alt);
+		System.arraycopy(signature, 0, payload, pos, signature.length);
+
+		sendPacket(PacketFlag.signature(), payload, ar -> {
+			if (ar.failed())
+				close();
+		});
 	}
 
 	private void sendError(short code, String message) {
@@ -401,6 +409,9 @@ public class ProxyConnection implements AutoCloseable {
 		case Idling:
 			if (!ack && type == PacketFlag.PING) {
 				handleKeepAlive(packet);
+				return;
+			} else if (!ack && type == PacketFlag.SIGNATURE) {
+				handleSignature(packet);
 				return;
 			} else {
 				log.error("Connection {} got wrong packet {}, PING excepted",
@@ -550,6 +561,27 @@ public class ProxyConnection implements AutoCloseable {
 			close();
 		}
 	}
+
+    private void handleSignature(Buffer packet) {
+        log.trace("Connection {} got SIGNATURE packet from {}.",
+				getName(), upstreamSocket.remoteAddress());
+
+		try {
+			byte[] payload = session.decrypt(packet.getBytes(PACKET_HEADER_BYTES, packet.length()));
+			byte hasAlt = payload[0];
+	        if (hasAlt > 0) {
+	        	String alt = new String(payload, 1, payload.length - 1, "UTF-8");
+	            //TODO::  to helper servic verify alt
+	            sendSignature(alt);
+	        }
+	        else {
+	            sendSignature(null);
+	        }
+		} catch (CryptoException | UnsupportedEncodingException e) {
+			log.error("Connection {} decrypt the SIGNATURE payload failed.", getName());
+			close();
+		}
+    }
 
 	public void connectClient(NetSocket clientSocket) {
 		log.debug("Connection {} assigned for client {} from {}", getName(),

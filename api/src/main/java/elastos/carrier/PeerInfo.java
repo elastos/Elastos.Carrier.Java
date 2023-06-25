@@ -24,7 +24,11 @@ package elastos.carrier;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.nio.ByteBuffer;
 import java.util.Objects;
+
+import elastos.carrier.crypto.CryptoBox;
+import elastos.carrier.crypto.Signature;
 
 public class PeerInfo {
 	public static final int AF_IPV4 = 4;
@@ -144,6 +148,29 @@ public class PeerInfo {
 		sb.append(",").append(signature.toString());
 		sb.append(">");
 		return sb.toString();
+	}
+	
+	private byte[] getSignData() {
+		byte[] toSign = new byte[Id.BYTES + (proxied ? Id.BYTES : 0) + Integer.BYTES +
+		                         (usedAlt ? alt.getBytes().length : 0)];
+		ByteBuffer buf = ByteBuffer.wrap(toSign);
+		buf.put(nodeId.getBytes());
+		if (proxied)
+			buf.put(proxyId.bytes());
+		buf.putInt(port);
+		if (usedAlt)
+			buf.put(alt.getBytes());
+
+		return toSign;
+	}
+	
+	public boolean isValid() {
+		Signature.PublicKey pk;
+	    if (proxied)
+	    	pk = Signature.PublicKey.fromBytes(proxyId.getBytes());
+	    else
+	    	pk = Signature.PublicKey.fromBytes(nodeId.getBytes());
+	    return Signature.verify(getSignData(), signature, pk);
 	}
 
 }
