@@ -804,20 +804,7 @@ public class Node implements elastos.carrier.Node {
 
 	@Override
 	public byte[] createPeerSignature(Id clientId, int port, String alt) {
-		int altLength = 0;
-        if (alt != null) {
-            altLength = alt.getBytes().length;
-        }
-		byte[] toSign = new byte[Id.BYTES + Id.BYTES + Integer.BYTES + altLength];
-
-		ByteBuffer buf = ByteBuffer.wrap(toSign);
-		buf.put(clientId.bytes());
-        buf.put(id.bytes());
-		buf.putInt(port);
-		if (alt != null) {
-		    buf.put(alt.getBytes());
-        }
-
+        byte[] toSign = PeerInfo.getSignData(clientId, id, port, alt);
 		return Signature.sign(toSign, keyPair.privateKey());
 	}
 

@@ -29,6 +29,7 @@ import java.util.Objects;
 
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.Signature;
+import elastos.carrier.utils.Hex;
 
 public class PeerInfo {
 	public static final int AF_IPV4 = 4;
@@ -42,7 +43,7 @@ public class PeerInfo {
 	private final byte[] signature;
 
 	private boolean proxied = false;
-	private boolean usedAlt = false;
+	private boolean hasAlt = false;
 
 	public PeerInfo(Id nodeId, Id proxyId, int port, int family, String alt, byte[] signature) {
 		if (nodeId == null)
@@ -59,10 +60,12 @@ public class PeerInfo {
 		this.alt = alt == null ? "" : alt;
 		this.signature = signature;
 
-		if (this.proxyId == Id.zero())
+		if (this.proxyId != Id.zero())
 			this.proxied = true;
 		if (!this.alt.equals(""))
-			this.usedAlt = true;
+			this.hasAlt = true;
+
+		boolean ret = this.isValid();
 	}
 
 	public PeerInfo(Id nodeId, int port, int family, String alt, byte[] signature) {
@@ -106,7 +109,7 @@ public class PeerInfo {
 	}
 
 	public boolean isUsedAlt() {
-		return usedAlt;
+		return hasAlt;
 	}
 
 	public byte[] getSignature() {
@@ -143,34 +146,47 @@ public class PeerInfo {
 			sb.append(",ipv4");
 		else if (isIPv4())
 			sb.append(",ipv6");
-		if (usedAlt)
+		if (hasAlt)
 			sb.append(",").append(alt);
 		sb.append(",").append(signature.toString());
 		sb.append(">");
 		return sb.toString();
 	}
-	
-	private byte[] getSignData() {
-		byte[] toSign = new byte[Id.BYTES + (proxied ? Id.BYTES : 0) + Integer.BYTES +
-		                         (usedAlt ? alt.getBytes().length : 0)];
+
+	public static byte[] getSignData(Id nodeId, Id proxyId, int port, String alt) {
+		boolean proxied = false;
+		boolean hasAlt = false;
+		alt = alt == null ? "" : alt;
+
+		if (proxyId != Id.zero())
+			proxied = true;
+		if (!alt.equals(""))
+			hasAlt = true;
+
+		byte[] toSign = new byte[Id.BYTES + (proxied ? Id.BYTES : 0) + 2 +
+		                         (hasAlt ? alt.getBytes().length : 0)];
+
 		ByteBuffer buf = ByteBuffer.wrap(toSign);
 		buf.put(nodeId.getBytes());
 		if (proxied)
 			buf.put(proxyId.bytes());
-		buf.putInt(port);
-		if (usedAlt)
+
+		buf.put((byte) (port & 0xFF));
+		buf.put((byte) ((port>>8) & 0xFF));
+
+		if (hasAlt)
 			buf.put(alt.getBytes());
 
-		return toSign;
+ 		return toSign;
 	}
-	
+
 	public boolean isValid() {
 		Signature.PublicKey pk;
 	    if (proxied)
 	    	pk = Signature.PublicKey.fromBytes(proxyId.getBytes());
 	    else
 	    	pk = Signature.PublicKey.fromBytes(nodeId.getBytes());
-	    return Signature.verify(getSignData(), signature, pk);
+	    return Signature.verify(getSignData(nodeId, proxyId, port, alt), signature, pk);
 	}
 
 }
