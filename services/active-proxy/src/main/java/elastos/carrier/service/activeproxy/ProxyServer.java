@@ -113,6 +113,10 @@ public class ProxyServer extends AbstractVerticle {
 	public int getPort() {
 		return port;
 	}
+	
+	public Node getNode() {
+		return node;
+	}
 
 	public boolean isRunning() {
 		return server != null;

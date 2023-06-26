@@ -48,7 +48,7 @@ public class PacketFlag {
 
 	public static final byte DATA = 0x40;
 	private static final byte DATA_MIN = DATA;
-	private static final byte DATA_MAX = 0x6F;
+	private static final byte DATA_MAX = 0x4F;
 
 	public static final byte ERROR = 0x70;
 	private static final byte ERROR_MIN = ERROR;
@@ -56,6 +56,10 @@ public class PacketFlag {
 
 	private static final byte ACK_MASK = (byte) 0x80;
 	private static final byte TYPE_MASK = 0x7F;
+	
+	public static final byte SIGNATURE = 0x50;
+	private static final byte SIGNATURE_MIN = SIGNATURE;
+	private static final byte SIGNATURE_MAX = 0x5F;
 
 	private static byte random(byte min, byte max, boolean ack) {
 		byte type = (byte)ThreadLocals.random().nextInt(min, max + 1);
@@ -101,6 +105,10 @@ public class PacketFlag {
 	public static byte data() {
 		return random(DATA_MIN, DATA_MAX, false);
 	}
+	
+	public static byte signature() {
+		return random(SIGNATURE_MIN, SIGNATURE_MAX, false);
+	}
 
 	public static byte error() {
 		return random(ERROR_MIN, ERROR_MAX, true);
@@ -126,10 +134,10 @@ public class PacketFlag {
 			return DISCONNECT;
 
 		case 4:
-		case 5:
-		case 6:
 			return DATA;
-
+		case 5:
+			return SIGNATURE;
+		case 6:
 		case 7:
 			return ERROR;
 
@@ -159,6 +167,9 @@ public class PacketFlag {
 
 		case DATA:
 			return ack ? "N/A" : "DATA";
+			
+		case SIGNATURE:
+			return ack ? "N/A" : "SIGNATURE";
 
 		case ERROR:
 			return ack ? "ERROR ACK" : "N/A";

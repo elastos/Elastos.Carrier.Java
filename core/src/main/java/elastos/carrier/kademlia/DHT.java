@@ -662,7 +662,7 @@ public class DHT {
         InetAddress addr = q.getOrigin().getAddress();
         assert(addr != null);
         int family = addr instanceof Inet4Address ? PeerInfo.AF_IPV4 : PeerInfo.AF_IPV6;
-		PeerInfo peer = new PeerInfo(q.getId(), q.getPort(), family, q.getAlt(), q.getSignature());
+		PeerInfo peer = new PeerInfo(q.getId(), q.getProxyId(), q.getPort(), family, q.getAlt(), q.getSignature());
 
 		try {
 			log.debug("Received an announce peer request from {}, saving peer {}", AddressUtils.toString(q.getOrigin()),
