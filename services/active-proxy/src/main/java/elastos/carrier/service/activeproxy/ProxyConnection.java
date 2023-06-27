@@ -34,11 +34,13 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.net.impl.SocketAddressImpl;
-
+import io.vertx.ext.web.client.WebClient;
+import io.vertx.core.json.JsonObject;
 import elastos.carrier.CarrierException;
 import elastos.carrier.Id;
 import elastos.carrier.crypto.CryptoBox;
@@ -118,7 +120,6 @@ public class ProxyConnection implements AutoCloseable {
 	private int paddingSize() {
 		return ThreadLocals.random().nextInt(0, 256);
 	}
-
 
 	private byte[] randomPadding() {
 		byte[] padding = new byte[paddingSize()];
@@ -274,7 +275,7 @@ public class ProxyConnection implements AutoCloseable {
 		}
 	}
 
-    void sendSignature(String alt) {
+	private void sendSignature(String alt) {
         Id clientNodeId = session.getClientNodeId();
         int port = session.getPort();
 
@@ -300,6 +301,20 @@ public class ProxyConnection implements AutoCloseable {
 		//byte[] signature = server.getNode().createPeerSignature(clientNodeId, port, alt);
         byte[] signature = new byte[Signature.BYTES];
 		System.arraycopy(signature, 0, payload, pos, signature.length);
+
+		sendPacket(PacketFlag.signature(), payload, ar -> {
+			if (ar.failed())
+				close();
+		});
+	}
+
+	private void sendSignatureFail() {
+        Id clientNodeId = session.getClientNodeId();
+		log.trace("Connection {} sending signature Fail to {}@{}",
+				getName(), clientNodeId, upstreamSocket.remoteAddress());
+
+		byte[] payload = new byte[1];
+		payload[0] = 0; //Maybe later send the error code;
 
 		sendPacket(PacketFlag.signature(), payload, ar -> {
 			if (ar.failed())
@@ -563,6 +578,29 @@ public class ProxyConnection implements AutoCloseable {
 		}
 	}
 
+	private void verifyDomainName(String domainName) {
+        Vertx vertx = session.getVertx();
+        WebClient client = WebClient.create(vertx);
+        JsonObject data = new JsonObject()
+            .put("nodeId", session.getClientNodeId().toBase58String())
+            .put("serviceIp", server.getHost())
+            .put("servicePort", session.getPort())
+            .put("alt", domainName);
+
+        client.post(443, server.getHelperDomain(), "/vhosts/verify")
+            .putHeader("Authorization", "Bearer YLy7o264sNs0uPoHwSJUPlKvC2U7MfHbDgYRWPtB69E")
+            .ssl(true)
+            .sendJsonObject(data)
+            .onSuccess(response -> {
+                System.out.println("Received response with status code: " + response.statusCode());
+                sendSignature(domainName);
+            })
+            .onFailure(err -> {
+                System.out.println("Something went wrong: " + err.getMessage());
+                sendSignatureFail();
+            });
+    }
+
     private void handleSignature(Buffer packet) {
         log.trace("Connection {} got SIGNATURE packet from {}.",
 				getName(), upstreamSocket.remoteAddress());
@@ -570,10 +608,12 @@ public class ProxyConnection implements AutoCloseable {
 		try {
 			byte[] payload = session.decrypt(packet.getBytes(PACKET_HEADER_BYTES, packet.length()));
 			byte hasAlt = payload[0];
+
 	        if (hasAlt > 0) {
-	        	String alt = new String(payload, 1, payload.length - 1, "UTF-8");
-	            //TODO::  to helper servic verify alt
-	            sendSignature(alt);
+	        	String domainName = new String(payload, 1, payload.length - 1, "UTF-8");
+
+	        	//Send to helper service for verify
+	        	verifyDomainName(domainName);
 	        }
 	        else {
 	            sendSignature(null);
