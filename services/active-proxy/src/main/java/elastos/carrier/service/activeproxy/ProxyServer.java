@@ -53,6 +53,7 @@ public class ProxyServer extends AbstractVerticle {
 	private String host;
 	private int port;
     private String helperDomain;
+    private int helperPort;
 
 	private NetServer server;
 
@@ -76,6 +77,7 @@ public class ProxyServer extends AbstractVerticle {
 		this.host = (String)context.getConfiguration().getOrDefault("host", NetServerOptions.DEFAULT_HOST);
 		this.port = (int)context.getConfiguration().getOrDefault("port", ActiveProxy.DEFAULT_PORT);
         this.helperDomain = (String)context.getConfiguration().getOrDefault("helperDomain", ActiveProxy.HELPER_SERVER_DOMAIN);
+        this.helperPort = (int)context.getConfiguration().getOrDefault("helperPort", ActiveProxy.HELPER_SERVER_PORT);
 
 		String portMappingRange = (String)context.getConfiguration().getOrDefault("portMappingRange", ActiveProxy.DEFAULT_PORT_MAPPING_RANGE);
 		initMappingPorts(portMappingRange);
@@ -117,6 +119,10 @@ public class ProxyServer extends AbstractVerticle {
 
     public String getHelperDomain() {
 		return helperDomain;
+	}
+    
+    public int getHelperPort() {
+		return helperPort;
 	}
 
 	public Node getNode() {

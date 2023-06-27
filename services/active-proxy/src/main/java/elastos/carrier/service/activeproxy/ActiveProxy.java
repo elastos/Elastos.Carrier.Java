@@ -35,7 +35,10 @@ public class ActiveProxy implements CarrierService {
 	static final String NAME = "ActiveProxy";
 	static final int DEFAULT_PORT = 8090;
 	static final String DEFAULT_PORT_MAPPING_RANGE = "32768-65535";
+	
     static final String HELPER_SERVER_DOMAIN = "api.pc2.net";
+    static final int HELPER_SERVER_PORT = 443;
+    public static final int	HELPER_VERIFY_INTERVAL = 200;  //200 seconds
 
 	@SuppressWarnings("unused")
 	private ServiceContext context;

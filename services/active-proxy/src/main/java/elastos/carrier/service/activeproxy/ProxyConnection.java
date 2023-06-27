@@ -25,6 +25,10 @@ package elastos.carrier.service.activeproxy;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.util.Arrays;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
@@ -71,6 +75,8 @@ public class ProxyConnection implements AutoCloseable {
 	private boolean needSendDisconnect;
 
 	private Buffer stickyBuffer;
+
+	ScheduledFuture<?> scheduledHelper;
 
 	private /* volatile */ State state;
 
@@ -578,7 +584,7 @@ public class ProxyConnection implements AutoCloseable {
 		}
 	}
 
-	private void verifyDomainName(String domainName) {
+	private void verifyDomainName(String domainName, Handler<Void> succcess, Handler<Void> fail) {
         Vertx vertx = session.getVertx();
         WebClient client = WebClient.create(vertx);
         JsonObject data = new JsonObject()
@@ -587,17 +593,21 @@ public class ProxyConnection implements AutoCloseable {
             .put("servicePort", session.getPort())
             .put("alt", domainName);
 
-        client.post(443, server.getHelperDomain(), "/vhosts/verify")
+        client.post(server.getHelperPort(), server.getHelperDomain(), "/vhosts/verify")
             .putHeader("Authorization", "Bearer YLy7o264sNs0uPoHwSJUPlKvC2U7MfHbDgYRWPtB69E")
             .ssl(true)
             .sendJsonObject(data)
             .onSuccess(response -> {
                 System.out.println("Received response with status code: " + response.statusCode());
-                sendSignature(domainName);
+                if (succcess != null) {
+                	succcess.handle(null);
+                }
             })
             .onFailure(err -> {
                 System.out.println("Something went wrong: " + err.getMessage());
-                sendSignatureFail();
+                if (fail != null) {
+                	fail.handle(null);
+                }
             });
     }
 
@@ -613,7 +623,14 @@ public class ProxyConnection implements AutoCloseable {
 	        	String domainName = new String(payload, 1, payload.length - 1, "UTF-8");
 
 	        	//Send to helper service for verify
-	        	verifyDomainName(domainName);
+	        	verifyDomainName(domainName, ar -> {
+		                sendSignature(domainName);
+		                scheduledHelper = this.server.getNode().getScheduler().scheduleWithFixedDelay(() -> {
+		                	this.verifyDomainName(domainName, null, null);
+		        		}, ActiveProxy.HELPER_VERIFY_INTERVAL, ActiveProxy.HELPER_VERIFY_INTERVAL, TimeUnit.SECONDS);
+		            }, err -> {
+		                sendSignatureFail();
+		            });
 	        }
 	        else {
 	            sendSignature(null);
@@ -718,6 +735,20 @@ public class ProxyConnection implements AutoCloseable {
 		}
 
 		closePromise.complete();
+
+		if (scheduledHelper != null) {
+			scheduledHelper.cancel(false);
+			// the scheduled tasks should experience exceptions,
+			try {
+				scheduledHelper.get();
+			} catch (ExecutionException e) {
+				log.error("Scheduled future error", e);
+			} catch (InterruptedException e) {
+				log.error("Scheduled future error", e);
+			} catch (CancellationException ignore) {
+			}
+			scheduledHelper = null;
+		}
 
 		session = null;
 
