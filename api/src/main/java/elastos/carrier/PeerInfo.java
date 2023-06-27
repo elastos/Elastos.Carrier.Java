@@ -29,7 +29,6 @@ import java.util.Objects;
 
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.Signature;
-import elastos.carrier.utils.Hex;
 
 public class PeerInfo {
 	public static final int AF_IPV4 = 4;
