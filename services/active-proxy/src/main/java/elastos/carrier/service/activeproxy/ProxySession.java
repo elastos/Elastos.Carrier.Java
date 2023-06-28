@@ -40,7 +40,6 @@ import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 
 import elastos.carrier.Id;
-import elastos.carrier.Node;
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.CryptoBox.KeyPair;
 import elastos.carrier.crypto.CryptoBox.Nonce;

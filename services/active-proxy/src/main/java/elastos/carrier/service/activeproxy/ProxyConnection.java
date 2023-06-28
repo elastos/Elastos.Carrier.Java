@@ -25,6 +25,10 @@ package elastos.carrier.service.activeproxy;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.util.Arrays;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
@@ -34,11 +38,14 @@ import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.net.impl.SocketAddressImpl;
-
+import io.vertx.ext.web.client.HttpResponse;
+import io.vertx.ext.web.client.WebClient;
+import io.vertx.core.json.JsonObject;
 import elastos.carrier.CarrierException;
 import elastos.carrier.Id;
 import elastos.carrier.crypto.CryptoBox;
@@ -69,6 +76,8 @@ public class ProxyConnection implements AutoCloseable {
 	private boolean needSendDisconnect;
 
 	private Buffer stickyBuffer;
+
+	ScheduledFuture<?> scheduledHelper;
 
 	private /* volatile */ State state;
 
@@ -118,7 +127,6 @@ public class ProxyConnection implements AutoCloseable {
 	private int paddingSize() {
 		return ThreadLocals.random().nextInt(0, 256);
 	}
-
 
 	private byte[] randomPadding() {
 		byte[] padding = new byte[paddingSize()];
@@ -198,9 +206,6 @@ public class ProxyConnection implements AutoCloseable {
 			}
 		}
 
-		String h = Hex.encode(cipher);
-		log.info(h);
-
 		byte[] padding = null;
 		byte type = PacketFlag.getType(flag);
 		if (type != PacketFlag.DATA && type != PacketFlag.ERROR && type != PacketFlag.SIGNATURE) {
@@ -274,7 +279,7 @@ public class ProxyConnection implements AutoCloseable {
 		}
 	}
 
-    void sendSignature(String alt) {
+	private void sendSignature(String alt) {
         Id clientNodeId = session.getClientNodeId();
         int port = session.getPort();
 
@@ -299,6 +304,20 @@ public class ProxyConnection implements AutoCloseable {
 
 		byte[] signature = server.getNode().createPeerSignature(clientNodeId, port, alt);
 		System.arraycopy(signature, 0, payload, pos, signature.length);
+
+		sendPacket(PacketFlag.signature(), payload, ar -> {
+			if (ar.failed())
+				close();
+		});
+	}
+
+	private void sendSignatureFail() {
+        Id clientNodeId = session.getClientNodeId();
+		log.trace("Connection {} sending signature Fail to {}@{}",
+				getName(), clientNodeId, upstreamSocket.remoteAddress());
+
+		byte[] payload = new byte[1];
+		payload[0] = 0; //Maybe later send the error code;
 
 		sendPacket(PacketFlag.signature(), payload, ar -> {
 			if (ar.failed())
@@ -562,6 +581,21 @@ public class ProxyConnection implements AutoCloseable {
 		}
 	}
 
+	private void verifyDomainName(String domainName, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
+        Vertx vertx = session.getVertx();
+        WebClient client = WebClient.create(vertx);
+        JsonObject data = new JsonObject()
+            .put("nodeId", session.getClientNodeId().toBase58String())
+            .put("serviceIp", server.getHost())
+            .put("servicePort", session.getPort())
+            .put("alt", domainName);
+
+        client.post(server.getHelperPort(), server.getHelperDomain(), "/vhosts/verify")
+            .putHeader("Authorization", "Bearer YLy7o264sNs0uPoHwSJUPlKvC2U7MfHbDgYRWPtB69E")
+            .ssl(true)
+            .sendJsonObject(data, handler);
+    }
+
     private void handleSignature(Buffer packet) {
         log.trace("Connection {} got SIGNATURE packet from {}.",
 				getName(), upstreamSocket.remoteAddress());
@@ -569,10 +603,24 @@ public class ProxyConnection implements AutoCloseable {
 		try {
 			byte[] payload = session.decrypt(packet.getBytes(PACKET_HEADER_BYTES, packet.length()));
 			byte hasAlt = payload[0];
+
 	        if (hasAlt > 0) {
-	        	String alt = new String(payload, 1, payload.length - 1, "UTF-8");
-	            //TODO::  to helper servic verify alt
-	            sendSignature(alt);
+	        	String domainName = new String(payload, 1, payload.length - 1, "UTF-8");
+
+	        	//Send to helper service for verify
+	        	verifyDomainName(domainName, ar -> {
+	                if (ar.succeeded()) {
+                        HttpResponse<Buffer> response = ar.result();
+                        System.out.println("Got HTTP response with status " + response.statusCode());
+                        sendSignature(domainName);
+                        scheduledHelper = this.server.getNode().getScheduler().scheduleWithFixedDelay(() -> {
+                            this.verifyDomainName(domainName, ar1 -> {});
+                        }, ActiveProxy.HELPER_VERIFY_INTERVAL, ActiveProxy.HELPER_VERIFY_INTERVAL, TimeUnit.SECONDS);
+                    } else {
+                        ar.cause().printStackTrace();
+                        sendSignatureFail();
+                    }
+	              });
 	        }
 	        else {
 	            sendSignature(null);
@@ -677,6 +725,20 @@ public class ProxyConnection implements AutoCloseable {
 		}
 
 		closePromise.complete();
+
+		if (scheduledHelper != null) {
+			scheduledHelper.cancel(false);
+			// the scheduled tasks should experience exceptions,
+			try {
+				scheduledHelper.get();
+			} catch (ExecutionException e) {
+				log.error("Scheduled future error", e);
+			} catch (InterruptedException e) {
+				log.error("Scheduled future error", e);
+			} catch (CancellationException ignore) {
+			}
+			scheduledHelper = null;
+		}
 
 		session = null;
 

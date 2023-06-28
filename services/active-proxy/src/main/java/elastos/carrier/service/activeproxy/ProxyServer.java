@@ -35,7 +35,6 @@ import io.vertx.core.net.NetServer;
 import io.vertx.core.net.NetServerOptions;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
-
 import elastos.carrier.CarrierException;
 import elastos.carrier.Id;
 import elastos.carrier.Node;
@@ -53,6 +52,8 @@ public class ProxyServer extends AbstractVerticle {
 
 	private String host;
 	private int port;
+    private String helperDomain;
+    private int helperPort;
 
 	private NetServer server;
 
@@ -75,6 +76,8 @@ public class ProxyServer extends AbstractVerticle {
 
 		this.host = (String)context.getConfiguration().getOrDefault("host", NetServerOptions.DEFAULT_HOST);
 		this.port = (int)context.getConfiguration().getOrDefault("port", ActiveProxy.DEFAULT_PORT);
+        this.helperDomain = (String)context.getConfiguration().getOrDefault("helperDomain", ActiveProxy.HELPER_SERVER_DOMAIN);
+        this.helperPort = (int)context.getConfiguration().getOrDefault("helperPort", ActiveProxy.HELPER_SERVER_PORT);
 
 		String portMappingRange = (String)context.getConfiguration().getOrDefault("portMappingRange", ActiveProxy.DEFAULT_PORT_MAPPING_RANGE);
 		initMappingPorts(portMappingRange);
@@ -113,7 +116,15 @@ public class ProxyServer extends AbstractVerticle {
 	public int getPort() {
 		return port;
 	}
-	
+
+    public String getHelperDomain() {
+		return helperDomain;
+	}
+    
+    public int getHelperPort() {
+		return helperPort;
+	}
+
 	public Node getNode() {
 		return node;
 	}
