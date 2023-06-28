@@ -43,6 +43,7 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.core.net.impl.SocketAddressImpl;
+import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.core.json.JsonObject;
 import elastos.carrier.CarrierException;
@@ -204,9 +205,6 @@ public class ProxyConnection implements AutoCloseable {
 				return;
 			}
 		}
-
-		String h = Hex.encode(cipher);
-		log.info(h);
 
 		byte[] padding = null;
 		byte type = PacketFlag.getType(flag);
@@ -584,7 +582,7 @@ public class ProxyConnection implements AutoCloseable {
 		}
 	}
 
-	private void verifyDomainName(String domainName, Handler<Void> succcess, Handler<Void> fail) {
+	private void verifyDomainName(String domainName, Handler<AsyncResult<HttpResponse<Buffer>>> handler) {
         Vertx vertx = session.getVertx();
         WebClient client = WebClient.create(vertx);
         JsonObject data = new JsonObject()
@@ -596,19 +594,7 @@ public class ProxyConnection implements AutoCloseable {
         client.post(server.getHelperPort(), server.getHelperDomain(), "/vhosts/verify")
             .putHeader("Authorization", "Bearer YLy7o264sNs0uPoHwSJUPlKvC2U7MfHbDgYRWPtB69E")
             .ssl(true)
-            .sendJsonObject(data)
-            .onSuccess(response -> {
-                System.out.println("Received response with status code: " + response.statusCode());
-                if (succcess != null) {
-                	succcess.handle(null);
-                }
-            })
-            .onFailure(err -> {
-                System.out.println("Something went wrong: " + err.getMessage());
-                if (fail != null) {
-                	fail.handle(null);
-                }
-            });
+            .sendJsonObject(data, handler);
     }
 
     private void handleSignature(Buffer packet) {
@@ -624,13 +610,18 @@ public class ProxyConnection implements AutoCloseable {
 
 	        	//Send to helper service for verify
 	        	verifyDomainName(domainName, ar -> {
-		                sendSignature(domainName);
-		                scheduledHelper = this.server.getNode().getScheduler().scheduleWithFixedDelay(() -> {
-		                	this.verifyDomainName(domainName, null, null);
-		        		}, ActiveProxy.HELPER_VERIFY_INTERVAL, ActiveProxy.HELPER_VERIFY_INTERVAL, TimeUnit.SECONDS);
-		            }, err -> {
-		                sendSignatureFail();
-		            });
+	                if (ar.succeeded()) {
+                        HttpResponse<Buffer> response = ar.result();
+                        System.out.println("Got HTTP response with status " + response.statusCode());
+                        sendSignature(domainName);
+                        scheduledHelper = this.server.getNode().getScheduler().scheduleWithFixedDelay(() -> {
+                            this.verifyDomainName(domainName, ar1 -> {});
+                        }, ActiveProxy.HELPER_VERIFY_INTERVAL, ActiveProxy.HELPER_VERIFY_INTERVAL, TimeUnit.SECONDS);
+                    } else {
+                        ar.cause().printStackTrace();
+                        sendSignatureFail();
+                    }
+	              });
 	        }
 	        else {
 	            sendSignature(null);
