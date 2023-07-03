@@ -38,14 +38,28 @@ public class Value {
 	private byte[] privateKey;
 	private Id recipient;
 	private byte[] nonce;
-	private byte[] signature;
 	private int sequenceNumber;
+	private byte[] signature;
 	private byte[] data;
 
-	protected Value() {
-	}
+	private Value(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
+		if (publicKey != null) {
+			if (privateKey != null && privateKey.length != Signature.PrivateKey.BYTES)
+				throw new IllegalArgumentException("Invalid private key");
 
-	protected Value(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
+			if (nonce == null || nonce.length != CryptoBox.Nonce.BYTES)
+				throw new IllegalArgumentException("Invalid nonce");
+
+			if (sequenceNumber < 0)
+				throw new IllegalArgumentException("Invalid sequence number");
+
+			if (signature == null || signature.length != Signature.BYTES)
+				throw new IllegalArgumentException("Invalid signature");
+		}
+
+		if (data == null || data.length == 0)
+			throw new IllegalArgumentException("Invalid data");
+
 		this.publicKey = publicKey;
 		this.privateKey = privateKey;
 		this.recipient = recipient;
@@ -55,7 +69,19 @@ public class Value {
 		this.data = data;
 	}
 
-	protected Value(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoException {
+	private Value(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoException {
+		if (keypair == null)
+			throw new IllegalArgumentException("Invalid keypair");
+
+		if (nonce == null)
+			throw new IllegalArgumentException("Invalid nonce");
+
+		if (sequenceNumber < 0)
+			throw new IllegalArgumentException("Invalid sequence number");
+
+		if (data == null || data.length == 0)
+			throw new IllegalArgumentException("Invalid data");
+
 		this.publicKey = new Id(keypair.publicKey().bytes());
 		this.privateKey = keypair.privateKey().bytes();
 		this.recipient = recipient;
@@ -75,36 +101,66 @@ public class Value {
 	}
 
 	public static Value of(byte[] data) {
-		return new Value(null, null, null, null, 0, null, data);
+		return new Value(null, null, null, null, -1, null, data);
 	}
 
-	public static Value of(Id publicKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
+	public static Value of(Id publicKey, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
+		return new Value(publicKey, null, null, nonce, sequenceNumber, signature, data);
+	}
+
+	public static Value of(Id publicKey, Id recipient, byte[] nonce, int sequenceNumber,
+			byte[] signature, byte[] data) {
 		return new Value(publicKey, null, recipient, nonce, sequenceNumber, signature, data);
 	}
 
-	public static Value of(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce, int sequenceNumber, byte[] signature, byte[] data) {
+	public static Value of(Id publicKey, byte[] privateKey, Id recipient, byte[] nonce,
+			int sequenceNumber, byte[] signature, byte[] data) {
 		return new Value(publicKey, privateKey, recipient, nonce, sequenceNumber, signature, data);
 	}
 
-	public static Value of(Signature.KeyPair keypair ,CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoException {
+	public static Value createValue(byte[] data) {
+		return new Value(null, null, null, null, -1, null, data);
+	}
+
+	public static Value createSignedValue(byte[] data) throws CryptoException {
+		return createSignedValue(null, null, 0, data);
+	}
+
+	public static Value createSignedValue(Signature.KeyPair keypair, CryptoBox.Nonce nonce,
+			byte[] data) throws CryptoException {
+		return createSignedValue(keypair, nonce, 0, data);
+	}
+
+	public static Value createSignedValue(Signature.KeyPair keypair, CryptoBox.Nonce nonce,
+			int sequenceNumber, byte[] data) throws CryptoException {
+		if (keypair == null)
+			keypair = Signature.KeyPair.random();
+
+		if (nonce == null)
+			nonce = CryptoBox.Nonce.random();
+
 		return new Value(keypair, null, nonce, sequenceNumber, data);
 	}
 
-	public static Value of(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoException {
-		return new Value(keypair, recipient, nonce, sequenceNumber, data);
+	public static Value createEncryptedValue(Id recipient, byte[] data) throws CryptoException {
+		return createEncryptedValue(null, recipient, null, 0, data);
 	}
 
-	private byte[] getSignData() {
-		byte[] toSign = new byte[(recipient != null ? Id.BYTES : 0) +
-				CryptoBox.Nonce.BYTES + Integer.BYTES + this.data.length];
-		ByteBuffer buf = ByteBuffer.wrap(toSign);
-		if (recipient != null)
-			buf.put(recipient.bytes());
-		buf.put(nonce);
-		buf.putInt(sequenceNumber);
-		buf.put(data);
+	public static Value createEncryptedValue(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, byte[] data) throws CryptoException {
+		return createEncryptedValue(keypair, recipient, nonce, 0, data);
+	}
 
-		return toSign;
+	public static Value createEncryptedValue(Signature.KeyPair keypair, Id recipient, CryptoBox.Nonce nonce, int sequenceNumber, byte[] data) throws CryptoException {
+		if (recipient == null)
+			throw new IllegalArgumentException("Invalid recipient");
+
+		if (keypair == null)
+			keypair = Signature.KeyPair.random();
+
+		if (nonce == null)
+			nonce = CryptoBox.Nonce.random();
+
+		return new Value(keypair, recipient, nonce, sequenceNumber, data);
 	}
 
 	public Id getId() {
@@ -165,6 +221,19 @@ public class Value {
 		return recipient != null;
 	}
 
+	private byte[] getSignData() {
+		byte[] toSign = new byte[(recipient != null ? Id.BYTES : 0) +
+				CryptoBox.Nonce.BYTES + Integer.BYTES + this.data.length];
+		ByteBuffer buf = ByteBuffer.wrap(toSign);
+		if (recipient != null)
+			buf.put(recipient.bytes());
+		buf.put(nonce);
+		buf.putInt(sequenceNumber);
+		buf.put(data);
+
+		return toSign;
+	}
+
 	public boolean isValid() {
 		if (data == null || data.length == 0)
 			return false;
@@ -195,6 +264,17 @@ public class Value {
 		CryptoBox.PrivateKey sk = CryptoBox.PrivateKey.fromSignatureKey(recipientSk);
 
 		return CryptoBox.decrypt(data, pk, sk, CryptoBox.Nonce.fromBytes(nonce));
+	}
+
+	public Value update(byte[] data) throws CryptoException {
+		if (!hasPrivateKey())
+			throw new IllegalStateException("Not the owner of the value " + getId());
+
+		Signature.KeyPair kp = Signature.KeyPair.fromPrivateKey(getPrivateKey());
+		CryptoBox.Nonce nonce = CryptoBox.Nonce.fromBytes(getNonce());
+
+
+		return new Value(kp, recipient, nonce, sequenceNumber + 1, data);
 	}
 
 	@Override

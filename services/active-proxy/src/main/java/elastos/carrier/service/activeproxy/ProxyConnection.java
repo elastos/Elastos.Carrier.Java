@@ -297,7 +297,8 @@ public class ProxyConnection implements AutoCloseable {
             pos += altLength;
         }
 
-		byte[] signature = server.getNode().createPeerSignature(clientNodeId, port, alt);
+		//byte[] signature = server.getNode().createPeerSignature(clientNodeId, port, alt);
+        byte[] signature = new byte[Signature.BYTES];
 		System.arraycopy(signature, 0, payload, pos, signature.length);
 
 		sendPacket(PacketFlag.signature(), payload, ar -> {

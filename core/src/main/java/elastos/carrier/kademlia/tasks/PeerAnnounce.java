@@ -28,26 +28,20 @@ import java.util.Deque;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import elastos.carrier.Id;
+import elastos.carrier.PeerInfo;
 import elastos.carrier.kademlia.DHT;
 import elastos.carrier.kademlia.messages.AnnouncePeerRequest;
 
 public class PeerAnnounce extends Task {
 	private Deque<CandidateNode> todo;
-	private Id peerId;
-	private int port;
-	private String alt;
-	private byte[] signature;
+	private PeerInfo peer;
 
 	private static final Logger log = LoggerFactory.getLogger(ValueAnnounce.class);
 
-	public PeerAnnounce(DHT dht, ClosestSet closest, Id peerId, int port, String alt, byte[] signature) {
+	public PeerAnnounce(DHT dht, ClosestSet closest, PeerInfo peer) {
 		super(dht);
 		this.todo = new ArrayDeque<>(closest.getEntries());
-		this.peerId = peerId;
-		this.port = port;
-		this.alt = alt;
-		this.signature = signature;
+		this.peer = peer;
 	}
 
 	@Override
@@ -55,7 +49,7 @@ public class PeerAnnounce extends Task {
 		while (!todo.isEmpty() && canDoRequest()) {
 			CandidateNode cn = todo.peekFirst();
 
-			AnnouncePeerRequest q = new AnnouncePeerRequest(peerId, port, alt, signature, cn.getToken());
+			AnnouncePeerRequest q = new AnnouncePeerRequest(peer, cn.getToken());
 			sendCall(cn, q, c -> {
 				todo.remove(cn);
 			});

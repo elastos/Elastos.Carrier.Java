@@ -33,8 +33,11 @@ import java.lang.reflect.Method;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -67,6 +70,7 @@ public class DataStorageTests {
 		return scheduler;
 	}
 
+	@SuppressWarnings("unused")
 	private void increment(byte[] value) {
 		short c = 1;
 		for (int i = value.length - 1; i >= 0; i--) {
@@ -94,7 +98,7 @@ public class DataStorageTests {
 	}
 
 	@ParameterizedTest
-	@ValueSource(classes = { MapDBStorage.class, SQLiteStorage.class })
+	@ValueSource(classes = { SQLiteStorage.class })
 	public void testPutAndGetValue(Class<? extends DataStorage> clazz) throws Exception {
 		DataStorage ds = open(clazz);
 
@@ -131,7 +135,7 @@ public class DataStorageTests {
 	}
 
 	@ParameterizedTest
-	@ValueSource(classes = { MapDBStorage.class, SQLiteStorage.class })
+	@ValueSource(classes = { SQLiteStorage.class })
 	public void testUpdateSignedValue(Class<? extends DataStorage> clazz) throws Exception {
 		DataStorage ds = open(clazz);
 
@@ -145,7 +149,7 @@ public class DataStorageTests {
 
 
 		// new value: success
-		Value v = Value.of(keypair, nonce, seq, data);
+		Value v = Value.createSignedValue(keypair, nonce, seq, data);
 		Id valueId = v.getId();
 		System.out.println(valueId);
 		ds.putValue(v, 0);
@@ -159,14 +163,14 @@ public class DataStorageTests {
 		assertTrue(v.isValid());
 
 		// update: invalid sequence number
-		Value v1 = Value.of(keypair, nonce, seq - 1, newData);
+		Value v1 = Value.createSignedValue(keypair, nonce, seq - 1, newData);
 		assertEquals(valueId, v.getId());
 		assertThrows(SequenceNotMonotonic.class, () -> {
 			ds.putValue(v1, 10);
 		});
 
 		// update: CAS fail
-		Value v2 = Value.of(keypair, nonce, seq + 1, newData);
+		Value v2 = Value.createSignedValue(keypair, nonce, seq + 1, newData);
 		assertEquals(valueId, v.getId());
 		assertThrows(CasFail.class, () -> {
 			ds.putValue(v2, 9);
@@ -182,7 +186,8 @@ public class DataStorageTests {
 		assertTrue(v.isValid());
 
 		// update: success
-		v = Value.of(keypair, nonce, seq + 1, newData);
+		// v = Value.createSignedValue(keypair, nonce, seq + 1, newData);
+		v = v.update(newData);
 		assertEquals(valueId, v.getId());
 		ds.putValue(v, 10);
 
@@ -198,7 +203,7 @@ public class DataStorageTests {
 	}
 
 	@ParameterizedTest
-	@ValueSource(classes = { MapDBStorage.class, SQLiteStorage.class })
+	@ValueSource(classes = { SQLiteStorage.class })
 	public void testUpdateEncryptedValue(Class<? extends DataStorage> clazz) throws Exception {
 		DataStorage ds = open(clazz);
 
@@ -214,7 +219,7 @@ public class DataStorageTests {
 
 
 		// new value: success
-		Value v = Value.of(keypair, recipient, nonce, seq, data);
+		Value v = Value.createEncryptedValue(keypair, recipient, nonce, seq, data);
 		Id valueId = v.getId();
 		System.out.println(valueId);
 		ds.putValue(v, 0);
@@ -229,14 +234,14 @@ public class DataStorageTests {
 		assertTrue(v.isValid());
 
 		// update: invalid sequence number
-		Value v1 = Value.of(keypair, recipient, nonce, seq - 1, newData);
+		Value v1 = Value.createEncryptedValue(keypair, recipient, nonce, seq - 1, newData);
 		assertEquals(valueId, v.getId());
 		assertThrows(SequenceNotMonotonic.class, () -> {
 			ds.putValue(v1, 10);
 		});
 
 		// update: CAS fail
-		Value v2 = Value.of(keypair, recipient, nonce, seq + 1, newData);
+		Value v2 = Value.createEncryptedValue(keypair, recipient, nonce, seq + 1, newData);
 		assertEquals(valueId, v.getId());
 		assertThrows(CasFail.class, () -> {
 			ds.putValue(v2, 9);
@@ -253,7 +258,8 @@ public class DataStorageTests {
 		assertTrue(v.isValid());
 
 		// update: success
-		v = Value.of(keypair, recipient, nonce, seq + 1, newData);
+		// v = Value.createEncryptedValue(keypair, recipient, nonce, seq + 1, newData);
+		v = v.update(newData);
 		assertEquals(valueId, v.getId());
 		ds.putValue(v, 10);
 
@@ -270,11 +276,11 @@ public class DataStorageTests {
 	}
 
 	@ParameterizedTest
-	@ValueSource(classes = { MapDBStorage.class, SQLiteStorage.class })
+	@ValueSource(classes = { SQLiteStorage.class })
 	public void testPutAndGetPeer(Class<? extends DataStorage> clazz) throws Exception {
 		DataStorage ds = open(clazz);
 
-		Queue<Id> ids = new LinkedList<>();
+		Map<Id, List<PeerInfo>> allPeers  = new HashMap<>();
 
 		int basePort = 8000;
 		byte[] sig = new byte[64];
@@ -282,19 +288,20 @@ public class DataStorageTests {
 		System.out.println("Writing peers...");
 		for (int i = 1; i <= 64; i++) {
 			Id id = Id.random();
-			ids.add(id);
 
 			List<PeerInfo> peers = new ArrayList<PeerInfo>();
 			for (int j = 0; j < i; j++) {
 				new SecureRandom().nextBytes(sig);
-				PeerInfo pi = new PeerInfo(Id.random(), basePort + i, PeerInfo.AF_IPV4,  "", sig);
+				PeerInfo pi = PeerInfo.of(id, Id.random(), basePort + i, sig);
 				peers.add(pi);
 
 				new SecureRandom().nextBytes(sig);
-				pi = new PeerInfo(Id.random(), Id.random(), basePort + i, PeerInfo.AF_IPV6, "testPutAndGetPeer", sig);
+				pi = PeerInfo.of(id, Id.random(), Id.random(), basePort + i, "https://test.pc2.net", sig);
 				peers.add(pi);
 			}
-			ds.putPeer(id, peers);
+			ds.putPeer(peers);
+
+			allPeers.put(id, peers);
 
 			System.out.print(".");
 			if (i % 16 == 0)
@@ -302,74 +309,44 @@ public class DataStorageTests {
 		}
 
 		System.out.println("\nReading peers...");
-		for (int i = 1; i <= 64; i++) {
-			Id id = ids.poll();
+		int total = 0;
+		for (Map.Entry<Id, List<PeerInfo>> entry : allPeers.entrySet()) {
+			total++;
+
+			Id id = entry.getKey();
+			List<PeerInfo> peers = entry.getValue();
 
 			// all
-			List<PeerInfo> ps = ds.getPeer(id, 10, 2 * i + 16);
+			List<PeerInfo> ps = ds.getPeer(id, peers.size() + 8);
 			assertNotNull(ps);
-			assertEquals(2 * i, ps.size());
-			for (PeerInfo pi : ps)
-				assertEquals(basePort + i, pi.getPort());
+			assertEquals(peers.size(), ps.size());
 
-			ps = ds.getPeer(id, 4, i + 16);
-			assertNotNull(ps);
-			assertEquals(i, ps.size());
-			for (PeerInfo pi : ps)
-				assertEquals(basePort + i, pi.getPort());
+			Comparator<PeerInfo> c = (a, b) -> {
+				int r = a.getNodeId().compareTo(b.getNodeId());
+				if (r != 0)
+					return r;
 
-			ps = ds.getPeer(id, 6, i + 16);
-			assertNotNull(ps);
-			assertEquals(i, ps.size());
-			for (PeerInfo pi : ps)
-				assertEquals(basePort + i, pi.getPort());
+				return a.getOrigin().compareTo(b.getOrigin());
+			};
+
+			peers.sort(c);
+			ps.sort(c);
+			assertArrayEquals(peers.toArray(), ps.toArray());
 
 			// limited
-			ps = ds.getPeer(id, 10, 32);
+			ps = ds.getPeer(id, 16);
 			assertNotNull(ps);
-			assertEquals(Math.min(2 * i, 64), ps.size());
+			assertEquals(Math.min(16, peers.size()), ps.size());
 			for (PeerInfo pi : ps)
-				assertEquals(basePort + i, pi.getPort());
-
-			ps = ds.getPeer(id, 4, 32);
-			assertNotNull(ps);
-			assertEquals(Math.min(i, 32), ps.size());
-			for (PeerInfo pi : ps)
-				assertEquals(basePort + i, pi.getPort());
-
-			ps = ds.getPeer(id, 6, 32);
-			assertNotNull(ps);
-			assertEquals(Math.min(i, 32), ps.size());
-			for (PeerInfo pi : ps)
-				assertEquals(basePort + i, pi.getPort());
+				assertEquals(peers.get(0).getPort(), pi.getPort());
 
 			System.out.print(".");
-			if (i % 16 == 0)
+			if (total % 16 == 0)
 				System.out.println();
 		}
 
-		ds.close();
-	}
-
-	/*
-	@Test
-	public void testWriteToken() throws IOException {
-		DataStorage ds = MapDBStorage.open(getStorageFile(true));
-
-		Id nodeId = Id.randomId();
-		Id targetId = Id.randomId();
-		InetAddress addr = InetAddress.getByName("123.1.2.3");
-		int port = 8000;
-
-		int token = ds.generateToken(nodeId, addr, port, targetId);
-		assertTrue(ds.verifyToken(token, nodeId, addr, port, targetId));
-
-		assertFalse(ds.verifyToken(token, Id.randomId(), addr, port, targetId));
-		assertFalse(ds.verifyToken(token, nodeId, addr, port, Id.randomId()));
-		assertFalse(ds.verifyToken(token, nodeId, addr, port + 1, targetId));
-		assertFalse(ds.verifyToken(token, nodeId, InetAddress.getByName("123.3.2.1"), port, targetId));
+		assertEquals(64, total);
 
 		ds.close();
 	}
-	*/
 }

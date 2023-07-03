@@ -274,7 +274,8 @@ public class DHT {
 	}
 
 	public void bootstrap(NodeInfo bootstrapNode) {
-		if (!type.canUseAddress(bootstrapNode.getInetAddress()))
+		if (!type.canUseAddress(bootstrapNode.getInetAddress()) ||
+				bootstrapNode.getId().equals(node.getId()))
 			return;
 
 		if (!this.bootstrapNodes.contains(bootstrapNode)) {
@@ -541,18 +542,11 @@ public class DHT {
 
 		try {
 			boolean hasValue = false;
-			Value v = storage.getValue(target);
-			if (v != null) {
-				if (q.getSequenceNumber() < 0 || v.getSequenceNumber() < 0
-						|| q.getSequenceNumber() <= v.getSequenceNumber()) {
-					r.setPublicKey(v.getPublicKey());
-					r.setRecipient(v.getRecipient());
-					r.setNonce(v.getNonce());
-					r.setSignature(v.getSignature());
-					if (v.getSequenceNumber() >= 0)
-						r.setSequenceNumber(v.getSequenceNumber());
-
-					r.setValue(v.getData());
+			Value value = storage.getValue(target);
+			if (value != null) {
+				if (q.getSequenceNumber() < 0 || value.getSequenceNumber() < 0
+						|| q.getSequenceNumber() <= value.getSequenceNumber()) {
+					r.setValue(value);
 
 					hasValue = true;
 				}
@@ -583,7 +577,7 @@ public class DHT {
 			return;
 		}
 
-		Value v = q.value();
+		Value v = q.getValue();
 		if (!v.isValid()) {
 			sendError(q, ErrorCode.ProtocolError.value(), "Invalue value");
 			return;
@@ -609,20 +603,10 @@ public class DHT {
 		try {
 			boolean hasPeers = false;
 
-			if (q.doesWant4()) {
-				List<PeerInfo> peers = storage.getPeer(target, 4, 8);
-				if (!peers.isEmpty()) {
-					r.setPeers4(peers);
-					hasPeers = true;
-				}
-			}
-
-			if (q.doesWant6()) {
-				List<PeerInfo> peers = storage.getPeer(target, 6, 8);
-				if (!peers.isEmpty()) {
-					r.setPeers6(peers);
-					hasPeers = true;
-				}
+			List<PeerInfo> peers = storage.getPeer(target, 8);
+			if (!peers.isEmpty()) {
+				r.setPeers(peers);
+				hasPeers = true;
 			}
 
 			if (!hasPeers) {
@@ -659,16 +643,12 @@ public class DHT {
 			return;
 		}
 
-        InetAddress addr = q.getOrigin().getAddress();
-        assert(addr != null);
-        int family = addr instanceof Inet4Address ? PeerInfo.AF_IPV4 : PeerInfo.AF_IPV6;
-		PeerInfo peer = new PeerInfo(q.getId(), q.getProxyId(), q.getPort(), family, q.getAlt(), q.getSignature());
-
+		PeerInfo peer = q.getPeer();
 		try {
 			log.debug("Received an announce peer request from {}, saving peer {}", AddressUtils.toString(q.getOrigin()),
 					q.getTarget());
 
-			storage.putPeer(q.getTarget(), peer);
+			storage.putPeer(peer);
 			AnnouncePeerResponse r = new AnnouncePeerResponse(q.getTxid());
 			r.setRemote(q.getId(), q.getOrigin());
 			server.sendMessage(r);
@@ -896,8 +876,8 @@ public class DHT {
 		return task;
 	}
 
-	public Task announcePeer(Id peerId, int port, String alt, byte[] signature, Consumer<List<NodeInfo>> completeHandler) {
-		NodeLookup lookup = new NodeLookup(this, peerId);
+	public Task announcePeer(PeerInfo peer, Consumer<List<NodeInfo>> completeHandler) {
+		NodeLookup lookup = new NodeLookup(this, peer.getId());
 		lookup.setWantToken(true);
 		lookup.addListener(l -> {
 			if (lookup.getState() != Task.State.FINISHED)
@@ -911,7 +891,7 @@ public class DHT {
 				return;
 			}
 
-			PeerAnnounce announce = new PeerAnnounce(this, closest, peerId, port, alt, signature);
+			PeerAnnounce announce = new PeerAnnounce(this, closest, peer);
 			announce.addListener(a -> {
 				completeHandler.accept(new ArrayList<>(closest.getEntries()));
 			});

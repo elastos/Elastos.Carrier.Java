@@ -37,13 +37,19 @@ public class StoreValueRequest extends Message {
 	private Id publicKey;
 	private Id recipient;
 	private byte[] nonce;
-	private byte[] signature;
-	private int expectedSequenceNumber = -1;
 	private int sequenceNumber = -1;
+	private int expectedSequenceNumber = -1;
+	private byte[] signature;
 	private byte[] value;
 
 	public StoreValueRequest() {
 		super(Type.REQUEST, Method.STORE_VALUE);
+	}
+
+	public StoreValueRequest(Value value, int token) {
+		this();
+		setToken(token);
+		setValue(value);
 	}
 
 	public int getToken() {
@@ -54,36 +60,17 @@ public class StoreValueRequest extends Message {
 		this.token = token;
 	}
 
-	public Id getPublicKey() {
-		return publicKey;
+	public void setValue(Value value) {
+		this.publicKey = value.getPublicKey();
+		this.recipient = value.getRecipient();
+		this.nonce = value.getNonce();
+		this.signature = value.getSignature();;
+		this.sequenceNumber = value.getSequenceNumber();
+		this.value = value.getData();
 	}
 
-	public void setPublicKey(Id publicKey) {
-		this.publicKey = publicKey;
-	}
-
-	public Id getRecipient() {
-		return recipient;
-	}
-
-	public void setRecipient(Id recipient) {
-		this.recipient = recipient;
-	}
-
-	public byte[] getNonce() {
-		return nonce;
-	}
-
-	public void setNonce(byte[] nonce) {
-		this.nonce = nonce;
-	}
-
-	public byte[] getSignature() {
-		return signature;
-	}
-
-	public void setSignature(byte[] signature) {
-		this.signature = signature;
+	public Value getValue() {
+		return Value.of(publicKey, recipient, nonce, sequenceNumber, signature, value);
 	}
 
 	public int getExpectedSequenceNumber() {
@@ -94,21 +81,6 @@ public class StoreValueRequest extends Message {
 		this.expectedSequenceNumber = expectedSequenceNumber;
 	}
 
-	public int getSequenceNumber() {
-		return sequenceNumber;
-	}
-
-	public void setSequenceNumber(int sequenceNumber) {
-		this.sequenceNumber = sequenceNumber;
-	}
-
-	public byte[] getValue() {
-		return value;
-	}
-
-	public void setValue(byte[] value) {
-		this.value = value;
-	}
 
 	public boolean isMutable() {
 		return publicKey != null;
@@ -116,11 +88,6 @@ public class StoreValueRequest extends Message {
 
 	public Id getValueId() {
 		return Value.calculateId(publicKey, nonce, value);
-	}
-
-	public Value value() {
-		return Value.of(getPublicKey(), getRecipient(), getNonce(),
-				getSequenceNumber(), getSignature(), getValue());
 	}
 
 	@Override
@@ -150,14 +117,14 @@ public class StoreValueRequest extends Message {
 				gen.writeBinary(signature);
 			}
 
-			if (expectedSequenceNumber >= 0) {
-				gen.writeFieldName("cas");
-				gen.writeNumber(expectedSequenceNumber);
-			}
-
 			if (sequenceNumber >= 0) {
 				gen.writeFieldName("seq");
 				gen.writeNumber(sequenceNumber);
+			}
+
+			if (expectedSequenceNumber >= 0) {
+				gen.writeFieldName("cas");
+				gen.writeNumber(expectedSequenceNumber);
 			}
 		}
 
@@ -233,14 +200,14 @@ public class StoreValueRequest extends Message {
 			if (nonce != null)
 				b.append(",n:").append(Hex.encode(nonce));
 
+			if (sequenceNumber >= 0)
+				b.append(",seq:").append(sequenceNumber);
+
 			if (signature != null)
 				b.append(",sig:").append(Hex.encode(signature));
 
 			if (expectedSequenceNumber >= 0)
 				b.append(",cas:").append(expectedSequenceNumber);
-
-			if (sequenceNumber >= 0)
-				b.append(",seq:").append(sequenceNumber);
 
 			b.append(",");
 		}

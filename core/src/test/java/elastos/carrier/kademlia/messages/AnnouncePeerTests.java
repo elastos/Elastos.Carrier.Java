@@ -22,8 +22,8 @@
 
 package elastos.carrier.kademlia.messages;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.security.SecureRandom;
@@ -31,6 +31,7 @@ import java.security.SecureRandom;
 import org.junit.jupiter.api.Test;
 
 import elastos.carrier.Id;
+import elastos.carrier.PeerInfo;
 import elastos.carrier.kademlia.messages.Message.Method;
 import elastos.carrier.kademlia.messages.Message.Type;
 import elastos.carrier.utils.ThreadLocals;
@@ -40,10 +41,32 @@ public class AnnouncePeerTests extends MessageTests {
 	public void testAnnouncePeerRequestSize() throws Exception {
 		byte[] sig = new byte[64];
 		new SecureRandom().nextBytes(sig);
-		AnnouncePeerRequest msg = new AnnouncePeerRequest(Id.random(), 65535, "test size", sig, 0x88888888);
+		PeerInfo peer = PeerInfo.of(Id.random(), Id.random(), 65535, sig);
+
+		AnnouncePeerRequest msg = new AnnouncePeerRequest();
 		msg.setId(Id.random());
 		msg.setTxid(0x87654321);
+		msg.setToken(0x88888888);
 		msg.setVersion(VERSION);
+		msg.setPeer(peer);
+
+		byte[] bin = msg.serialize();
+		printMessage(msg, bin);
+		assertTrue(bin.length <= msg.estimateSize());
+	}
+
+	@Test
+	public void testAnnouncePeerRequestSize2() throws Exception {
+		byte[] sig = new byte[64];
+		new SecureRandom().nextBytes(sig);
+		PeerInfo peer = PeerInfo.of(Id.random(), Id.random(), Id.random(), 65535, "https://abc.pc2.net", sig);
+
+		AnnouncePeerRequest msg = new AnnouncePeerRequest();
+		msg.setId(Id.random());
+		msg.setTxid(0x87654321);
+		msg.setToken(0x88888888);
+		msg.setVersion(VERSION);
+		msg.setPeer(peer);
 
 		byte[] bin = msg.serialize();
 		printMessage(msg, bin);
@@ -53,18 +76,21 @@ public class AnnouncePeerTests extends MessageTests {
 	@Test
 	public void testAnnouncePeerRequest() throws Exception {
 		Id nodeId = Id.random();
-		int txid = ThreadLocals.random().nextInt(1, 0x7FFFFFFF);
 		Id peerId = Id.random();
+		int txid = ThreadLocals.random().nextInt(1, 0x7FFFFFFF);
 		int port = ThreadLocals.random().nextInt(1, 65535);
 		int token = ThreadLocals.random().nextInt();
 		byte[] sig = new byte[64];
 		new SecureRandom().nextBytes(sig);
-		String alt ="test announce peer";
 
-		AnnouncePeerRequest msg = new AnnouncePeerRequest(peerId, port, alt, sig, token);
+		PeerInfo peer = PeerInfo.of(peerId, nodeId, port, sig);
+
+		AnnouncePeerRequest msg = new AnnouncePeerRequest();
 		msg.setId(nodeId);
 		msg.setTxid(txid);
+		msg.setToken(token);
 		msg.setVersion(VERSION);
+		msg.setPeer(peer);
 
 		byte[] bin = msg.serialize();
 		printMessage(msg, bin);
@@ -79,11 +105,49 @@ public class AnnouncePeerTests extends MessageTests {
 		assertEquals(nodeId, m.getId());
 		assertEquals(txid, m.getTxid());
 		assertEquals(VERSION_STR, m.getReadableVersion());
-		assertEquals(peerId, m.getTarget());
-		assertEquals(port, m.getPort());
-		assertEquals(alt, m.getAlt());
-		assertArrayEquals(sig, m.getSignature());
 		assertEquals(token, m.getToken());
+		PeerInfo rPeer = m.getPeer();
+		assertNotNull(rPeer);
+		assertEquals(peer, rPeer);
+	}
+
+	@Test
+	public void testAnnouncePeerRequest2() throws Exception {
+		Id nodeId = Id.random();
+		Id origin = Id.random();
+		Id peerId = Id.random();
+		int txid = ThreadLocals.random().nextInt(1, 0x7FFFFFFF);
+		int port = ThreadLocals.random().nextInt(1, 65535);
+		int token = ThreadLocals.random().nextInt();
+		byte[] sig = new byte[64];
+		new SecureRandom().nextBytes(sig);
+
+		PeerInfo peer = PeerInfo.of(peerId, nodeId, origin, port, "http://abc.pc2.net/", sig);
+
+		AnnouncePeerRequest msg = new AnnouncePeerRequest();
+		msg.setId(origin);
+		msg.setTxid(txid);
+		msg.setToken(token);
+		msg.setVersion(VERSION);
+		msg.setPeer(peer);
+
+		byte[] bin = msg.serialize();
+		printMessage(msg, bin);
+
+		Message pm = Message.parse(bin);
+		pm.setId(origin);
+		assertTrue(pm instanceof AnnouncePeerRequest);
+		AnnouncePeerRequest m = (AnnouncePeerRequest)pm;
+
+		assertEquals(Type.REQUEST, m.getType());
+		assertEquals(Method.ANNOUNCE_PEER, m.getMethod());
+		assertEquals(origin, m.getId());
+		assertEquals(txid, m.getTxid());
+		assertEquals(VERSION_STR, m.getReadableVersion());
+		assertEquals(token, m.getToken());
+		PeerInfo rPeer = m.getPeer();
+		assertNotNull(rPeer);
+		assertEquals(peer, rPeer);
 	}
 
 	@Test
