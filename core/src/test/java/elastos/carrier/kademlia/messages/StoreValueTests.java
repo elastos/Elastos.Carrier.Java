@@ -22,8 +22,8 @@
 
 package elastos.carrier.kademlia.messages;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
@@ -31,6 +31,7 @@ import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 import elastos.carrier.Id;
+import elastos.carrier.Value;
 import elastos.carrier.kademlia.messages.Message.Method;
 import elastos.carrier.kademlia.messages.Message.Type;
 import elastos.carrier.utils.ThreadLocals;
@@ -38,24 +39,64 @@ import elastos.carrier.utils.ThreadLocals;
 public class StoreValueTests extends MessageTests {
 	@Test
 	public void testStoreValueRequestSize() throws Exception {
-		byte[] nonce = new byte[24];
-		Arrays.fill(nonce, (byte)'N');
-		byte[] sig = new byte[64];
-		Arrays.fill(sig, (byte)'S');
-		byte[] value = new byte[1025];
-		Arrays.fill(value, (byte)'D');
+		byte[] data = new byte[1025];
+		Arrays.fill(data, (byte)'D');
+
+		Value value = Value.of(data);
 
 		StoreValueRequest msg = new StoreValueRequest();
 		msg.setId(Id.random());
 		msg.setTxid(0x87654321);
 		msg.setVersion(VERSION);
-		msg.setPublicKey(Id.random());
-		msg.setRecipient(Id.random());
-		msg.setNonce(nonce);
-		msg.setExpectedSequenceNumber(0x77654320);
-		msg.setSequenceNumber(0x77654321);
-		msg.setSignature(sig);
 		msg.setToken(0x88888888);
+		msg.setValue(value);
+
+		byte[] bin = msg.serialize();
+		printMessage(msg, bin);
+		assertTrue(bin.length <= msg.estimateSize());
+	}
+
+	@Test
+	public void testStoreSignedValueRequestSize() throws Exception {
+		byte[] nonce = new byte[24];
+		Arrays.fill(nonce, (byte)'N');
+		byte[] sig = new byte[64];
+		Arrays.fill(sig, (byte)'S');
+		byte[] data = new byte[1025];
+		Arrays.fill(data, (byte)'D');
+		int seq = 0x77654321;
+
+		Value value = Value.of(Id.random(), nonce, seq, sig, data);
+		StoreValueRequest msg = new StoreValueRequest();
+		msg.setId(Id.random());
+		msg.setTxid(0x87654321);
+		msg.setVersion(VERSION);
+		msg.setToken(0x88888888);
+		msg.setExpectedSequenceNumber(seq - 1);
+		msg.setValue(value);
+
+		byte[] bin = msg.serialize();
+		printMessage(msg, bin);
+		assertTrue(bin.length <= msg.estimateSize());
+	}
+
+	@Test
+	public void testStoreEncryptedValueRequestSize() throws Exception {
+		byte[] nonce = new byte[24];
+		Arrays.fill(nonce, (byte)'N');
+		byte[] sig = new byte[64];
+		Arrays.fill(sig, (byte)'S');
+		byte[] data = new byte[1025];
+		Arrays.fill(data, (byte)'D');
+		int seq = 0x77654321;
+
+		Value value = Value.of(Id.random(), Id.random(), nonce, seq, sig, data);
+		StoreValueRequest msg = new StoreValueRequest();
+		msg.setId(Id.random());
+		msg.setTxid(0x87654321);
+		msg.setVersion(VERSION);
+		msg.setToken(0x88888888);
+		msg.setExpectedSequenceNumber(seq - 1);
 		msg.setValue(value);
 
 		byte[] bin = msg.serialize();
@@ -67,28 +108,16 @@ public class StoreValueTests extends MessageTests {
 	public void testStoreValueRequest() throws Exception {
 		Id nodeId = Id.random();
 		int txid = ThreadLocals.random().nextInt(1, 0x7FFFFFFF);
-		Id pk = Id.random();
-		Id recipient = Id.random();
-		byte[] nonce = new byte[24];
-		ThreadLocals.random().nextBytes(nonce);
-		int cas = ThreadLocals.random().nextInt(0, 0x7FFFFFFF);
-		int seq = cas + 1;
-		byte[] sig = new byte[64];
-		ThreadLocals.random().nextBytes(sig);
 		int token = ThreadLocals.random().nextInt();
-		byte[] value = new byte[1025];
-		ThreadLocals.random().nextBytes(value);
+		byte[] data = new byte[1025];
+		ThreadLocals.random().nextBytes(data);
+
+		Value value = Value.of(data);
 
 		StoreValueRequest msg = new StoreValueRequest();
 		msg.setId(nodeId);
 		msg.setTxid(txid);
 		msg.setVersion(VERSION);
-		msg.setPublicKey(pk);
-		msg.setRecipient(recipient);
-		msg.setNonce(nonce);
-		msg.setExpectedSequenceNumber(cas);
-		msg.setSequenceNumber(seq);
-		msg.setSignature(sig);
 		msg.setToken(token);
 		msg.setValue(value);
 
@@ -105,14 +134,99 @@ public class StoreValueTests extends MessageTests {
 		assertEquals(nodeId, m.getId());
 		assertEquals(txid, m.getTxid());
 		assertEquals(VERSION_STR, m.getReadableVersion());
-		assertEquals(pk, m.getPublicKey());
-		assertEquals(recipient, m.getRecipient());
-		assertArrayEquals(nonce, m.getNonce());
-		assertEquals(cas, m.getExpectedSequenceNumber());
-		assertEquals(seq, m.getSequenceNumber());
-		assertArrayEquals(sig, m.getSignature());
 		assertEquals(token, m.getToken());
-		assertArrayEquals(value, m.getValue());
+		Value v = m.getValue();
+		assertNotNull(v);
+		assertEquals(value, v);
+	}
+
+	@Test
+	public void testStoreSignedValueRequest() throws Exception {
+		Id nodeId = Id.random();
+		int txid = ThreadLocals.random().nextInt(1, 0x7FFFFFFF);
+		Id pk = Id.random();
+		byte[] nonce = new byte[24];
+		ThreadLocals.random().nextBytes(nonce);
+		int cas = ThreadLocals.random().nextInt(0, 0x7FFFFFFF);
+		int seq = cas + 1;
+		byte[] sig = new byte[64];
+		ThreadLocals.random().nextBytes(sig);
+		int token = ThreadLocals.random().nextInt();
+		byte[] data = new byte[1025];
+		ThreadLocals.random().nextBytes(data);
+
+		Value value = Value.of(pk, nonce, seq, sig, data);
+		StoreValueRequest msg = new StoreValueRequest();
+		msg.setId(nodeId);
+		msg.setTxid(txid);
+		msg.setVersion(VERSION);
+		msg.setToken(token);
+		msg.setExpectedSequenceNumber(cas);
+		msg.setValue(value);
+
+		byte[] bin = msg.serialize();
+		printMessage(msg, bin);
+
+		Message pm = Message.parse(bin);
+		pm.setId(nodeId);
+		assertTrue(pm instanceof StoreValueRequest);
+		StoreValueRequest m = (StoreValueRequest)pm;
+
+		assertEquals(Type.REQUEST, m.getType());
+		assertEquals(Method.STORE_VALUE, m.getMethod());
+		assertEquals(nodeId, m.getId());
+		assertEquals(txid, m.getTxid());
+		assertEquals(VERSION_STR, m.getReadableVersion());
+		assertEquals(token, m.getToken());
+		assertEquals(cas, m.getExpectedSequenceNumber());
+		Value v = m.getValue();
+		assertNotNull(v);
+		assertEquals(value, v);
+	}
+
+	@Test
+	public void testStoreEncryptedValueRequest() throws Exception {
+		Id nodeId = Id.random();
+		int txid = ThreadLocals.random().nextInt(1, 0x7FFFFFFF);
+		Id pk = Id.random();
+		Id recipient = Id.random();
+		byte[] nonce = new byte[24];
+		ThreadLocals.random().nextBytes(nonce);
+		int cas = ThreadLocals.random().nextInt(0, 0x7FFFFFFF);
+		int seq = cas + 1;
+		byte[] sig = new byte[64];
+		ThreadLocals.random().nextBytes(sig);
+		int token = ThreadLocals.random().nextInt();
+		byte[] data = new byte[1025];
+		ThreadLocals.random().nextBytes(data);
+
+		Value value = Value.of(pk, recipient, nonce, seq, sig, data);
+		StoreValueRequest msg = new StoreValueRequest();
+		msg.setId(nodeId);
+		msg.setTxid(txid);
+		msg.setVersion(VERSION);
+		msg.setToken(token);
+		msg.setExpectedSequenceNumber(cas);
+		msg.setValue(value);
+
+		byte[] bin = msg.serialize();
+		printMessage(msg, bin);
+
+		Message pm = Message.parse(bin);
+		pm.setId(nodeId);
+		assertTrue(pm instanceof StoreValueRequest);
+		StoreValueRequest m = (StoreValueRequest)pm;
+
+		assertEquals(Type.REQUEST, m.getType());
+		assertEquals(Method.STORE_VALUE, m.getMethod());
+		assertEquals(nodeId, m.getId());
+		assertEquals(txid, m.getTxid());
+		assertEquals(VERSION_STR, m.getReadableVersion());
+		assertEquals(token, m.getToken());
+		assertEquals(cas, m.getExpectedSequenceNumber());
+		Value v = m.getValue();
+		assertNotNull(v);
+		assertEquals(value, v);
 	}
 
 	@Test

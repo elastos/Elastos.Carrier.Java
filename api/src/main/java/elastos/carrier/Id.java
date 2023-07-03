@@ -388,6 +388,9 @@ public class Id implements Comparable<Id> {
 	 */
 	@Override
 	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+
 		if (o instanceof Id) {
 			Id id = (Id) o;
 			return Arrays.equals(this.bytes, id.bytes);

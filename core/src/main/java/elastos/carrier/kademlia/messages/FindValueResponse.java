@@ -47,57 +47,17 @@ public class FindValueResponse extends LookupResponse {
 		this(0);
 	}
 
-	public Id getPublicKey() {
-		return publicKey;
+	public void setValue(Value value) {
+		this.publicKey = value.getPublicKey();
+		this.recipient = value.getRecipient();
+		this.nonce = value.getNonce();
+		this.signature = value.getSignature();;
+		this.sequenceNumber = value.getSequenceNumber();
+		this.value = value.getData();
 	}
 
-	public void setPublicKey(Id publicKey) {
-		this.publicKey = publicKey;
-	}
-
-	public Id getRecipient() {
-		return recipient;
-	}
-
-	public void setRecipient(Id recipient) {
-		this.recipient = recipient;
-	}
-
-	public byte[] getNonce() {
-		return nonce;
-	}
-
-	public void setNonce(byte[] nonce) {
-		this.nonce = nonce;
-	}
-
-	public byte[] getSignature() {
-		return signature;
-	}
-
-	public void setSignature(byte[] signature) {
-		this.signature = signature;
-	}
-
-	public int getSequenceNumber() {
-		return sequenceNumber;
-	}
-
-	public void setSequenceNumber(int sequenceNumber) {
-		this.sequenceNumber = sequenceNumber;
-	}
-
-	public byte[] getValue() {
-		return value;
-	}
-
-	public void setValue(byte[] value) {
-		this.value = value;
-	}
-
-	public Value value() {
-		return Value.of(getPublicKey(), getRecipient(), getNonce(),
-				getSequenceNumber(), getSignature(), getValue());
+	public Value getValue() {
+		return Value.of(publicKey, recipient, nonce, sequenceNumber, signature, value);
 	}
 
 	@Override
@@ -117,14 +77,14 @@ public class FindValueResponse extends LookupResponse {
 			gen.writeBinary(nonce);
 		}
 
-		if (signature != null) {
-			gen.writeFieldName("sig");
-			gen.writeBinary(signature);
-		}
-
 		if (sequenceNumber >= 0) {
 			gen.writeFieldName("seq");
 			gen.writeNumber(sequenceNumber);
+		}
+
+		if (signature != null) {
+			gen.writeFieldName("sig");
+			gen.writeBinary(signature);
 		}
 
 		if (value != null) {
@@ -182,11 +142,11 @@ public class FindValueResponse extends LookupResponse {
 		if (nonce != null)
 			b.append(",n:").append(Hex.encode(nonce));
 
-		if (signature != null)
-			b.append(",sig:").append(Hex.encode(signature));
-
 		if (sequenceNumber >= 0)
 			b.append(",seq:").append(sequenceNumber);
+
+		if (signature != null)
+			b.append(",sig:").append(Hex.encode(signature));
 
 		if (value != null)
 			b.append(",v:").append(Hex.encode(value));

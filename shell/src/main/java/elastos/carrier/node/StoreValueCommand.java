@@ -55,7 +55,7 @@ public class StoreValueCommand implements Callable<Integer> {
 		if (target == null) {
 			if (mutable) {
 				if (recipient == null) {
-					value = node.createSignedValue(text.getBytes());
+					value = Value.createSignedValue(text.getBytes());
  				} else {
  					Id recipientId = null;
  					try {
@@ -65,10 +65,10 @@ public class StoreValueCommand implements Callable<Integer> {
  						return -1;
  					}
 
- 					value = node.createEncryptedValue(recipientId, text.getBytes());
+ 					value = Value.createEncryptedValue(recipientId, text.getBytes());
  				}
 			} else {
-				value = node.createValue(text.getBytes());
+				value = Value.createValue(text.getBytes());
 			}
 		} else {
 			Id id = null;
@@ -79,7 +79,18 @@ public class StoreValueCommand implements Callable<Integer> {
 				return -1;
 			}
 
-			value = node.updateValue(id, text.getBytes());
+			value = node.getValue(id);
+			if (value == null) {
+				System.out.println("Value not exists: " + target);
+				return -1;
+			}
+
+			try {
+				value = value.update(text.getBytes());
+			} catch (Exception e) {
+				System.out.println("Can not update the value: " + e.getMessage());
+				return -1;
+			}
 		}
 
 		CompletableFuture<Void> f = Shell.getCarrierNode().storeValue(value);

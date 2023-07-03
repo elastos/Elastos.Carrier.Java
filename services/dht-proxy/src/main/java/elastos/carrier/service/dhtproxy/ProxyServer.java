@@ -243,10 +243,11 @@ public class ProxyServer extends AbstractVerticle {
 		JsonArray array = new JsonArray();
 		for (PeerInfo peer : peers)
 			array.add(JsonObject.of(
+				"id", peer.getId().toString(),
 				"nodeId", peer.getNodeId().toString(),
-				"proxyId", peer.getProxyId().toString(),
+				"origin", peer.getOrigin().toString(),
 				"port", peer.getPort(),
-				"alt", peer.getAlt(),
+				"alt", peer.getAlternativeURL(),
 				"signature", peer.getSignature()
 			));
 
