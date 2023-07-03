@@ -91,15 +91,7 @@ public class PeerLookup extends LookupTask {
 		FindPeerResponse r = (FindPeerResponse)response;
 
 		boolean hasPeers = false;
-		List<PeerInfo> peers = r.getPeers4();
-		if (peers != null && !peers.isEmpty()) {
-			if (resultHandler != null)
-				resultHandler.accept(peers);
-
-			hasPeers = true;
-		}
-
-		peers = r.getPeers6();
+		List<PeerInfo> peers = r.getPeers();
 		if (peers != null && !peers.isEmpty()) {
 			if (resultHandler != null)
 				resultHandler.accept(peers);

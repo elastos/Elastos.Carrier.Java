@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Test;
 
 import elastos.carrier.Id;
 import elastos.carrier.NodeInfo;
+import elastos.carrier.Value;
 import elastos.carrier.kademlia.messages.Message.Method;
 import elastos.carrier.kademlia.messages.Message.Type;
 import elastos.carrier.utils.ThreadLocals;
@@ -185,19 +186,15 @@ public class FindValueTests extends MessageTests {
 		Arrays.fill(nonce, (byte)'N');
 		byte[] sig = new byte[64];
 		Arrays.fill(sig, (byte)'S');
-		byte[] value = new byte[1025];
-		Arrays.fill(value, (byte)'D');
+		byte[] data = new byte[1025];
+		Arrays.fill(data, (byte)'D');
+		Value value = Value.of(Id.random(), Id.random(), nonce, 0x77654321, sig, data);
 
 		FindValueResponse msg = new FindValueResponse(0xF7654321);
 		msg.setId(Id.random());
 		msg.setVersion(VERSION);
 		msg.setNodes4(nodes4);
 		msg.setNodes6(nodes6);
-		msg.setPublicKey(Id.random());
-		msg.setRecipient(Id.random());
-		msg.setNonce(nonce);
-		msg.setSequenceNumber(0x77654321);
-		msg.setSignature(sig);
 		msg.setToken(0xF8765432);
 		msg.setValue(value);
 
@@ -219,8 +216,10 @@ public class FindValueTests extends MessageTests {
 		byte[] sig = new byte[64];
 		ThreadLocals.random().nextBytes(sig);
 		int token = ThreadLocals.random().nextInt();
-		byte[] value = new byte[1025];
-		ThreadLocals.random().nextBytes(value);
+		byte[] data = new byte[1025];
+		ThreadLocals.random().nextBytes(data);
+
+		Value value = Value.of(pk, recipient, nonce, seq, sig, data);
 
 		List<NodeInfo> nodes4 = new ArrayList<>();
 		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65535));
@@ -233,11 +232,6 @@ public class FindValueTests extends MessageTests {
 		msg.setId(id);
 		msg.setVersion(VERSION);
 		msg.setNodes4(nodes4);
-		msg.setPublicKey(pk);
-		msg.setRecipient(recipient);
-		msg.setNonce(nonce);
-		msg.setSequenceNumber(seq);
-		msg.setSignature(sig);
 		msg.setToken(token);
 		msg.setValue(value);
 
@@ -258,13 +252,10 @@ public class FindValueTests extends MessageTests {
 		assertEquals(VERSION_STR, m.getReadableVersion());
 		assertTrue(m.getNodes6().isEmpty());
 		assertFalse(m.getNodes4().isEmpty());
-		assertEquals(pk, m.getPublicKey());
-		assertEquals(recipient, m.getRecipient());
-		assertArrayEquals(nonce, m.getNonce());
-		assertEquals(seq, m.getSequenceNumber());
-		assertArrayEquals(sig, m.getSignature());
 		assertEquals(token, m.getToken());
-		assertArrayEquals(value, m.getValue());
+		Value v = m.getValue();
+		assertNotNull(v);
+		assertEquals(value, v);
 
 		List<NodeInfo> nodes = m.getNodes4();
 		assertArrayEquals(nodes4.toArray(), nodes.toArray());
@@ -274,11 +265,11 @@ public class FindValueTests extends MessageTests {
 	public void testFindValueResponse4Immutable() throws Exception {
 		Id id = Id.random();
 		int txid = ThreadLocals.random().nextInt(1, 0x7FFFFFFF);
-		byte[] nonce = new byte[24];
-		ThreadLocals.random().nextBytes(nonce);
 		int token = ThreadLocals.random().nextInt();
-		byte[] value = new byte[1025];
-		ThreadLocals.random().nextBytes(value);
+		byte[] data = new byte[1025];
+		ThreadLocals.random().nextBytes(data);
+
+		Value value = Value.of(data);
 
 		List<NodeInfo> nodes4 = new ArrayList<>();
 		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65535));
@@ -291,7 +282,6 @@ public class FindValueTests extends MessageTests {
 		msg.setId(id);
 		msg.setVersion(VERSION);
 		msg.setNodes4(nodes4);
-		msg.setNonce(nonce);
 		msg.setToken(token);
 		msg.setValue(value);
 
@@ -312,9 +302,10 @@ public class FindValueTests extends MessageTests {
 		assertEquals(VERSION_STR, m.getReadableVersion());
 		assertTrue(m.getNodes6().isEmpty());
 		assertFalse(m.getNodes4().isEmpty());
-		assertArrayEquals(nonce, m.getNonce());
 		assertEquals(token, m.getToken());
-		assertArrayEquals(value, m.getValue());
+		Value v = m.getValue();
+		assertNotNull(v);
+		assertEquals(value, v);
 
 		List<NodeInfo> nodes = m.getNodes4();
 		assertArrayEquals(nodes4.toArray(), nodes.toArray());
@@ -333,8 +324,10 @@ public class FindValueTests extends MessageTests {
 		byte[] sig = new byte[64];
 		ThreadLocals.random().nextBytes(sig);
 		int token = ThreadLocals.random().nextInt();
-		byte[] value = new byte[1025];
-		ThreadLocals.random().nextBytes(value);
+		byte[] data = new byte[1025];
+		ThreadLocals.random().nextBytes(data);
+
+		Value value = Value.of(pk, recipient, nonce, seq, sig, data);
 
 		List<NodeInfo> nodes6 = new ArrayList<>();
 		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:8070:6543:8a2e:0370:7334", 65535));
@@ -347,11 +340,6 @@ public class FindValueTests extends MessageTests {
 		msg.setId(id);
 		msg.setVersion(VERSION);
 		msg.setNodes6(nodes6);
-		msg.setPublicKey(pk);
-		msg.setRecipient(recipient);
-		msg.setNonce(nonce);
-		msg.setSequenceNumber(seq);
-		msg.setSignature(sig);
 		msg.setToken(token);
 		msg.setValue(value);
 
@@ -372,13 +360,10 @@ public class FindValueTests extends MessageTests {
 		assertEquals(VERSION_STR, m.getReadableVersion());
 		assertTrue(m.getNodes4().isEmpty());
 		assertFalse(m.getNodes6().isEmpty());
-		assertEquals(pk, m.getPublicKey());
-		assertEquals(recipient, m.getRecipient());
-		assertArrayEquals(nonce, m.getNonce());
-		assertEquals(seq, m.getSequenceNumber());
-		assertArrayEquals(sig, m.getSignature());
 		assertEquals(token, m.getToken());
-		assertArrayEquals(value, m.getValue());
+		Value v = m.getValue();
+		assertNotNull(v);
+		assertEquals(value, v);
 
 		List<NodeInfo> nodes = m.getNodes6();
 		assertArrayEquals(nodes6.toArray(), nodes.toArray());
@@ -397,8 +382,10 @@ public class FindValueTests extends MessageTests {
 		byte[] sig = new byte[64];
 		ThreadLocals.random().nextBytes(sig);
 		int token = ThreadLocals.random().nextInt();
-		byte[] value = new byte[1025];
-		ThreadLocals.random().nextBytes(value);
+		byte[] data = new byte[1025];
+		ThreadLocals.random().nextBytes(data);
+
+		Value value = Value.of(pk, recipient, nonce, seq, sig, data);
 
 		List<NodeInfo> nodes4 = new ArrayList<>();
 		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65535));
@@ -418,11 +405,6 @@ public class FindValueTests extends MessageTests {
 		msg.setId(id);
 		msg.setNodes4(nodes4);
 		msg.setNodes6(nodes6);
-		msg.setPublicKey(pk);
-		msg.setRecipient(recipient);
-		msg.setNonce(nonce);
-		msg.setSequenceNumber(seq);
-		msg.setSignature(sig);
 		msg.setToken(token);
 		msg.setValue(value);
 
@@ -443,13 +425,11 @@ public class FindValueTests extends MessageTests {
 		assertEquals(0, m.getVersion());
 		assertNotNull(m.getNodes4());
 		assertNotNull(m.getNodes6());
-		assertEquals(pk, m.getPublicKey());
-		assertEquals(recipient, m.getRecipient());
-		assertArrayEquals(nonce, m.getNonce());
-		assertEquals(seq, m.getSequenceNumber());
-		assertArrayEquals(sig, m.getSignature());
+
 		assertEquals(token, m.getToken());
-		assertArrayEquals(value, m.getValue());
+		Value v = m.getValue();
+		assertNotNull(v);
+		assertEquals(value, v);
 
 		List<NodeInfo> nodes = m.getNodes4();
 		assertArrayEquals(nodes4.toArray(), nodes.toArray());

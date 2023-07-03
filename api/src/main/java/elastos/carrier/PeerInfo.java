@@ -22,171 +22,240 @@
 
 package elastos.carrier;
 
-import java.net.Inet4Address;
-import java.net.InetAddress;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.text.Normalizer;
 import java.util.Objects;
 
-import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.Signature;
-import elastos.carrier.utils.Hex;
 
 public class PeerInfo {
-	public static final int AF_IPV4 = 4;
-	public static final int AF_IPV6 = 6;
+	private static final Charset UTF8 = Charset.forName("UTF-8");
 
-	private final Id nodeId;
-	private final Id proxyId;
-	private final int port;
-	private final String alt;
-	private final int family;
-	private final byte[] signature;
+	private Id publicKey;			// Peer ID
+	private byte[] privateKey;		// Private key to sign the peer info
+	private Id nodeId;				// The node that provide the service peer
+	private Id origin;				// The node that announce the peer
+	private int port;
+	private String alternativeURL;
+	private byte[] signature;
 
-	private boolean proxied = false;
-	private boolean hasAlt = false;
+	private PeerInfo(Id peerId, byte[] privateKey, Id nodeId, Id origin, int port,
+			String alternativeURL, byte[] signature) {
+		if (peerId == null)
+			throw new IllegalArgumentException("Invalid peer id");
 
-	public PeerInfo(Id nodeId, Id proxyId, int port, int family, String alt, byte[] signature) {
+		if (privateKey != null && privateKey.length != Signature.PrivateKey.BYTES)
+			throw new IllegalArgumentException("Invalid private key");
+
 		if (nodeId == null)
-			throw new IllegalArgumentException("Invalid node id: null");
+			throw new IllegalArgumentException("Invalid node id");
+
 		if (port <= 0 || port > 65535)
-			throw new IllegalArgumentException("Invalid port: " + port);
-		if (family != AF_IPV4 && family != AF_IPV6)
-			throw new IllegalArgumentException("Invalid family: " + family);
+			throw new IllegalArgumentException("Invalid port");
 
+		if (signature == null || signature.length != Signature.BYTES)
+			throw new IllegalArgumentException("Invalid signature");
+
+		this.publicKey = peerId;
+		this.privateKey = privateKey;
 		this.nodeId = nodeId;
-		this.proxyId = proxyId == null ? Id.zero() : proxyId;
+		this.origin = origin != null ? origin : nodeId;
 		this.port = port;
-		this.family = family;
-		this.alt = alt == null ? "" : alt;
+		if (alternativeURL != null && !alternativeURL.isEmpty())
+			this.alternativeURL = Normalizer.normalize(alternativeURL, Normalizer.Form.NFC);
 		this.signature = signature;
-
-		if (this.proxyId != Id.zero())
-			this.proxied = true;
-		if (!this.alt.equals(""))
-			this.hasAlt = true;
-
-		boolean ret = this.isValid();
 	}
 
-	public PeerInfo(Id nodeId, int port, int family, String alt, byte[] signature) {
-		this(nodeId, null, port, family, alt, signature);
+	private PeerInfo(Signature.KeyPair keypair, Id nodeId, Id origin, int port, String alternativeURL) {
+		if (keypair == null)
+			throw new IllegalArgumentException("Invalid keypair");
+
+		if (nodeId == null)
+			throw new IllegalArgumentException("Invalid node id");
+
+		if (port <= 0 || port > 65535)
+			throw new IllegalArgumentException("Invalid port");
+
+		this.publicKey = new Id(keypair.publicKey().bytes());;
+		this.privateKey = keypair.privateKey().bytes();
+		this.nodeId = nodeId;
+		this.origin = origin != null ? origin : nodeId;
+		this.port = port;
+		if (alternativeURL != null && !alternativeURL.isEmpty())
+			this.alternativeURL = Normalizer.normalize(alternativeURL, Normalizer.Form.NFC);
+		this.signature = Signature.sign(getSignData(), keypair.privateKey());
+	}
+
+	public static PeerInfo of(Id peerId, Id nodeId, int port, byte[] signature) {
+		return new PeerInfo(peerId, null, nodeId, null, port, null, signature);
+	}
+
+	public static PeerInfo of(Id peerId, byte[] privateKey, Id nodeId, int port, byte[] signature) {
+		return new PeerInfo(peerId, privateKey, nodeId, null, port, null, signature);
+	}
+
+	public static PeerInfo of(Id peerId, Id nodeId, int port, String alternativeURL, byte[] signature) {
+		return new PeerInfo(peerId, null, nodeId, null, port, alternativeURL, signature);
+	}
+
+	public static PeerInfo of(Id peerId, byte[] privateKey, Id nodeId, int port,
+			String alternativeURL, byte[] signature) {
+		return new PeerInfo(peerId, privateKey, nodeId, null, port, alternativeURL, signature);
+	}
+
+	public static PeerInfo of(Id peerId, Id nodeId, Id origin, int port, byte[] signature) {
+		return new PeerInfo(peerId, null, nodeId, origin, port, null, signature);
+	}
+
+	public static PeerInfo of(Id peerId, byte[] privateKey, Id nodeId,  Id origin, int port, byte[] signature) {
+		return new PeerInfo(peerId, privateKey, nodeId, origin, port, null, signature);
+	}
+
+	public static PeerInfo of(Id peerId, Id nodeId, Id origin, int port, String alternativeURL, byte[] signature) {
+		return new PeerInfo(peerId, null, nodeId, origin, port, alternativeURL, signature);
+	}
+
+	public static PeerInfo of(Id peerId, byte[] privateKey, Id nodeId, Id origin, int port,
+			String alternativeURL, byte[] signature) {
+		return new PeerInfo(peerId, privateKey, nodeId, origin, port, alternativeURL, signature);
+	}
+
+	public static PeerInfo create(Id nodeId, int port) {
+		return create(null, nodeId, null, port, null);
+	}
+
+	public static PeerInfo create(Signature.KeyPair keypair, Id nodeId, int port) {
+		return create(keypair, nodeId, null, port, null);
+	}
+
+	public static PeerInfo create(Id nodeId, Id origin, int port) {
+		return create(null, nodeId, origin, port, null);
+	}
+
+	public static PeerInfo create(Signature.KeyPair keypair, Id nodeId, Id origin, int port) {
+		return create(keypair, nodeId, origin, port, null);
+	}
+
+	public static PeerInfo create(Id nodeId, int port, String alternativeURL) {
+		return create(null, nodeId, null, port, alternativeURL);
+	}
+
+	public static PeerInfo create(Signature.KeyPair keypair, Id nodeId, int port, String alternativeURL) {
+		return create(keypair, nodeId, null, port, alternativeURL);
+	}
+
+	public static PeerInfo create(Id nodeId, Id origin, int port, String alternativeURL) {
+		return create(null, nodeId, origin, port, alternativeURL);
+	}
+
+	public static PeerInfo create(Signature.KeyPair keypair, Id nodeId, Id origin,
+			int port, String alternativeURL) {
+		if (keypair == null)
+			keypair = Signature.KeyPair.random();
+
+		return new PeerInfo(keypair, nodeId, origin, port, alternativeURL);
+	}
+
+	public Id getId() {
+		return publicKey;
+	}
+
+	public boolean hasPrivateKey() {
+		return privateKey != null;
+	}
+
+	public byte[] getPrivateKey() {
+		return privateKey;
 	}
 
 	public Id getNodeId() {
 		return nodeId;
 	}
 
-	public Id getProxyId() {
-		return proxyId;
+	public Id getOrigin() {
+		return origin != null ? origin : nodeId;
 	}
 
-	public boolean usingProxy() {
-		return proxied;
-	}
-
-	public int getInetFamily() {
-		return family;
+	public boolean isDelegated() {
+		return origin != null && !origin.equals(nodeId);
 	}
 
 	public int getPort() {
 		return port;
 	}
 
-	public boolean isIPv4() {
-		return family == AF_IPV4;
+	public String getAlternativeURL() {
+		return alternativeURL;
 	}
 
-	public boolean isIPv6() {
-		return family == AF_IPV6;
-	}
-
-	public int getFamily() {
-		return family;
-	}
-
-	public String getAlt() {
-		return alt;
-	}
-
-	public boolean isUsedAlt() {
-		return hasAlt;
+	public boolean hasAlternativeURL() {
+		return alternativeURL != null && !alternativeURL.isEmpty();
 	}
 
 	public byte[] getSignature() {
 		return signature;
 	}
 
-	public int estimateSize() {
-        return 1024; //TODO:: should estimate size later
-    }
+	private byte[] getSignData() {
+		byte[] alt = alternativeURL == null || alternativeURL.isEmpty() ?
+				null : alternativeURL.getBytes(UTF8);
+
+		byte[] toSign = new byte[Id.BYTES * 2 + Short.BYTES + (alt == null ? 0 : alt.length)];
+		ByteBuffer buf = ByteBuffer.wrap(toSign);
+		buf.put(nodeId.bytes())
+			.put(getOrigin().bytes())
+			.putShort((short)port);
+		if (alt != null)
+			buf.put(alt);
+
+		return toSign;
+	}
+
+	public boolean isValid() {
+		if (signature == null || signature.length != Signature.BYTES)
+			return false;
+
+		Signature.PublicKey pk = publicKey.toSignatureKey();
+
+		return Signature.verify(getSignData(), signature, pk);
+	}
 
 	@Override
 	public int hashCode() {
-		return nodeId.hashCode() + alt.hashCode() + family + 0x70; // 'p'
+		return publicKey.hashCode() + nodeId.hashCode() + 0x70; // 'p'
 	}
 
 	@Override
 	public boolean equals(Object o) {
+		if (o == this)
+			return true;
+
 		if (o instanceof PeerInfo) {
-			PeerInfo other = (PeerInfo) o;
-			return this.nodeId.equals(other.nodeId) && this.port == other.port
-					&& this.family == other.family && Objects.equals(this.alt, other.alt);
+			PeerInfo v = (PeerInfo)o;
+
+			return Objects.equals(publicKey, v.publicKey) &&
+					Objects.equals(nodeId, v.nodeId) &&
+					Objects.equals(getOrigin(), v.getOrigin()) &&
+					port == v.port &&
+					Objects.equals(alternativeURL, v.alternativeURL);
 		}
+
 		return false;
 	}
 
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append("<").append(nodeId.toString());
-		if (proxied)
-			sb.append(",").append(proxyId.toString());
-		sb.append(",").append(port);
-		if (isIPv4())
-			sb.append(",ipv4");
-		else if (isIPv4())
-			sb.append(",ipv6");
-		if (hasAlt)
-			sb.append(",").append(alt);
-		sb.append(",").append(signature.toString());
+		sb.append("<")
+			.append(publicKey.toString()).append(',')
+			.append(nodeId.toString()).append(',');
+		if (isDelegated())
+			sb.append(getOrigin().toString()).append(',');
+		sb.append(port);
+		if (hasAlternativeURL())
+			sb.append(",").append(alternativeURL);
 		sb.append(">");
 		return sb.toString();
 	}
-
-	public static byte[] getSignData(Id nodeId, Id proxyId, int port, String alt) {
-		boolean proxied = false;
-		boolean hasAlt = false;
-		alt = alt == null ? "" : alt;
-
-		if (proxyId != Id.zero())
-			proxied = true;
-		if (!alt.equals(""))
-			hasAlt = true;
-
-		byte[] toSign = new byte[Id.BYTES + (proxied ? Id.BYTES : 0) + 2 +
-		                         (hasAlt ? alt.getBytes().length : 0)];
-
-		ByteBuffer buf = ByteBuffer.wrap(toSign);
-		buf.put(nodeId.getBytes());
-		if (proxied)
-			buf.put(proxyId.bytes());
-
-		buf.put((byte) (port & 0xFF));
-		buf.put((byte) ((port>>8) & 0xFF));
-
-		if (hasAlt)
-			buf.put(alt.getBytes());
-
- 		return toSign;
-	}
-
-	public boolean isValid() {
-		Signature.PublicKey pk;
-	    if (proxied)
-	    	pk = Signature.PublicKey.fromBytes(proxyId.getBytes());
-	    else
-	    	pk = Signature.PublicKey.fromBytes(nodeId.getBytes());
-	    return Signature.verify(getSignData(nodeId, proxyId, port, alt), signature, pk);
-	}
-
 }

@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -57,6 +56,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 
+import elastos.carrier.CarrierException;
 import elastos.carrier.Configuration;
 import elastos.carrier.Id;
 import elastos.carrier.LookupOption;
@@ -66,14 +66,11 @@ import elastos.carrier.NodeStatusListener;
 import elastos.carrier.PeerInfo;
 import elastos.carrier.Value;
 import elastos.carrier.crypto.CryptoBox;
-import elastos.carrier.crypto.CryptoException;
 import elastos.carrier.crypto.Signature;
 import elastos.carrier.kademlia.DHT.Type;
 import elastos.carrier.kademlia.exceptions.CryptoError;
 import elastos.carrier.kademlia.exceptions.IOError;
 import elastos.carrier.kademlia.exceptions.KadException;
-import elastos.carrier.kademlia.exceptions.NotValueOwner;
-import elastos.carrier.kademlia.exceptions.ValueNotExists;
 import elastos.carrier.kademlia.tasks.Task;
 import elastos.carrier.kademlia.tasks.TaskFuture;
 import elastos.carrier.utils.AddressUtils;
@@ -317,7 +314,11 @@ public class Node implements elastos.carrier.Node {
 	@Override
 	public void bootstrap(NodeInfo node) throws KadException {
 		checkArgument(node != null, "Invalid bootstrap node");
-		checkArgument(!node.getId().equals(id), "It is local node");
+
+		if (node.getId().equals(this.id)) {
+			log.warn("Can not bootstrap from local node: {}", node.getId());
+			return;
+		}
 
 		if (dht4 != null)
 			dht4.bootstrap(node);
@@ -464,6 +465,16 @@ public class Node implements elastos.carrier.Node {
 	}
 
 	@Override
+	public byte[] sign(byte[] data) throws CarrierException {
+		return Signature.sign(data, keyPair.privateKey());
+	}
+
+	@Override
+	public boolean verify(byte[] data, byte[] signature) throws CarrierException {
+		return Signature.verify(data, signature, keyPair.publicKey());
+	}
+
+	@Override
 	public CompletableFuture<List<NodeInfo>> findNode(Id id, LookupOption option) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid node id");
@@ -583,6 +594,7 @@ public class Node implements elastos.carrier.Node {
 	public CompletableFuture<Void> storeValue(Value value) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(value != null, "Invalid value: null");
+		checkArgument(value.isValid(), "Invalid value");
 
 		try {
 			getStorage().putValue(value);
@@ -630,7 +642,7 @@ public class Node implements elastos.carrier.Node {
 
 		List<PeerInfo> local;
 		try {
-			local = getStorage().getPeer(id, family, expected);
+			local = getStorage().getPeer(id, expected);
 			if (expected > 0 && local.size() >= expected && lookupOption == LookupOption.ARBITRARY)
 				return CompletableFuture.completedFuture(local);
 		} catch (KadException e) {
@@ -656,7 +668,7 @@ public class Node implements elastos.carrier.Node {
 			results.addAll(ps);
 
 			try {
-				getStorage().putPeer(id, ps);
+				getStorage().putPeer(ps);
 			} catch (KadException ignore) {
 				log.error("Save peer " + id + " failed", ignore);
 			}
@@ -683,30 +695,17 @@ public class Node implements elastos.carrier.Node {
 	}
 
 	@Override
-	public CompletableFuture<Void> announcePeer(Id id, int port, String alt) {
+	public CompletableFuture<Void> announcePeer(PeerInfo peer) {
 		checkState(isRunning(), "Node not running");
-		checkArgument(id != null, "Invalid peer id");
-		checkArgument(port != 0, "Invaid peer port");
-
-		// TODO: can not create a peer with local address.
-		//       how to get the public peer address?
-		/*
-		PeerInfo peer4 = null, peer6 = null;
-		if (dht4 != null)
-			peer4 = new PeerInfo(getId(), dht4.getServer().getAddress().getAddress(), port);
-		if (dht6 != null)
-			peer6 = new PeerInfo(getId(), dht6.getServer().getAddress().getAddress(), port);
+		checkArgument(peer != null, "Invalid peer: null");
+		checkArgument(peer.getOrigin().equals(getId()), "Invaid peer: not belongs to current node");
+		checkArgument(peer.isValid(), "Invalid peer");
 
 		try {
-			if (peer4 != null)
-				getStorage().putPeer(id, peer4);
-
-			if (peer6 != null)
-				getStorage().putPeer(id, peer6);
+			getStorage().putPeer(peer);
 		} catch(KadException e) {
 			return CompletableFuture.failedFuture(e);
 		}
-		*/
 
 		TaskFuture<Void> future = new TaskFuture<>();
 		AtomicInteger completion = new AtomicInteger(0);
@@ -718,15 +717,13 @@ public class Node implements elastos.carrier.Node {
 		};
 
 		Task t4 = null, t6 = null;
-		byte[] signature = createPeerSignature(port, alt);
-
 		if (dht4 != null) {
-			t4 = dht4.announcePeer(id, port, alt, signature, completeHandler);
+			t4 = dht4.announcePeer(peer, completeHandler);
 			future.addTask(t4);
 		}
 
 		if (dht6 != null) {
-			t6 = dht6.announcePeer(id, port, alt, signature, completeHandler);
+			t6 = dht6.announcePeer(peer, completeHandler);
 			future.addTask(t6);
 		}
 
@@ -734,78 +731,17 @@ public class Node implements elastos.carrier.Node {
 	}
 
 	@Override
-	public Value createValue(byte[] data) {
-		return Value.of(data);
+	public Value getValue(Id valueId) throws KadException {
+		checkArgument(valueId != null, "Invalid value id");
+
+		return getStorage().getValue(valueId);
 	}
 
 	@Override
-	public Value createSignedValue(byte[] data) throws KadException {
-		Signature.KeyPair kp = Signature.KeyPair.random();
-		CryptoBox.Nonce nonce = CryptoBox.Nonce.random();
+	public PeerInfo getPeerInfo(Id peerId) throws CarrierException {
+		checkArgument(peerId != null, "Invalid peer id");
 
-		try {
-			return Value.of(kp, nonce, 0, data);
-		} catch (CryptoException e) {
-			log.error("INTERNAL ERROR: should never happen!!!");
-			throw new CryptoError(e.getMessage(), e);
-		}
-	}
-
-	@Override
-	public Value createEncryptedValue(Id recipient, byte[] data) throws KadException {
-		Signature.KeyPair kp = Signature.KeyPair.random();
-		CryptoBox.Nonce nonce = CryptoBox.Nonce.random();
-
-		try {
-			return Value.of(kp, recipient, nonce, 0, data);
-		} catch (CryptoException e) {
-			log.error("INTERNAL ERROR: should never happen!!!");
-			throw new CryptoError(e.getMessage(), e);
-		}
-	}
-
-	@Override
-	public Value updateValue(Id valueId, byte[] data) throws KadException {
-		Value old = getStorage().getValue(valueId);
-		if (old == null)
-			throw new ValueNotExists("No exists value " + valueId);
-
-		if (!old.hasPrivateKey())
-			throw new NotValueOwner("Not the owner of the value " + valueId);
-
-		Signature.KeyPair kp = Signature.KeyPair.fromPrivateKey(old.getPrivateKey());
-		CryptoBox.Nonce nonce = CryptoBox.Nonce.fromBytes(old.getNonce());
-
-		try {
-			return Value.of(kp, old.getRecipient(), nonce, old.getSequenceNumber() + 1, data);
-		} catch (CryptoException e) {
-			log.error("INTERNAL ERROR: should never happen!!!");
-			throw new CryptoError(e.getMessage(), e);
-		}
-	}
-
-	@Override
-	public byte[] createPeerSignature(int port, String alt) {
-        int altLength = 0;
-        if (alt != null) {
-            altLength = alt.getBytes().length;
-        }
-
-		byte[] toSign = new byte[Id.BYTES + Integer.BYTES + altLength];
-		ByteBuffer buf = ByteBuffer.wrap(toSign);
-        buf.put(id.bytes());
-		buf.putInt(port);
-        if (alt != null) {
-		    buf.put(alt.getBytes());
-        }
-
-		return Signature.sign(toSign, keyPair.privateKey());
-	}
-
-	@Override
-	public byte[] createPeerSignature(Id clientId, int port, String alt) {
-        byte[] toSign = PeerInfo.getSignData(clientId, id, port, alt);
-		return Signature.sign(toSign, keyPair.privateKey());
+		return getStorage().getPeer(peerId, this.getId());
 	}
 
 	@Override
@@ -821,4 +757,5 @@ public class Node implements elastos.carrier.Node {
 
 		return repr.toString();
 	}
+
 }

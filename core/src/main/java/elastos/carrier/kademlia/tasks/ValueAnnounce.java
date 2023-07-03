@@ -49,15 +49,7 @@ public class ValueAnnounce extends Task {
 		while (!todo.isEmpty() && canDoRequest()) {
 			CandidateNode cn = todo.peekFirst();
 
-			StoreValueRequest q = new StoreValueRequest();
-			q.setPublicKey(value.getPublicKey());
-			q.setRecipient(value.getRecipient());
-			q.setNonce(value.getNonce());
-			q.setSignature(value.getSignature());
-			q.setSequenceNumber(value.getSequenceNumber());
-			q.setValue(value.getData());
-			q.setToken(cn.getToken());
-
+			StoreValueRequest q = new StoreValueRequest(value, cn.getToken());
 			sendCall(cn, q, c -> {
 				todo.remove(cn);
 			});

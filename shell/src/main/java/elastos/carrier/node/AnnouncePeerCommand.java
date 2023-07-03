@@ -22,41 +22,62 @@
 
 package elastos.carrier.node;
 
-import java.text.Normalizer;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
 import elastos.carrier.Id;
-import elastos.carrier.utils.ThreadLocals;
+import elastos.carrier.PeerInfo;
+import elastos.carrier.crypto.Signature;
+import elastos.carrier.utils.Hex;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 @Command(name = "announcepeer", mixinStandardHelpOptions = true, version = "Carrier announcepeer 2.0",
 		description = "Announce a service peer.")
 public class AnnouncePeerCommand implements Callable<Integer> {
-	@Parameters(paramLabel = "NAME", index = "0", description = "The peer name to be announce.")
-	private String name;
+   	@Option(names = {"-k", "--private-key"}, description = "The private key.")
+	private String privateKey = null;
 
-	@Parameters(paramLabel = "PORT", index = "1", description = "The peer port to be announce.")
+   	@Option(names = {"-n", "--node-id"}, description = "The node id.")
+	private String nodeId = null;
+
+	@Option(names = {"-a", "--alternative-url"}, description = "The alternative URL.")
+	private String alt = null;
+
+	@Parameters(paramLabel = "PORT", index = "0", description = "The peer port to be announce.")
 	private int port = 0;
-
-	@Parameters(paramLabel = "ALT", index = "2", description = "The peer alt to be announce.")
-	private String alt;
 
 	@Override
 	public Integer call() throws Exception {
-		String nname = Normalizer.normalize(name.trim().toLowerCase(), Normalizer.Form.NFC);
-		byte[] digest = ThreadLocals.sha256().digest(nname.getBytes());
-		Id id = Id.of(digest);
+		Signature.KeyPair keypair = null;
+		try {
+			if (privateKey != null)
+				keypair = Signature.KeyPair.fromPrivateKey(Hex.decode(privateKey));
+		} catch (Exception e) {
+			System.out.println("Invalid private key: " + privateKey + ", " + e.getMessage());
+			return -1;
+		}
+
+		Id peerNodeId = Shell.getCarrierNode().getId();
+		try {
+			if (nodeId != null)
+				peerNodeId = Id.of(nodeId);
+		} catch (Exception e) {
+			System.out.println("Invalid node id: " + nodeId + ", " + e.getMessage());
+			return -1;
+		}
 
 		if (port <= 0) {
 			System.out.println("Invalid port: " + port);
 			return -1;
 		}
 
-		CompletableFuture<Void> f = Shell.getCarrierNode().announcePeer(id, port, alt);
+		PeerInfo peer = PeerInfo.create(keypair, peerNodeId, Shell.getCarrierNode().getId(), port, alt);
+		CompletableFuture<Void> f = Shell.getCarrierNode().announcePeer(peer);
 		f.get();
-		System.out.println("Peer " + id + " announced.");
+		System.out.println("Peer " + peer.getId() + " announced with private key " +
+				Hex.encode(peer.getPrivateKey()));
 
 		return 0;
 	}

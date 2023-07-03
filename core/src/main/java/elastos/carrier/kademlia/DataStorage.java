@@ -36,13 +36,16 @@ public interface DataStorage extends Closeable {
 	public Stream<Id> valueIdStream() throws KadException;
 
 	public Value getValue(Id valueId) throws KadException;
+
 	public Value putValue(Value value, int expectedSeq) throws KadException;
 	public Value putValue(Value value) throws KadException;
 
 	public Stream<Id> peerIdStream() throws KadException;
 
-	public List<PeerInfo> getPeer(Id peerId, int family, int maxPeers) throws KadException;
-	public PeerInfo getPeer(Id peerId, int family, Id nodeId) throws KadException;
-	public void putPeer(Id peerId, Collection<PeerInfo> peers) throws KadException;
-	public void putPeer(Id peerId, PeerInfo peer) throws KadException;
+	public List<PeerInfo> getPeer(Id peerId, int maxPeers) throws KadException;
+
+	public PeerInfo getPeer(Id peerId, Id origin) throws KadException ;
+
+	public void putPeer(Collection<PeerInfo> peers) throws KadException;
+	public void putPeer(PeerInfo peer) throws KadException;
 }

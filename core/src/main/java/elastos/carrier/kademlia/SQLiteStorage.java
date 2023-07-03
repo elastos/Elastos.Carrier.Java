@@ -62,7 +62,8 @@ import elastos.carrier.kademlia.exceptions.NotValueOwner;
 import elastos.carrier.kademlia.exceptions.SequenceNotMonotonic;
 
 public class SQLiteStorage implements DataStorage {
-	private static final String SET_USER_VERSION = "PRAGMA user_version = 2";
+	private static final int VERSION = 3;
+	private static final String SET_USER_VERSION = "PRAGMA user_version = " + VERSION;
 	private static final String GET_USER_VERSION = "PRAGMA user_version";
 
 	private static final String CREATE_VALUES_TABLE = "CREATE TABLE IF NOT EXISTS valores(" +
@@ -82,18 +83,21 @@ public class SQLiteStorage implements DataStorage {
 
 	private static final String CREATE_PEERS_TABLE = "CREATE TABLE IF NOT EXISTS peers(" +
 			"id BLOB NOT NULL, " +
-			"family INTEGER NOT NULL, " +
-			"nodeId BLOB NOT NULL ," +
-			"proxyId BLOB, " +
+			"privateKey BLOB, " +
+			"nodeId BLOB NOT NULL, " +
+			"origin BLOB NOT NULL, " +
 			"port INTEGER NOT NULL, " +
-			"alternative VARCHAR(512), " +
+			"alternativeURL VARCHAR(512), " +
 			"signature BLOB NOT NULL, " +
 			"timestamp INTEGER NOT NULL, " +
-			"PRIMARY KEY(id, family, nodeId)" +
+			"PRIMARY KEY(id, nodeId, origin)" +
 		") WITHOUT ROWID";
 
 	private static final String CREATE_PEERS_INDEX =
 			"CREATE INDEX IF NOT EXISTS idx_peers_timpstamp ON peers(timestamp)";
+
+	private static final String CREATE_PEERS_ID_INDEX =
+			"CREATE INDEX IF NOT EXISTS idx_peers_id ON peers(id)";
 
 	private static final String SELECT_VALUE = "SELECT * from valores " +
 			"WHERE id = ? and timestamp >= ?";
@@ -107,16 +111,16 @@ public class SQLiteStorage implements DataStorage {
 			"data=excluded.data, timestamp=excluded.timestamp";
 
 	private static final String SELECT_PEER = "SELECT * from peers " +
-			"WHERE id = ? and family = ? and timestamp >= ? " +
+			"WHERE id = ? and timestamp >= ? " +
 			"ORDER BY RANDOM() LIMIT ?";
 
-	private static final String SELECT_PEER_WITH_NODEID = "SELECT * from peers " +
-			"WHERE id = ? and family = ? and nodeId = ? and timestamp >= ?";
+	private static final String SELECT_PEER_WITH_SRC = "SELECT * from peers " +
+			"WHERE id = ? and origin = ? and timestamp >= ?";
 
 	private static final String UPSERT_PEER = "INSERT INTO peers(" +
-			"id, family, nodeId, proxyId, port, alternative, signature, timestamp) " +
-			"VALUES(?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id, family, nodeId) DO UPDATE SET " +
-			"proxyId=excluded.proxyId, port=excluded.port, alternative=excluded.alternative, " +
+			"id, privateKey, nodeId, origin, port, alternativeURL, signature, timestamp) " +
+			"VALUES(?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id, nodeId, origin) DO UPDATE SET " +
+			"privateKey=excluded.privateKey, port=excluded.port, alternativeURL=excluded.alternativeURL, " +
 			"signature=excluded.signature, timestamp=excluded.timestamp";
 
 	private static ThreadLocal<Connection> cp;
@@ -152,7 +156,7 @@ public class SQLiteStorage implements DataStorage {
 				return null;
 			}
 		});
-		
+
 		int userVersion = getUserVersion();
 
 		// Check and initialize the database schema.
@@ -160,15 +164,18 @@ public class SQLiteStorage implements DataStorage {
 			// if we change the schema,
 			// we should check the user version, do the schema update,
 			// then increase the user_version;
-			if (userVersion == 1) {
+			if (userVersion < 3) {
 				stmt.executeUpdate("DROP TABLE IF EXISTS peers");
+				stmt.executeUpdate("DROP INDEX IF EXISTS idx_peers_timpstamp");
+				stmt.executeUpdate("DROP INDEX IF EXISTS idx_peers_id");
 			}
-			
+
 			stmt.executeUpdate(SET_USER_VERSION);
 			stmt.executeUpdate(CREATE_VALUES_TABLE);
 			stmt.executeUpdate(CREATE_VALUES_INDEX);
 			stmt.executeUpdate(CREATE_PEERS_TABLE);
 			stmt.executeUpdate(CREATE_PEERS_INDEX);
+			stmt.executeUpdate(CREATE_PEERS_ID_INDEX);
 		} catch (SQLException e) {
 			log.error("Failed to open the SQLite storage: " + e.getMessage(), e);
 			throw new IOError("Failed to open the SQLite storage: " + e.getMessage(), e);
@@ -209,7 +216,7 @@ public class SQLiteStorage implements DataStorage {
 		}
 		*/
 	}
-	
+
 	public int getUserVersion() {
 		int userVersion = 0;
 		try (PreparedStatement stmt = getConnection().prepareStatement(GET_USER_VERSION)) {
@@ -221,9 +228,10 @@ public class SQLiteStorage implements DataStorage {
 		} catch (SQLException e) {
 			log.error("SQLite get user version an error: " + e.getMessage(), e);
 		}
-		
+
 		return userVersion;
 	}
+
 
 	@Override
 	public Stream<Id> valueIdStream() throws KadException {
@@ -431,73 +439,57 @@ public class SQLiteStorage implements DataStorage {
 	}
 
 	@Override
-	public List<PeerInfo> getPeer(Id peerId, int family, int maxPeers) throws KadException {
-		List<Integer> families = new ArrayList<>(2);
-
-		if (family == 4) {
-			families.add(4);
-		} else if (family == 6) {
-			families.add(6);
-		} else if (family == 10) { // IPv4 + IPv6
-			families.add(4);
-			families.add(6);
-		} else {
-			return Collections.emptyList();
-		}
-
+	public List<PeerInfo> getPeer(Id peerId, int maxPeers) throws KadException {
 		if (maxPeers <=0)
 			maxPeers = Integer.MAX_VALUE;
 
-		List<PeerInfo> peers = new ArrayList<>((maxPeers > 64 ? 16 : maxPeers) * families.size());
-		for (int f : families) {
-			try (PreparedStatement stmt = getConnection().prepareStatement(SELECT_PEER)) {
-				long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
-				stmt.setBytes(1, peerId.bytes());
-				stmt.setInt(2, f);
-				stmt.setLong(3, when);
-				stmt.setInt(4, maxPeers);
+		List<PeerInfo> peers = new ArrayList<>(maxPeers > 32 ? 32 : maxPeers);
+		try (PreparedStatement stmt = getConnection().prepareStatement(SELECT_PEER)) {
+			long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
+			stmt.setBytes(1, peerId.bytes());
+			stmt.setLong(2, when);
+			stmt.setInt(3, maxPeers);
 
-				try (ResultSet rs = stmt.executeQuery()) {
-					while (rs.next()) {
-						Id nodeId = Id.of(rs.getBytes("nodeId"));
-						Id proxyId = Id.of(rs.getBytes("proxyId"));
-						int port = rs.getInt("port");
-						String alt = rs.getString("alternative");
-						byte[] signature = rs.getBytes("signature");
+			try (ResultSet rs = stmt.executeQuery()) {
+				while (rs.next()) {
+					byte[] privateKey = rs.getBytes("privateKey");
+					Id nodeId = Id.of(rs.getBytes("nodeId"));
+					Id origin = Id.of(rs.getBytes("origin"));
+					int port = rs.getInt("port");
+					String alt = rs.getString("alternativeURL");
+					byte[] signature = rs.getBytes("signature");
 
-						PeerInfo peer = new PeerInfo(nodeId, proxyId, port, f, alt, signature);
-						peers.add(peer);
-					}
+					PeerInfo peer = PeerInfo.of(peerId, privateKey, nodeId, origin, port, alt, signature);
+					peers.add(peer);
 				}
-			} catch (SQLException e) {
-				log.error("SQLite storage encounter an error: " + e.getMessage(), e);
-				throw new IOError("SQLite storage encounter an error: " + e.getMessage(), e);
 			}
+		} catch (SQLException e) {
+			log.error("SQLite storage encounter an error: " + e.getMessage(), e);
+			throw new IOError("SQLite storage encounter an error: " + e.getMessage(), e);
 		}
 
 		return peers.isEmpty() ? Collections.emptyList() : peers;
 	}
 
 	@Override
-	public PeerInfo getPeer(Id peerId, int family, Id nodeId) throws KadException {
-		try (PreparedStatement stmt = getConnection().prepareStatement(SELECT_PEER_WITH_NODEID)) {
+	public PeerInfo getPeer(Id peerId, Id origin) throws KadException {
+		try (PreparedStatement stmt = getConnection().prepareStatement(SELECT_PEER_WITH_SRC)) {
 			long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
 			stmt.setBytes(1, peerId.bytes());
-			stmt.setInt(2, family);
-			stmt.setBytes(3, nodeId.bytes());
-			stmt.setLong(4, when);
+			stmt.setBytes(2, origin.bytes());
+			stmt.setLong(3, when);
 
 			try (ResultSet rs = stmt.executeQuery()) {
 				if (!rs.next())
 					return null;
 
-				nodeId = Id.of(rs.getBytes("nodeId"));
-				Id proxyId = Id.of(rs.getBytes("proxyId"));
+				byte[] privateKey = rs.getBytes("privateKey");
+				Id nodeId = Id.of(rs.getBytes("nodeId"));
 				int port = rs.getInt("port");
-				String alt = rs.getString("alternative");
+				String alt = rs.getString("alternativeURL");
 				byte[] signature = rs.getBytes("signature");
 
-				return new PeerInfo(nodeId, proxyId, port, family, alt, signature);
+				return PeerInfo.of(peerId, privateKey, nodeId, origin, port, alt, signature);
 			}
 		} catch (SQLException e) {
 			log.error("SQLite storage encounter an error: " + e.getMessage(), e);
@@ -506,7 +498,7 @@ public class SQLiteStorage implements DataStorage {
 	}
 
 	@Override
-	public void putPeer(Id peerId, Collection<PeerInfo> peers) throws KadException {
+	public void putPeer(Collection<PeerInfo> peers) throws KadException {
 		long now = System.currentTimeMillis();
 		Connection connection = getConnection();
 
@@ -519,19 +511,14 @@ public class SQLiteStorage implements DataStorage {
 
 		try (PreparedStatement stmt = connection.prepareStatement(UPSERT_PEER)) {
 			for (PeerInfo peer : peers) {
-				stmt.setBytes(1, peerId.bytes());
-				stmt.setInt(2, peer.getInetFamily());
+				stmt.setBytes(1, peer.getId().bytes());
+				stmt.setBytes(2, peer.getPrivateKey());
 				stmt.setBytes(3, peer.getNodeId().bytes());
-
-				if (peer.getProxyId() != null)
-					stmt.setBytes(4, peer.getProxyId().bytes());
-				else
-					stmt.setNull(4, Types.BLOB);
-
+				stmt.setBytes(4, peer.getOrigin().bytes());
 				stmt.setInt(5, peer.getPort());
 
-				if (peer.getAlt() != null)
-					stmt.setString(6, peer.getAlt());
+				if (peer.hasAlternativeURL())
+					stmt.setString(6, peer.getAlternativeURL());
 				else
 					stmt.setNull(6, Types.VARCHAR);
 
@@ -550,8 +537,8 @@ public class SQLiteStorage implements DataStorage {
 	}
 
 	@Override
-	public void putPeer(Id peerId, PeerInfo peer) throws KadException {
-		putPeer(peerId, Arrays.asList(peer));
+	public void putPeer(PeerInfo peer) throws KadException {
+		putPeer(Arrays.asList(peer));
 	}
 
 	private void expire() {

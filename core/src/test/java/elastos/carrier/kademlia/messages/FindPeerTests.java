@@ -170,14 +170,13 @@ public class FindPeerTests extends MessageTests {
 		nodes6.add(new NodeInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65529));
 		nodes6.add(new NodeInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65528));
 
-		List<PeerInfo> peers4 = new ArrayList<>();
+		List<PeerInfo> peers = new ArrayList<>();
 		byte[] sig = new byte[64];
-		for (int i = 0; i < 32; i++)
-			peers4.add(new PeerInfo(Id.random(),  65535 - i, PeerInfo.AF_IPV4, "251.251.251.251", sig));
-
-		List<PeerInfo> peers6 = new ArrayList<>();
-		for (int i = 0; i < 16; i++)
-			peers6.add(new PeerInfo(Id.random(), 65535 - i, PeerInfo.AF_IPV6, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", sig));
+		Id pid = Id.random();
+		for (int i = 0; i < 8; i++) {
+			ThreadLocals.random().nextBytes(sig);
+			peers.add(PeerInfo.of(pid, Id.random(), 65535 - i, sig));
+		}
 
 		FindPeerResponse msg = new FindPeerResponse(0xF7654321);
 		msg.setId(Id.random());
@@ -185,21 +184,52 @@ public class FindPeerTests extends MessageTests {
 		msg.setNodes4(nodes4);
 		msg.setNodes6(nodes6);
 		msg.setToken(0x87654321);
-		msg.setPeers4(peers4);
+		msg.setPeers(peers);
 
 		byte[] bin = msg.serialize();
 		printMessage(msg, bin);
 		assertTrue(bin.length <= msg.estimateSize());
+	}
 
-		msg = new FindPeerResponse(0xF7654321);
+	@Test
+	public void testFindPeerResponseSize2() throws Exception {
+		List<NodeInfo> nodes4 = new ArrayList<>();
+		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65535));
+		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65534));
+		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65533));
+		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65532));
+		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65531));
+		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65530));
+		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65529));
+		nodes4.add(new NodeInfo(Id.random(), "251.251.251.251", 65528));
+
+		List<NodeInfo> nodes6 = new ArrayList<>();
+		nodes6.add(new NodeInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65535));
+		nodes6.add(new NodeInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65534));
+		nodes6.add(new NodeInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65533));
+		nodes6.add(new NodeInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65532));
+		nodes6.add(new NodeInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65531));
+		nodes6.add(new NodeInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65530));
+		nodes6.add(new NodeInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65529));
+		nodes6.add(new NodeInfo(Id.random(), "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", 65528));
+
+		List<PeerInfo> peers = new ArrayList<>();
+		byte[] sig = new byte[64];
+		Id pid = Id.random();
+		for (int i = 0; i < 8; i++) {
+			ThreadLocals.random().nextBytes(sig);
+			peers.add(PeerInfo.of(pid, Id.random(), Id.random(), 65535 - i, "http://abc.pc2.net", sig));
+		}
+
+		FindPeerResponse msg = new FindPeerResponse(0xF7654321);
 		msg.setId(Id.random());
 		msg.setVersion(VERSION);
 		msg.setNodes4(nodes4);
 		msg.setNodes6(nodes6);
 		msg.setToken(0x87654321);
-		msg.setPeers6(peers6);
+		msg.setPeers(peers);
 
-		bin = msg.serialize();
+		byte[] bin = msg.serialize();
 		printMessage(msg, bin);
 		assertTrue(bin.length <= msg.estimateSize());
 	}
@@ -217,17 +247,20 @@ public class FindPeerTests extends MessageTests {
 		nodes4.add(new NodeInfo(Id.random(), "192.168.1.4", 1234));
 		nodes4.add(new NodeInfo(Id.random(), "192.168.1.5", 1235));
 
-		List<PeerInfo> peers4 = new ArrayList<>();
+		List<PeerInfo> peers = new ArrayList<>();
 		byte[] sig = new byte[64];
-		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++)
-			peers4.add(new PeerInfo(Id.random(), 65535 - i, PeerInfo.AF_IPV4, "251.251.251.251", sig));
+		Id pid = Id.random();
+		for (int i = 0; i < 8; i++) {
+			ThreadLocals.random().nextBytes(sig);
+			peers.add(PeerInfo.of(pid, Id.random(), 65535 - i, sig));
+		}
 
 		FindPeerResponse msg = new FindPeerResponse(txid);
 		msg.setId(id);
 		msg.setVersion(VERSION);
 		msg.setNodes4(nodes4);
 		msg.setToken(token);
-		msg.setPeers4(peers4);
+		msg.setPeers(peers);
 
 		byte[] bin = msg.serialize();
 		assertTrue(bin.length <= msg.estimateSize());
@@ -247,13 +280,13 @@ public class FindPeerTests extends MessageTests {
 		assertEquals(token, m.getToken());
 		assertTrue(m.getNodes6().isEmpty());
 		assertFalse(m.getNodes4().isEmpty());
-		assertFalse(m.getPeers4().isEmpty());
+		assertFalse(m.getPeers().isEmpty());
 
-		List<NodeInfo> nodes = m.getNodes4();
-		assertArrayEquals(nodes4.toArray(), nodes.toArray());
+		List<NodeInfo> rNodes = m.getNodes4();
+		assertArrayEquals(nodes4.toArray(), rNodes.toArray());
 
-		List<PeerInfo> peers = m.getPeers4();
-		assertArrayEquals(peers4.toArray(), peers.toArray());
+		List<PeerInfo> rPeers = m.getPeers();
+		assertArrayEquals(peers.toArray(), rPeers.toArray());
 	}
 
 	@Test
@@ -269,17 +302,20 @@ public class FindPeerTests extends MessageTests {
 		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7334", 1234));
 		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7335", 1235));
 
-		List<PeerInfo> peers6 = new ArrayList<>();
+		List<PeerInfo> peers = new ArrayList<>();
 		byte[] sig = new byte[64];
-		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++)
-			peers6.add(new PeerInfo(Id.random(), 65535 - i, PeerInfo.AF_IPV6, "2001:0db8:85a3:0000:0000:8a2e:0370:7335", sig));
+		Id pid = Id.random();
+		for (int i = 0; i < 8; i++) {
+			ThreadLocals.random().nextBytes(sig);
+			peers.add(PeerInfo.of(pid, Id.random(), Id.random(), 65535 - i, "http://abc.pc2.net", sig));
+		}
 
 		FindPeerResponse msg = new FindPeerResponse(txid);
 		msg.setId(id);
 		msg.setVersion(VERSION);
 		msg.setNodes6(nodes6);
 		msg.setToken(token);
-		msg.setPeers6(peers6);
+		msg.setPeers(peers);
 
 		byte[] bin = msg.serialize();
 		assertTrue(bin.length <= msg.estimateSize());
@@ -299,13 +335,13 @@ public class FindPeerTests extends MessageTests {
 		assertEquals(token, m.getToken());
 		assertTrue(m.getNodes4().isEmpty());
 		assertFalse(m.getNodes6().isEmpty());
-		assertFalse(m.getPeers6().isEmpty());
+		assertFalse(m.getPeers().isEmpty());
 
-		List<NodeInfo> nodes = m.getNodes6();
-		assertArrayEquals(nodes6.toArray(), nodes.toArray());
+		List<NodeInfo> rNodes = m.getNodes6();
+		assertArrayEquals(nodes6.toArray(), rNodes.toArray());
 
-		List<PeerInfo> peers = m.getPeers6();
-		assertArrayEquals(peers6.toArray(), peers.toArray());
+		List<PeerInfo> rPeers = m.getPeers();
+		assertArrayEquals(peers.toArray(), rPeers.toArray());
 	}
 
 	@Test
@@ -328,15 +364,18 @@ public class FindPeerTests extends MessageTests {
 		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7334", 1234));
 		nodes6.add(new NodeInfo(Id.random(), "2001:0db8:85a3:0000:0000:8a2e:0370:7335", 1235));
 
+		List<PeerInfo> peers = new ArrayList<>();
 		byte[] sig = new byte[64];
-		List<PeerInfo> peers4 = new ArrayList<>();
-		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++) {
-			peers4.add(new PeerInfo(Id.random(), 65535 - i, PeerInfo.AF_IPV4, "192.168.1.2", sig));
+		Id pid = Id.random();
+
+		for (int i = 0; i < 4; i++) {
+			ThreadLocals.random().nextBytes(sig);
+			peers.add(PeerInfo.of(pid, Id.random(), 65535 - i, sig));
 		}
 
-		List<PeerInfo> peers6 = new ArrayList<>();
-		for (int i = 0; i < ThreadLocals.random().nextInt(8, 48); i++) {
-			peers6.add(new PeerInfo(Id.random(), 65535 - i, PeerInfo.AF_IPV6, "2001:0db8:85a3:0000:0000:8a2e:0370:7335", sig));
+		for (int i = 0; i < 4; i++) {
+			ThreadLocals.random().nextBytes(sig);
+			peers.add(PeerInfo.of(pid, Id.random(), Id.random(), 65535 - i, "http://abc.pc2.net", sig));
 		}
 
 		FindPeerResponse msg = new FindPeerResponse(txid);
@@ -344,8 +383,7 @@ public class FindPeerTests extends MessageTests {
 		msg.setNodes4(nodes4);
 		msg.setNodes6(nodes6);
 		msg.setToken(token);
-		msg.setPeers4(peers4);
-		msg.setPeers6(peers6);
+		msg.setPeers(peers);
 
 		byte[] bin = msg.serialize();
 		assertTrue(bin.length <= msg.estimateSize());
@@ -365,19 +403,15 @@ public class FindPeerTests extends MessageTests {
 		assertEquals(token, m.getToken());
 		assertFalse(m.getNodes4().isEmpty());
 		assertFalse(m.getNodes6().isEmpty());
-		assertFalse(m.getPeers4().isEmpty());
-		assertFalse(m.getPeers6().isEmpty());
+		assertFalse(m.getPeers().isEmpty());
 
-		List<NodeInfo> nodes = m.getNodes4();
-		assertArrayEquals(nodes4.toArray(), nodes.toArray());
+		List<NodeInfo> rNodes = m.getNodes4();
+		assertArrayEquals(nodes4.toArray(), rNodes.toArray());
 
-		nodes = m.getNodes6();
-		assertArrayEquals(nodes6.toArray(), nodes.toArray());
+		rNodes = m.getNodes6();
+		assertArrayEquals(nodes6.toArray(), rNodes.toArray());
 
-		List<PeerInfo> peers = m.getPeers4();
-		assertArrayEquals(peers4.toArray(), peers.toArray());
-
-		peers = m.getPeers6();
-		assertArrayEquals(peers6.toArray(), peers.toArray());
+		List<PeerInfo> rPeers = m.getPeers();
+		assertArrayEquals(peers.toArray(), rPeers.toArray());
 	}
 }

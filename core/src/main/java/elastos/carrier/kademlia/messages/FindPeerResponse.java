@@ -23,7 +23,6 @@
 package elastos.carrier.kademlia.messages;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -35,11 +34,10 @@ import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 import elastos.carrier.Id;
 import elastos.carrier.PeerInfo;
-import elastos.carrier.kademlia.DHT;
+import elastos.carrier.crypto.Signature;
 
 public class FindPeerResponse extends LookupResponse {
-	private List<PeerInfo> peers4;
-	private List<PeerInfo> peers6;
+	private List<PeerInfo> peers;
 
 	public FindPeerResponse(int txid) {
 		super(Method.FIND_PEER, txid);
@@ -49,62 +47,48 @@ public class FindPeerResponse extends LookupResponse {
 		this(0);
 	}
 
-	public void setPeers4(List<PeerInfo> peers) {
-		this.peers4 = peers;
+	public void setPeers(List<PeerInfo> peers) {
+		this.peers = peers;
 	}
 
-	public List<PeerInfo> getPeers4() {
-		return peers4 != null ? Collections.unmodifiableList(peers4) : Collections.emptyList();
-	}
-
-	public void setPeers6(List<PeerInfo> peers) {
-		this.peers6 = peers;
-	}
-
-	public List<PeerInfo> getPeers6() {
-		return peers6 != null ? Collections.unmodifiableList(peers6) : Collections.emptyList();
-	}
-
-	public List<PeerInfo> getPeers(DHT.Type type) {
-		if (type == DHT.Type.IPV4)
-			return getPeers4();
-		else
-			return getPeers6();
+	public List<PeerInfo> getPeers() {
+		return peers != null ? Collections.unmodifiableList(peers) : Collections.emptyList();
 	}
 
 	@Override
 	protected void _serialize(JsonGenerator gen) throws IOException {
-		if (peers4 != null && !peers4.isEmpty())
-			serializePeers(gen, "p4", peers4);
+		if (peers == null || peers.isEmpty())
+			return;
 
-		if (peers6 != null && !peers6.isEmpty())
-			serializePeers(gen, "p6", peers6);
-	}
-
-	private void serializePeers(JsonGenerator gen, String fieldName, List<PeerInfo> peers) throws IOException {
-		gen.writeFieldName(fieldName);
+		gen.writeFieldName("p");
 		gen.writeStartArray();
+		// p[0] is the peerid
+		gen.writeBinary(peers.get(0).getId().bytes());
+		// p[1...] is the peerinfo without id
 		for (PeerInfo pi : peers) {
 			gen.writeStartArray();
 			gen.writeBinary(pi.getNodeId().bytes());
-			gen.writeBinary(pi.getProxyId().bytes());
+			if (pi.isDelegated())
+				gen.writeBinary(pi.getOrigin().bytes());
+			else
+				gen.writeNull();
 			gen.writeNumber(pi.getPort());
-			gen.writeString(pi.getAlt());
+			if (pi.hasAlternativeURL())
+				gen.writeString(pi.getAlternativeURL());
+			else
+				gen.writeNull();
 			gen.writeBinary(pi.getSignature());
 			gen.writeEndArray();
 		}
 		gen.writeEndArray();
+
 	}
 
 	@Override
 	protected void _parse(String fieldName, CBORParser parser) throws MessageException, IOException {
 		switch (fieldName) {
-		case "p4":
-			peers4 = parsePeers(fieldName, parser, PeerInfo.AF_IPV4);
-			break;
-
-		case "p6":
-			peers6 = parsePeers(fieldName, parser, PeerInfo.AF_IPV6);
+		case "p":
+			peers = parsePeers(parser);
 			break;
 
 		default:
@@ -113,30 +97,35 @@ public class FindPeerResponse extends LookupResponse {
 		}
 	}
 
-	private List<PeerInfo> parsePeers(String fieldName, CBORParser parser, int family) throws IOException {
+	private List<PeerInfo> parsePeers(CBORParser parser) throws IOException {
 		if (parser.currentToken() != JsonToken.START_ARRAY)
-			throw new IOException("Invalid " + fieldName + " data, should be array");
+			throw new IOException("Invalid peers, should be array");
+
+		// get peer id from p[0]
+		parser.nextToken();
+		Id peerId = Id.of(parser.getBinaryValue());
 
 		List<PeerInfo> ps = new ArrayList<>();
 		while (parser.nextToken() != JsonToken.END_ARRAY) {
 			if (parser.currentToken() != JsonToken.START_ARRAY)
-				throw new IOException("Invalid " + fieldName + " info data, should be array");
+				throw new IOException("Invalid peer info, should be array");
 
 			parser.nextToken();
 			Id nodeId = Id.of(parser.getBinaryValue());
 			parser.nextToken();
-			Id proxyId = Id.of(parser.getBinaryValue());
+			Id origin = parser.currentToken() != JsonToken.VALUE_NULL ? Id.of(parser.getBinaryValue()) : null;
 			parser.nextToken();
 			int port = parser.getIntValue();
 			parser.nextToken();
-			String alt = parser.getText();
+			String alt = parser.currentToken() != JsonToken.VALUE_NULL ? parser.getText() : null;
 			parser.nextToken();
 			byte[] signature = parser.getBinaryValue();
 
 			if (parser.nextToken() != JsonToken.END_ARRAY)
-				throw new IOException("Invalid " + fieldName + " info data");
+				throw new IOException("Invalid peer info");
 
-			ps.add(new PeerInfo(nodeId, proxyId, port, family, alt, signature));
+			PeerInfo pi = PeerInfo.of(peerId, nodeId, origin, port, alt, signature);
+			ps.add(pi);
 		}
 
 		return ps.isEmpty() ? null : ps;
@@ -146,14 +135,14 @@ public class FindPeerResponse extends LookupResponse {
 	public int estimateSize() {
 		int size = super.estimateSize();
 
-        if (peers4 != null && !peers4.isEmpty()) {
-            for (PeerInfo peer : peers4)
-                size += peer.estimateSize();
-        }
+        if (peers != null && !peers.isEmpty()) {
+    		size += (2 + 2 + 2 + Id.BYTES);
 
-        if (peers6 != null && !peers6.isEmpty()) {
-            for (PeerInfo peer : peers6)
-                size += peer.estimateSize();
+        	for (PeerInfo pi : peers) {
+                size += (2 + 2 + Id.BYTES + 1 + Short.BYTES + 2 + Signature.BYTES);
+                size += pi.isDelegated() ? 2 + Id.BYTES : 1;
+                size += pi.hasAlternativeURL() ? 2 + pi.getAlternativeURL().getBytes().length : 1;
+            }
         }
 
 		return size;
@@ -161,14 +150,9 @@ public class FindPeerResponse extends LookupResponse {
 
 	@Override
 	protected void _toString(StringBuilder b) {
-		if (peers4 != null && !peers4.isEmpty()) {
-			b.append("p4:");
-			b.append(peers4.stream().map(p -> p.toString()).collect(Collectors.joining(",", "[", "]")));
-		}
-
-		if (peers6 != null && !peers6.isEmpty()) {
-			b.append("p6:");
-			b.append(peers6.stream().map(p -> p.toString()).collect(Collectors.joining(",", "[", "]")));
+		if (peers != null && !peers.isEmpty()) {
+			b.append(",p:");
+			b.append(peers.stream().map(p -> p.toString()).collect(Collectors.joining(",", "[", "]")));
 		}
 	}
 }

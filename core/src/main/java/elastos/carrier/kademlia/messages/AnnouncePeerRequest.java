@@ -29,48 +29,25 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 import elastos.carrier.Id;
+import elastos.carrier.PeerInfo;
+import elastos.carrier.crypto.Signature;
 
 public class AnnouncePeerRequest extends Message {
-	private Id target;
-	private Id proxyId;
-	private int port;
-	private String alt;
-	private byte[] signature;
 	private int token;
+	private Id peerId;
+	private Id nodeId; // Optional, only for the delegated peers
+	private int port;
+	private String alternativeURL;
+	private byte[] signature;
 
-	// private String name;
-
-	public AnnouncePeerRequest(Id target, int port, String alt, byte[] signature, int token) {
-		super(Type.REQUEST, Method.ANNOUNCE_PEER);
-		this.target = target;
-		this.port = port;
-		this.alt = alt;
-		this.signature = signature;
-		this.token = token;
-	}
-
-	protected AnnouncePeerRequest() {
+	public AnnouncePeerRequest() {
 		super(Type.REQUEST, Method.ANNOUNCE_PEER);
 	}
 
-	public Id getTarget() {
-		return target;
-	}
-
-	public void setTarget(Id target) {
-		this.target = target;
-	}
-
-	public Id getProxyId() {
-		return proxyId;
-	}
-
-	public int getPort() {
-		return port;
-	}
-
-	public void setPort(int port) {
-		this.port = port;
+	public AnnouncePeerRequest(PeerInfo peer, int token) {
+		this();
+		setPeer(peer);
+		setToken(token);
 	}
 
 	public int getToken() {
@@ -81,48 +58,52 @@ public class AnnouncePeerRequest extends Message {
 		this.token = token;
 	}
 
-	public String getAlt() {
-		return alt;
+	public void setPeer(PeerInfo peer) {
+		peerId = peer.getId();
+		nodeId = peer.getNodeId();
+		port = peer.getPort();
+		if (peer.hasAlternativeURL())
+			alternativeURL = peer.getAlternativeURL();
+		signature = peer.getSignature();
 	}
 
-	public byte[] getSignature() {
-		return signature;
+	public PeerInfo getPeer() {
+		if (nodeId == null)
+			nodeId = getId();
+
+		return PeerInfo.of(peerId, nodeId, getId(), port, alternativeURL, signature);
 	}
 
-	// public String getName() {
-	//	return name;
-	// }
-
-	// public void setName(String name) {
-	// 	this.name = name;
-	// }
+	public Id getTarget() {
+		return peerId;
+	}
 
 	@Override
 	protected void serialize(JsonGenerator gen) throws IOException {
 		gen.writeFieldName(getType().toString());
 		gen.writeStartObject();
 
+		gen.writeFieldName("tok");
+		gen.writeNumber(token);
+
 		gen.writeFieldName("t");
-		gen.writeBinary(target.bytes());
+		gen.writeBinary(peerId.bytes());
+
+		if (!nodeId.equals(getId())) {
+			gen.writeFieldName("x");
+			gen.writeBinary(nodeId.bytes());
+		}
 
 		gen.writeFieldName("p");
 		gen.writeNumber(port);
 
-		if (alt != null) {
+		if (alternativeURL != null) {
 			gen.writeFieldName("alt");
-			gen.writeString(alt);
+			gen.writeString(alternativeURL);
 		}
 
 		gen.writeFieldName("sig");
 		gen.writeBinary(signature);
-
-		gen.writeFieldName("tok");
-		gen.writeNumber(token);
-
-		// if (name != null) {
-		// 	gen.writeFieldName("n");
-		// 	gen.writeString(name);
-		// }
 
 		gen.writeEndObject();
 	}
@@ -137,11 +118,11 @@ public class AnnouncePeerRequest extends Message {
 			parser.nextToken();
 			switch (name) {
 			case "t":
-				target = Id.of(parser.getBinaryValue());
+				peerId = Id.of(parser.getBinaryValue());
 				break;
 
 			case "x":
-				proxyId = Id.of(parser.getBinaryValue());
+				nodeId = Id.of(parser.getBinaryValue());
 				break;
 
 			case "p":
@@ -149,7 +130,7 @@ public class AnnouncePeerRequest extends Message {
 				break;
 
 			case "alt":
-				alt = parser.getValueAsString();
+				alternativeURL = parser.getValueAsString();
 				break;
 
 			case "sig":
@@ -160,10 +141,6 @@ public class AnnouncePeerRequest extends Message {
 				token = parser.getIntValue();
 				break;
 
-				// case "n":
-				// 	name = parser.getValueAsString();
-				// 	break;
-
 			default:
 				System.out.println("Unknown field: " + fieldName);
 				break;
@@ -173,23 +150,23 @@ public class AnnouncePeerRequest extends Message {
 
 	@Override
 	public int estimateSize() {
-		// return super.estimateSize() + 54; // + (name != null ? name.length() + 5 : 0);
-        return super.estimateSize() + 1024; //TODO:: should estimate size later
+        int size = 4 + 9 + 36 + 5 + 6 + Signature.BYTES;
+        size += nodeId.equals(getId()) ? 0 : 4 + Id.BYTES;
+        size += alternativeURL == null ? 0 : 6 + alternativeURL.getBytes().length;
+        return super.estimateSize() + size;
 	}
 
 	@Override
 	protected void toString(StringBuilder b) {
 		b.append(",q:{");
-		b.append("t:").append(target.toString());
-		if (proxyId != null && proxyId != Id.zero())
-			b.append(",x:").append(proxyId.toString());
+		b.append("t:").append(peerId.toString());
+		if (nodeId != null && !nodeId.equals(getId()))
+			b.append(",x:").append(nodeId.toString());
 		b.append(",p:").append(port);
-		if (alt != null && !alt.isEmpty())
-			b.append(",alt:").append(alt);
+		if (alternativeURL != null && !alternativeURL.isEmpty())
+			b.append(",alt:").append(alternativeURL);
 		b.append(",sig:").append(signature.toString());
 		b.append(",tok:").append(token);
-		// if (name != null)
-		// 	b.append(",n:").append(name);
 		b.append("}");
 	}
 }
