@@ -24,7 +24,9 @@ package elastos.carrier.kademlia;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,7 +34,6 @@ import java.io.File;
 import java.lang.reflect.Method;
 import java.security.SecureRandom;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -41,6 +42,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -53,6 +56,7 @@ import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.Signature;
 import elastos.carrier.kademlia.exceptions.CasFail;
 import elastos.carrier.kademlia.exceptions.SequenceNotMonotonic;
+import elastos.carrier.utils.ThreadLocals;
 
 public class DataStorageTests {
 	private static ScheduledExecutorService scheduler;
@@ -107,11 +111,12 @@ public class DataStorageTests {
 
 		System.out.println("Writing values...");
 		for (int i = 1; i <= 256; i++) {
-			Arrays.fill(data, (byte)(i % (126 - 32) + 33));
+			ThreadLocals.random().nextBytes(data);
+			data[0] = (byte)(i % (126 - 32) + 33);
 			Value v = Value.of(data);
 
 			ids.add(v.getId());
-			ds.putValue(v, -1);
+			ds.putValue(v);
 
 			System.out.print(".");
 			if (i % 16 == 0)
@@ -120,11 +125,90 @@ public class DataStorageTests {
 
 		System.out.println("\nReading values...");
 		for (int i = 1; i <= 256; i++) {
-			Value v = ds.getValue(ids.poll());
+			Id id = ids.poll();
+
+			Value v = ds.getValue(id);
 			assertNotNull(v);
 
 			assertEquals(1024, v.getData().length);
 			assertEquals((byte)(i % (126 - 32) + 33), v.getData()[0]);
+
+			boolean removed = ds.removeValue(id);
+			assertTrue(removed);
+
+			v = ds.getValue(id);
+			assertNull(v);
+
+			removed = ds.removeValue(id);
+			assertFalse(removed);
+
+			System.out.print(".");
+			if (i % 16 == 0)
+				System.out.println();
+		}
+
+		ds.close();
+	}
+
+	@ParameterizedTest
+	@ValueSource(classes = { SQLiteStorage.class })
+	public void testPutAndGetPersistentValue(Class<? extends DataStorage> clazz) throws Exception {
+		DataStorage ds = open(clazz);
+
+		Queue<Id> ids = new LinkedList<>();
+		byte[] data = new byte[1024];
+
+		System.out.println("Writing values...");
+		for (int i = 1; i <= 256; i++) {
+			ThreadLocals.random().nextBytes(data);
+			data[0] = (byte)(i % (126 - 32) + 33);
+			Value v = Value.of(data);
+
+			ids.add(v.getId());
+			ds.putValue(v, i % 2 == 0);
+
+			System.out.print(".");
+			if (i % 16 == 0)
+				System.out.println();
+		}
+
+		long ts = System.currentTimeMillis();
+		Stream<Value> vs = ds.getPersistentValues(ts);
+		List<Value> values = vs.collect(Collectors.toList());
+		assertEquals(128, values.size());
+
+		Thread.sleep(1000);
+
+		System.out.println("\nUpdate the last announced for values...");
+		for (int i = 1; i <= 128; i++) {
+			Id id = values.get(i-1).getId();
+
+			if (i % 2 == 0)
+				ds.updateValueLastAnnounce(id);
+		}
+
+		vs = ds.getPersistentValues(ts);
+		values = vs.collect(Collectors.toList());
+		assertEquals(64, values.size());
+
+		System.out.println("\nReading values...");
+		for (int i = 1; i <= 256; i++) {
+			Id id = ids.poll();
+
+			Value v = ds.getValue(id);
+			assertNotNull(v);
+
+			assertEquals(1024, v.getData().length);
+			assertEquals((byte)(i % (126 - 32) + 33), v.getData()[0]);
+
+			boolean removed = ds.removeValue(id);
+			assertTrue(removed);
+
+			v = ds.getValue(id);
+			assertNull(v);
+
+			removed = ds.removeValue(id);
+			assertFalse(removed);
 
 			System.out.print(".");
 			if (i % 16 == 0)
@@ -340,12 +424,96 @@ public class DataStorageTests {
 			for (PeerInfo pi : ps)
 				assertEquals(peers.get(0).getPort(), pi.getPort());
 
+			for (PeerInfo p : peers) {
+				PeerInfo pi = ds.getPeer(p.getId(), p.getOrigin());
+				assertNotNull(pi);
+				assertEquals(p, pi);
+
+				boolean removed = ds.removePeer(p.getId(), p.getOrigin());
+				assertTrue(removed);
+
+				pi = ds.getPeer(p.getId(), p.getOrigin());
+				assertNull(pi);
+
+				removed = ds.removePeer(p.getId(), p.getOrigin());
+				assertFalse(removed);
+			}
+
 			System.out.print(".");
 			if (total % 16 == 0)
 				System.out.println();
 		}
 
 		assertEquals(64, total);
+
+		ds.close();
+	}
+
+
+	@ParameterizedTest
+	@ValueSource(classes = { SQLiteStorage.class })
+	public void testPutAndGetPersistentPeer(Class<? extends DataStorage> clazz) throws Exception {
+		DataStorage ds = open(clazz);
+
+		Queue<Id> ids = new LinkedList<>();
+		Id nodeId = Id.random();
+		int basePort = 8000;
+		byte[] sig = new byte[64];
+
+		System.out.println("Writing peers...");
+		for (int i = 1; i <= 256; i++) {
+			new SecureRandom().nextBytes(sig);
+			PeerInfo pi = PeerInfo.of(Id.random(), nodeId, basePort + i, sig);
+
+			ids.add(pi.getId());
+			ds.putPeer(pi, i % 2 == 0);
+
+			System.out.print(".");
+			if (i % 16 == 0)
+				System.out.println();
+		}
+
+		long ts = System.currentTimeMillis();
+		Stream<PeerInfo> ps = ds.getPersistentPeers(ts);
+		List<PeerInfo> peers = ps.collect(Collectors.toList());
+		assertEquals(128, peers.size());
+
+		Thread.sleep(1000);
+
+		System.out.println("\nUpdate the last announced for peers...");
+		for (int i = 1; i <= 128; i++) {
+			Id id = peers.get(i-1).getId();
+
+			if (i % 2 == 0)
+				ds.updatePeerLastAnnounce(id, nodeId);
+		}
+
+		ps = ds.getPersistentPeers(ts);
+		peers = ps.collect(Collectors.toList());
+		assertEquals(64, peers.size());
+
+		System.out.println("\nReading peers...");
+		for (int i = 1; i <= 256; i++) {
+			Id id = ids.poll();
+
+			PeerInfo p = ds.getPeer(id, nodeId);
+			assertNotNull(p);
+
+			assertEquals(basePort + i, p.getPort());
+
+			boolean removed = ds.removePeer(id, nodeId);
+			assertTrue(removed);
+
+			p = ds.getPeer(id, nodeId);
+			assertNull(p);
+
+			removed = ds.removePeer(id, nodeId);
+			assertFalse(removed);
+
+			System.out.print(".");
+			if (i % 16 == 0)
+				System.out.println();
+		}
 
 		ds.close();
 	}
