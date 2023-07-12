@@ -35,6 +35,9 @@ import picocli.CommandLine.Parameters;
 @Command(name = "storevalue", mixinStandardHelpOptions = true, version = "Carrier storevalue 2.0",
 		description = "Store a value to the DHT.")
 public class StoreValueCommand implements Callable<Integer> {
+	@Option(names = { "-p", "--persistent" }, description = "Persistent value, default is false.")
+	private boolean persistent = false;
+
 	@Option(names = { "-m", "--mutable" }, description = "Mutbale value, default is immutable value, no effect on update mode.")
 	private boolean mutable = false;
 
@@ -51,6 +54,9 @@ public class StoreValueCommand implements Callable<Integer> {
 	public Integer call() throws Exception {
 		Node node = Shell.getCarrierNode();
 		Value value = null;
+
+		if (recipient != null)
+			mutable = true;
 
 		if (target == null) {
 			if (mutable) {
@@ -93,7 +99,7 @@ public class StoreValueCommand implements Callable<Integer> {
 			}
 		}
 
-		CompletableFuture<Void> f = Shell.getCarrierNode().storeValue(value);
+		CompletableFuture<Void> f = Shell.getCarrierNode().storeValue(value, persistent);
 		f.get();
 		System.out.println("Value " + value.getId() + " stored.");
 		return 0;

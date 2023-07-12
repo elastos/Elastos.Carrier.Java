@@ -54,7 +54,7 @@ public class StorageCommand {
 		public Integer call() throws Exception {
 			DataStorage storage = Shell.getCarrierNode().getStorage();
 
-			Stream<Id> ids = storage.valueIdStream();
+			Stream<Id> ids = storage.getAllValues();
 			AtomicInteger n = new AtomicInteger(0);
 			ids.forEach(id -> {
 				System.out.println(id);
@@ -101,7 +101,7 @@ public class StorageCommand {
 		public Integer call() throws Exception {
 			DataStorage storage = Shell.getCarrierNode().getStorage();
 
-			Stream<Id> ids = storage.peerIdStream();
+			Stream<Id> ids = storage.getAllPeers();
 			AtomicInteger n = new AtomicInteger(0);
 			ids.forEach(id -> {
 				System.out.println(id);

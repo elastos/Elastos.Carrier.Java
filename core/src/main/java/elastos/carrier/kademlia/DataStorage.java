@@ -33,19 +33,52 @@ import elastos.carrier.Value;
 import elastos.carrier.kademlia.exceptions.KadException;
 
 public interface DataStorage extends Closeable {
-	public Stream<Id> valueIdStream() throws KadException;
-
 	public Value getValue(Id valueId) throws KadException;
 
-	public Value putValue(Value value, int expectedSeq) throws KadException;
-	public Value putValue(Value value) throws KadException;
+	public boolean removeValue(Id valueId) throws KadException;
 
-	public Stream<Id> peerIdStream() throws KadException;
+	public Value putValue(Value value, int expectedSeq, boolean persistent, boolean updateLastAnnounce)
+			throws KadException;
+
+	public default Value putValue(Value value, boolean persistent) throws KadException {
+		return putValue(value, -1, persistent, true);
+	}
+
+	public default Value putValue(Value value, int expectedSeq) throws KadException {
+		return putValue(value, expectedSeq, false, false);
+	}
+
+	public default Value putValue(Value value) throws KadException {
+		return putValue(value, -1, false, false);
+	}
+
+	public void updateValueLastAnnounce(Id valueId) throws KadException;
+
+	public Stream<Value> getPersistentValues(long lastAnnounceBefore) throws KadException;
+
+	public Stream<Id> getAllValues() throws KadException;
 
 	public List<PeerInfo> getPeer(Id peerId, int maxPeers) throws KadException;
 
 	public PeerInfo getPeer(Id peerId, Id origin) throws KadException ;
 
+	public boolean removePeer(Id peerId, Id origin) throws KadException;
+
 	public void putPeer(Collection<PeerInfo> peers) throws KadException;
-	public void putPeer(PeerInfo peer) throws KadException;
+
+	public default void putPeer(PeerInfo peer) throws KadException {
+		putPeer(peer, false, false);
+	}
+
+	public void putPeer(PeerInfo peer, boolean persistent, boolean updateLastAnnounce) throws KadException;
+
+	public default void putPeer(PeerInfo peer, boolean persistent) throws KadException {
+		putPeer(peer, persistent, true);
+	}
+
+	public void updatePeerLastAnnounce(Id peerId, Id origin) throws KadException;
+
+	public Stream<PeerInfo> getPersistentPeers(long lastAnnounceBefore) throws KadException;
+
+	public Stream<Id> getAllPeers() throws KadException;
 }

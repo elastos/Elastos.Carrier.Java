@@ -31,7 +31,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -62,12 +61,13 @@ import elastos.carrier.kademlia.exceptions.NotValueOwner;
 import elastos.carrier.kademlia.exceptions.SequenceNotMonotonic;
 
 public class SQLiteStorage implements DataStorage {
-	private static final int VERSION = 3;
+	private static final int VERSION = 4;
 	private static final String SET_USER_VERSION = "PRAGMA user_version = " + VERSION;
 	private static final String GET_USER_VERSION = "PRAGMA user_version";
 
 	private static final String CREATE_VALUES_TABLE = "CREATE TABLE IF NOT EXISTS valores(" +
 			"id BLOB NOT NULL PRIMARY KEY, " +
+			"persistent BOOLEAN NOT NULL DEFAULT FALSE, " +
 			"publicKey BLOB, " +
 			"privateKey BLOB, " +
 			"recipient BLOB, " +
@@ -75,7 +75,8 @@ public class SQLiteStorage implements DataStorage {
 			"signature BLOB, " +
 			"sequenceNumber INTEGER, " +
 			"data BLOB, " +
-			"timestamp BIGINT NOT NULL" +
+			"timestamp INTEGER NOT NULL, " +
+			"announced INTEGER NOT NULL DEFAULT 0" +
 		") WITHOUT ROWID";
 
 	private static final String CREATE_VALUES_INDEX =
@@ -83,6 +84,7 @@ public class SQLiteStorage implements DataStorage {
 
 	private static final String CREATE_PEERS_TABLE = "CREATE TABLE IF NOT EXISTS peers(" +
 			"id BLOB NOT NULL, " +
+			"persistent BOOLEAN NOT NULL DEFAULT FALSE, " +
 			"privateKey BLOB, " +
 			"nodeId BLOB NOT NULL, " +
 			"origin BLOB NOT NULL, " +
@@ -90,6 +92,7 @@ public class SQLiteStorage implements DataStorage {
 			"alternativeURL VARCHAR(512), " +
 			"signature BLOB NOT NULL, " +
 			"timestamp INTEGER NOT NULL, " +
+			"announced INTEGER NOT NULL DEFAULT 0, " +
 			"PRIMARY KEY(id, nodeId, origin)" +
 		") WITHOUT ROWID";
 
@@ -99,16 +102,26 @@ public class SQLiteStorage implements DataStorage {
 	private static final String CREATE_PEERS_ID_INDEX =
 			"CREATE INDEX IF NOT EXISTS idx_peers_id ON peers(id)";
 
-	private static final String SELECT_VALUE = "SELECT * from valores " +
-			"WHERE id = ? and timestamp >= ?";
-
 	private static final String UPSERT_VALUE = "INSERT INTO valores(" +
-			"id, publicKey, privateKey, recipient, nonce, signature, sequenceNumber, data, timestamp) " +
-			"VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET " +
+			"id, persistent, publicKey, privateKey, recipient, nonce, signature, sequenceNumber, data, timestamp, announced) " +
+			"VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET " +
 			"publicKey=excluded.publicKey, privateKey=excluded.privateKey, " +
 			"recipient=excluded.recipient, nonce=excluded.nonce, " +
 			"signature=excluded.signature, sequenceNumber=excluded.sequenceNumber, " +
 			"data=excluded.data, timestamp=excluded.timestamp";
+
+	private static final String SELECT_VALUE = "SELECT * from valores " +
+			"WHERE id = ? and timestamp >= ?";
+
+	private static final String UPDATE_VALUE_LAST_ANNOUNCE = "UPDATE valores " +
+			"SET timestamp=?, announced = ? WHERE id = ?";
+
+	private static final String UPSERT_PEER = "INSERT INTO peers(" +
+			"id, persistent, privateKey, nodeId, origin, port, alternativeURL, signature, timestamp, announced) " +
+			"VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id, nodeId, origin) DO UPDATE SET " +
+			"privateKey=excluded.privateKey, " +
+			"port=excluded.port, alternativeURL=excluded.alternativeURL, " +
+			"signature=excluded.signature, timestamp=excluded.timestamp";
 
 	private static final String SELECT_PEER = "SELECT * from peers " +
 			"WHERE id = ? and timestamp >= ? " +
@@ -117,11 +130,8 @@ public class SQLiteStorage implements DataStorage {
 	private static final String SELECT_PEER_WITH_SRC = "SELECT * from peers " +
 			"WHERE id = ? and origin = ? and timestamp >= ?";
 
-	private static final String UPSERT_PEER = "INSERT INTO peers(" +
-			"id, privateKey, nodeId, origin, port, alternativeURL, signature, timestamp) " +
-			"VALUES(?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id, nodeId, origin) DO UPDATE SET " +
-			"privateKey=excluded.privateKey, port=excluded.port, alternativeURL=excluded.alternativeURL, " +
-			"signature=excluded.signature, timestamp=excluded.timestamp";
+	private static final String UPDATE_PEER_LAST_ANNOUNCE = "UPDATE peers " +
+			"SET timestamp=?, announced = ? WHERE id = ? and origin = ?";
 
 	private static ThreadLocal<Connection> cp;
 
@@ -164,10 +174,13 @@ public class SQLiteStorage implements DataStorage {
 			// if we change the schema,
 			// we should check the user version, do the schema update,
 			// then increase the user_version;
-			if (userVersion < 3) {
-				stmt.executeUpdate("DROP TABLE IF EXISTS peers");
+			if (userVersion < 4) {
+				stmt.executeUpdate("DROP INDEX IF EXISTS idx_valores_timpstamp");
+				stmt.executeUpdate("DROP TABLE IF EXISTS valores");
+
 				stmt.executeUpdate("DROP INDEX IF EXISTS idx_peers_timpstamp");
 				stmt.executeUpdate("DROP INDEX IF EXISTS idx_peers_id");
+				stmt.executeUpdate("DROP TABLE IF EXISTS peers");
 			}
 
 			stmt.executeUpdate(SET_USER_VERSION);
@@ -234,7 +247,7 @@ public class SQLiteStorage implements DataStorage {
 
 
 	@Override
-	public Stream<Id> valueIdStream() throws KadException {
+	public Stream<Id> getAllValues() throws KadException {
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 
@@ -320,7 +333,7 @@ public class SQLiteStorage implements DataStorage {
 	}
 
 	@Override
-	public Value putValue(Value value, int expectedSeq) throws KadException {
+	public Value putValue(Value value, int expectedSeq, boolean persistent, boolean updateLastAnnounce) throws KadException {
 		if (value.isMutable() && !value.isValid())
 			throw new InvalidSignature("Value signature validation failed");
 
@@ -339,39 +352,43 @@ public class SQLiteStorage implements DataStorage {
 		try (PreparedStatement stmt = getConnection().prepareStatement(UPSERT_VALUE)) {
 			stmt.setBytes(1, value.getId().bytes());
 
-			if (value.getPublicKey() != null)
-				stmt.setBytes(2, value.getPublicKey().bytes());
-			else
-				stmt.setNull(2, Types.BLOB);
+			stmt.setBoolean(2, persistent);
 
-			if (value.getPrivateKey() != null)
-				stmt.setBytes(3, value.getPrivateKey());
+			if (value.getPublicKey() != null)
+				stmt.setBytes(3, value.getPublicKey().bytes());
 			else
 				stmt.setNull(3, Types.BLOB);
 
-			if (value.getRecipient() != null)
-				stmt.setBytes(4, value.getRecipient().bytes());
+			if (value.getPrivateKey() != null)
+				stmt.setBytes(4, value.getPrivateKey());
 			else
 				stmt.setNull(4, Types.BLOB);
 
-			if (value.getNonce() != null)
-				stmt.setBytes(5, value.getNonce());
+			if (value.getRecipient() != null)
+				stmt.setBytes(5, value.getRecipient().bytes());
 			else
 				stmt.setNull(5, Types.BLOB);
 
-			if (value.getSignature() != null)
-				stmt.setBytes(6, value.getSignature());
+			if (value.getNonce() != null)
+				stmt.setBytes(6, value.getNonce());
 			else
 				stmt.setNull(6, Types.BLOB);
 
-			stmt.setInt(7, value.getSequenceNumber());
+			if (value.getSignature() != null)
+				stmt.setBytes(7, value.getSignature());
+			else
+				stmt.setNull(7, Types.BLOB);
+
+			stmt.setInt(8, value.getSequenceNumber());
 
 			if (value.getData() != null)
-				stmt.setBytes(8, value.getData());
+				stmt.setBytes(9, value.getData());
 			else
-				stmt.setNull(8, Types.BLOB);
+				stmt.setNull(9, Types.BLOB);
 
-			stmt.setLong(9, System.currentTimeMillis());
+			long now = System.currentTimeMillis();
+			stmt.setLong(10, now);
+			stmt.setLong(11, updateLastAnnounce ? now : 0);
 
 			stmt.executeUpdate();
 		} catch (SQLException e) {
@@ -383,12 +400,100 @@ public class SQLiteStorage implements DataStorage {
 	}
 
 	@Override
-	public Value putValue(Value value) throws KadException {
-		return putValue(value, -1);
+	public void updateValueLastAnnounce(Id valueId) throws KadException {
+		try (PreparedStatement stmt = getConnection().prepareStatement(UPDATE_VALUE_LAST_ANNOUNCE)) {
+			long now = System.currentTimeMillis();
+			stmt.setLong(1, now);
+			stmt.setLong(2, now);
+			stmt.setBytes(3, valueId.bytes());
+			stmt.executeUpdate();
+		} catch (SQLException e) {
+			log.error("SQLite storage encounter an error: " + e.getMessage(), e);
+			throw new IOError("SQLite storage encounter an error: " + e.getMessage(), e);
+		}
 	}
 
 	@Override
-	public Stream<Id> peerIdStream() {
+	public Stream<Value> getPersistentValues(long lastAnnounceBefore) throws KadException {
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+
+		try {
+			stmt = getConnection().prepareStatement("SELECT * FROM valores WHERE persistent = true AND announced <= ?");
+			stmt.setLong(1, lastAnnounceBefore);
+			stmt.closeOnCompletion();
+			rs = stmt.executeQuery();
+		} catch (SQLException e) {
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (stmt != null)
+					stmt.close();
+			} catch (SQLException ignore) {
+				log.error("SQLite storage encounter an error: " + ignore.getMessage(), ignore);
+			}
+		}
+
+		final ResultSet vrs = rs;
+		Stream<Value> s = StreamSupport.stream(new Spliterators.AbstractSpliterator<Value>(
+				Long.MAX_VALUE, Spliterator.NONNULL | Spliterator.IMMUTABLE | Spliterator.ORDERED) {
+			@Override
+			public boolean tryAdvance(Consumer<? super Value> consumer) {
+				try {
+					if(!vrs.next())
+						return false;
+
+					byte[] v = vrs.getBytes("publicKey");
+					Id publicKey = v != null ? Id.of(v) : null;
+
+					byte[] privateKey = vrs.getBytes("privateKey");
+
+					v = vrs.getBytes("recipient");
+					Id recipient = v != null ? Id.of(v) : null;
+
+					byte[] nonce = vrs.getBytes("nonce");
+					byte[] signature = vrs.getBytes("signature");
+					int sequenceNumber = vrs.getInt("sequenceNumber");
+					byte[] data = vrs.getBytes("data");
+
+					Value value = Value.of(publicKey, privateKey, recipient, nonce, sequenceNumber, signature, data);
+					consumer.accept(value);
+					return true;
+				} catch (SQLException e) {
+					log.error("SQLite storage encounter an error: " + e.getMessage(), e);
+					return false;
+				}
+			}
+		}, false);
+
+		s.onClose(() -> {
+			try {
+				vrs.close();
+			} catch (SQLException ignore) {
+				log.error("SQLite storage encounter an error: " + ignore.getMessage(), ignore);
+			}
+		});
+
+		return s;
+	}
+
+	@Override
+	public boolean removeValue(Id valueId) throws KadException {
+		Connection connection = getConnection();
+
+		try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM valores WHERE id = ?")) {
+			stmt.setBytes(1, valueId.bytes());
+			int rows = stmt.executeUpdate();
+			return rows > 0;
+		} catch (SQLException e) {
+			log.error("Failed to evict the expired values: " + e.getMessage(), e);
+			throw new IOError("SQLite storage encounter an error: " + e.getMessage(), e);
+		}
+	}
+
+	@Override
+	public Stream<Id> getAllPeers() {
 		PreparedStatement stmt = null;
 		ResultSet rs = null;
 
@@ -512,18 +617,20 @@ public class SQLiteStorage implements DataStorage {
 		try (PreparedStatement stmt = connection.prepareStatement(UPSERT_PEER)) {
 			for (PeerInfo peer : peers) {
 				stmt.setBytes(1, peer.getId().bytes());
-				stmt.setBytes(2, peer.getPrivateKey());
-				stmt.setBytes(3, peer.getNodeId().bytes());
-				stmt.setBytes(4, peer.getOrigin().bytes());
-				stmt.setInt(5, peer.getPort());
+				stmt.setBoolean(2, false);
+				stmt.setBytes(3, peer.getPrivateKey());
+				stmt.setBytes(4, peer.getNodeId().bytes());
+				stmt.setBytes(5, peer.getOrigin().bytes());
+				stmt.setInt(6, peer.getPort());
 
 				if (peer.hasAlternativeURL())
-					stmt.setString(6, peer.getAlternativeURL());
+					stmt.setString(7, peer.getAlternativeURL());
 				else
-					stmt.setNull(6, Types.VARCHAR);
+					stmt.setNull(7, Types.VARCHAR);
 
-				stmt.setBytes(7, peer.getSignature());
-				stmt.setLong(8, now);
+				stmt.setBytes(8, peer.getSignature());
+				stmt.setLong(9, now);
+				stmt.setLong(10, 0);
 				stmt.addBatch();
 			}
 
@@ -537,15 +644,128 @@ public class SQLiteStorage implements DataStorage {
 	}
 
 	@Override
-	public void putPeer(PeerInfo peer) throws KadException {
-		putPeer(Arrays.asList(peer));
+	public void putPeer(PeerInfo peer, boolean persistent, boolean updateLastAnnounce) throws KadException {
+		try (PreparedStatement stmt = getConnection().prepareStatement(UPSERT_PEER)) {
+			stmt.setBytes(1, peer.getId().bytes());
+			stmt.setBoolean(2, persistent);
+			stmt.setBytes(3, peer.getPrivateKey());
+			stmt.setBytes(4, peer.getNodeId().bytes());
+			stmt.setBytes(5, peer.getOrigin().bytes());
+			stmt.setInt(6, peer.getPort());
+
+			if (peer.hasAlternativeURL())
+				stmt.setString(7, peer.getAlternativeURL());
+			else
+				stmt.setNull(7, Types.VARCHAR);
+
+			stmt.setBytes(8, peer.getSignature());
+
+			long now = System.currentTimeMillis();
+			stmt.setLong(9, now);
+			stmt.setLong(10, updateLastAnnounce ? now : 0);
+
+			stmt.executeUpdate();
+		} catch (SQLException e) {
+			log.error("SQLite storage encounter an error: " + e.getMessage(), e);
+			throw new IOError("SQLite storage encounter an error: " + e.getMessage(), e);
+		}
+	}
+
+	@Override
+	public void updatePeerLastAnnounce(Id peerId, Id origin) throws KadException {
+		try (PreparedStatement stmt = getConnection().prepareStatement(UPDATE_PEER_LAST_ANNOUNCE)) {
+			long now = System.currentTimeMillis();
+			stmt.setLong(1, now);
+			stmt.setLong(2, now);
+			stmt.setBytes(3, peerId.bytes());
+			stmt.setBytes(4, origin.bytes());
+			stmt.executeUpdate();
+		} catch (SQLException e) {
+			log.error("SQLite storage encounter an error: " + e.getMessage(), e);
+			throw new IOError("SQLite storage encounter an error: " + e.getMessage(), e);
+		}
+	}
+
+	@Override
+	public Stream<PeerInfo> getPersistentPeers(long lastAnnounceBefore) throws KadException {
+		PreparedStatement stmt = null;
+		ResultSet rs = null;
+
+		try {
+			stmt = getConnection().prepareStatement("SELECT * FROM peers WHERE persistent = true AND announced <= ?");
+			stmt.setLong(1, lastAnnounceBefore);
+			stmt.closeOnCompletion();
+			rs = stmt.executeQuery();
+		} catch (SQLException e) {
+			try {
+				if (rs != null)
+					rs.close();
+
+				if (stmt != null)
+					stmt.close();
+			} catch (SQLException ignore) {
+				log.error("SQLite storage encounter an error: " + ignore.getMessage(), ignore);
+			}
+		}
+
+		final ResultSet prs = rs;
+		Stream<PeerInfo> s = StreamSupport.stream(new Spliterators.AbstractSpliterator<PeerInfo>(
+				Long.MAX_VALUE, Spliterator.NONNULL | Spliterator.IMMUTABLE | Spliterator.ORDERED) {
+			@Override
+			public boolean tryAdvance(Consumer<? super PeerInfo> consumer) {
+				try {
+					if(!prs.next())
+						return false;
+
+					Id peerId = Id.of(prs.getBytes("id"));
+					byte[] privateKey = prs.getBytes("privateKey");
+					Id nodeId = Id.of(prs.getBytes("nodeId"));
+					Id origin = Id.of(prs.getBytes("origin"));
+					int port = prs.getInt("port");
+					String alt = prs.getString("alternativeURL");
+					byte[] signature = prs.getBytes("signature");
+
+					PeerInfo peer = PeerInfo.of(peerId, privateKey, nodeId, origin, port, alt, signature);
+					consumer.accept(peer);
+					return true;
+				} catch (SQLException e) {
+					log.error("SQLite storage encounter an error: " + e.getMessage(), e);
+					return false;
+				}
+			}
+		}, false);
+
+		s.onClose(() -> {
+			try {
+				prs.close();
+			} catch (SQLException ignore) {
+				log.error("SQLite storage encounter an error: " + ignore.getMessage(), ignore);
+			}
+		});
+
+		return s;
+	}
+
+	@Override
+	public boolean removePeer(Id peerId, Id origin) throws KadException {
+		Connection connection = getConnection();
+
+		try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM peers WHERE id = ? and origin = ?")) {
+			stmt.setBytes(1, peerId.bytes());
+			stmt.setBytes(2, origin.bytes());
+			int rows = stmt.executeUpdate();
+			return rows > 0;
+		} catch (SQLException e) {
+			log.error("Failed to evict the expired peers: " + e.getMessage(), e);
+			throw new IOError("SQLite storage encounter an error: " + e.getMessage(), e);
+		}
 	}
 
 	private void expire() {
 		long now = System.currentTimeMillis();
 		Connection connection = getConnection();
 
-		try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM valores WHERE timestamp < ?")) {
+		try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM valores WHERE persistent != TRUE and timestamp < ?")) {
 			long ts = now - Constants.MAX_VALUE_AGE;
 			stmt.setLong(1, ts);
 			stmt.executeUpdate();
@@ -553,7 +773,7 @@ public class SQLiteStorage implements DataStorage {
 			log.error("Failed to evict the expired values: " + e.getMessage(), e);
 		}
 
-		try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM peers WHERE timestamp < ?")) {
+		try (PreparedStatement stmt = connection.prepareStatement("DELETE FROM peers WHERE persistent != TRUE and timestamp < ?")) {
 			long ts = now - Constants.MAX_PEER_AGE;
 			stmt.setLong(1, ts);
 			stmt.executeUpdate();
@@ -561,5 +781,4 @@ public class SQLiteStorage implements DataStorage {
 			log.error("Failed to evict the expired peers: " + e.getMessage(), e);
 		}
 	}
-
 }

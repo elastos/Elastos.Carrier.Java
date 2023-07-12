@@ -73,7 +73,11 @@ public interface Node {
 
 	public CompletableFuture<Value> findValue(Id id, LookupOption option);
 
-	public CompletableFuture<Void> storeValue(Value value);
+	public CompletableFuture<Void> storeValue(Value value, boolean persistent);
+
+	public default CompletableFuture<Void> storeValue(Value value) {
+		return storeValue(value, false);
+	}
 
 	public default CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected) {
 		return findPeer(id, expected, null);
@@ -81,9 +85,17 @@ public interface Node {
 
 	public CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected, LookupOption option);
 
-	public CompletableFuture<Void> announcePeer(PeerInfo peer);
+	public CompletableFuture<Void> announcePeer(PeerInfo peer, boolean persistent);
+
+	public default CompletableFuture<Void> announcePeer(PeerInfo peer) {
+		return announcePeer(peer, false);
+	}
 
 	public Value getValue(Id valueId) throws CarrierException;
 
-	public PeerInfo getPeerInfo(Id peerId) throws CarrierException;
+	public boolean removeValue(Id valueId) throws CarrierException;;
+
+	public PeerInfo getPeer(Id peerId) throws CarrierException;
+
+	public boolean removePeer(Id peerId) throws CarrierException;
 }
