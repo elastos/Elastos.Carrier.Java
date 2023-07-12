@@ -174,11 +174,11 @@ public class PeerInfo {
 	}
 
 	public Id getOrigin() {
-		return origin != null ? origin : nodeId;
+		return origin;
 	}
 
 	public boolean isDelegated() {
-		return origin != null && !origin.equals(nodeId);
+		return !origin.equals(nodeId);
 	}
 
 	public int getPort() {
@@ -204,7 +204,7 @@ public class PeerInfo {
 		byte[] toSign = new byte[Id.BYTES * 2 + Short.BYTES + (alt == null ? 0 : alt.length)];
 		ByteBuffer buf = ByteBuffer.wrap(toSign);
 		buf.put(nodeId.bytes())
-			.put(getOrigin().bytes())
+			.put(origin.bytes())
 			.putShort((short)port);
 		if (alt != null)
 			buf.put(alt);
@@ -236,7 +236,7 @@ public class PeerInfo {
 
 			return Objects.equals(publicKey, v.publicKey) &&
 					Objects.equals(nodeId, v.nodeId) &&
-					Objects.equals(getOrigin(), v.getOrigin()) &&
+					Objects.equals(origin, v.origin) &&
 					port == v.port &&
 					Objects.equals(alternativeURL, v.alternativeURL);
 		}

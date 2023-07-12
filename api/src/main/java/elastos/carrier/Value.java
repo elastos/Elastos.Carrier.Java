@@ -267,6 +267,9 @@ public class Value {
 	}
 
 	public Value update(byte[] data) throws CryptoException {
+		if (!isMutable())
+			throw new IllegalStateException("Immutable value " + getId());
+
 		if (!hasPrivateKey())
 			throw new IllegalStateException("Not the owner of the value " + getId());
 

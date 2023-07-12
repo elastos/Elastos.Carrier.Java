@@ -37,15 +37,18 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +91,8 @@ public class Node implements elastos.carrier.Node {
 	private static AtomicInteger schedulerThreadIndex;
 	private volatile static ScheduledThreadPoolExecutor defaultScheduler;
 	private ScheduledExecutorService scheduler;
+
+	private List<ScheduledFuture<?>> scheduledActions = new ArrayList<>();
 
 	private NetworkEngine networkEngine;
 
@@ -154,6 +159,8 @@ public class Node implements elastos.carrier.Node {
 		status = NodeStatus.Stopped;
 
 		this.config = config;
+
+		this.scheduledActions = new ArrayList<>();
 	}
 
 	private boolean checkPersistence(File storagePath) {
@@ -379,6 +386,10 @@ public class Node implements elastos.carrier.Node {
 			setStatus(NodeStatus.Initializing, NodeStatus.Stopped);
 			throw e;
 		}
+
+		scheduledActions.add(getScheduler().scheduleWithFixedDelay(() -> {
+			persistentAnnounce();
+		}, 60000, Constants.RE_ANNOUNCE_INTERVAL, TimeUnit.MILLISECONDS));
 	}
 
 	@Override
@@ -387,6 +398,23 @@ public class Node implements elastos.carrier.Node {
 			return;
 
 		log.info("Carrier Kademlia node {} is stopping...", id);
+
+		// Cancel all scheduled actions
+		for (ScheduledFuture<?> future : scheduledActions) {
+			future.cancel(false);
+			// none of the scheduled tasks should experience exceptions,
+			// log them if they did
+			try {
+				future.get();
+			} catch (ExecutionException e) {
+				log.error("Scheduled future error", e);
+			} catch (InterruptedException e) {
+				log.error("Scheduled future error", e);
+			} catch (CancellationException ignore) {
+			}
+		}
+
+		scheduledActions.clear();
 
 		if (dht4 != null) {
 			dht4.stop();
@@ -422,6 +450,59 @@ public class Node implements elastos.carrier.Node {
 	@Override
 	public boolean isRunning() {
 		return status == NodeStatus.Running;
+	}
+
+	private void persistentAnnounce() {
+		log.info("Re-announce the persistent values and peers...");
+
+		List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+		long ts = System.currentTimeMillis() - Constants.MAX_VALUE_AGE +
+				Constants.RE_ANNOUNCE_INTERVAL * 2;
+		Stream<Value> vs;
+		try {
+			vs = storage.getPersistentValues(ts);
+
+			vs.forEach((v) -> {
+				log.debug("Re-announce the value: {}", v.getId());
+
+				try {
+					storage.updateValueLastAnnounce(v.getId());
+				} catch (Exception e) {
+					log.error("Can not update last announce timestamp for value", e);
+				}
+
+				futures.add(doStoreValue(v));
+			});
+		} catch (KadException e) {
+			log.error("Can not read the persistent values", e);
+		}
+
+		ts = System.currentTimeMillis() - Constants.MAX_PEER_AGE +
+				Constants.RE_ANNOUNCE_INTERVAL * 2;
+		try {
+			Stream<PeerInfo> ps = storage.getPersistentPeers(ts);
+
+			ps.forEach((p) -> {
+				log.debug("Re-announce the peer: {}", p.getId());
+
+				try {
+					storage.updatePeerLastAnnounce(p.getId(), p.getOrigin());
+				} catch (Exception e) {
+					log.error("Can not update last announce timestamp for peer", e);
+				}
+
+				futures.add(doAnnouncePeer(p));
+			});
+		} catch (KadException e) {
+			log.error("Can not read the persistent peers", e);
+		}
+
+		try {
+			CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+		} catch (InterruptedException | ExecutionException e) {
+			log.error("Error occurred during re-announce the persistent values and peers", e);
+		}
 	}
 
 	NetworkEngine getNetworkEngine() {
@@ -591,17 +672,21 @@ public class Node implements elastos.carrier.Node {
 	}
 
 	@Override
-	public CompletableFuture<Void> storeValue(Value value) {
+	public CompletableFuture<Void> storeValue(Value value, boolean persistent) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(value != null, "Invalid value: null");
 		checkArgument(value.isValid(), "Invalid value");
 
 		try {
-			getStorage().putValue(value);
+			getStorage().putValue(value, persistent);
 		} catch(KadException e) {
 			return CompletableFuture.failedFuture(e);
 		}
 
+		return doStoreValue(value);
+	}
+
+	private CompletableFuture<Void> doStoreValue(Value value) {
 		TaskFuture<Void> future = new TaskFuture<>();
 		AtomicInteger completion = new AtomicInteger(0);
 
@@ -629,14 +714,6 @@ public class Node implements elastos.carrier.Node {
 	public CompletableFuture<List<PeerInfo>> findPeer(Id id, int expected, LookupOption option) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid peer id");
-
-		int family = 0;
-
-		if (dht4 != null)
-			family += 4;
-
-		if (dht6 != null)
-			family += 6;
 
 		LookupOption lookupOption = option == null ? defaultLookupOption : option;
 
@@ -695,18 +772,22 @@ public class Node implements elastos.carrier.Node {
 	}
 
 	@Override
-	public CompletableFuture<Void> announcePeer(PeerInfo peer) {
+	public CompletableFuture<Void> announcePeer(PeerInfo peer, boolean persistent) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(peer != null, "Invalid peer: null");
 		checkArgument(peer.getOrigin().equals(getId()), "Invaid peer: not belongs to current node");
 		checkArgument(peer.isValid(), "Invalid peer");
 
 		try {
-			getStorage().putPeer(peer);
+			getStorage().putPeer(peer, persistent);
 		} catch(KadException e) {
 			return CompletableFuture.failedFuture(e);
 		}
 
+		return doAnnouncePeer(peer);
+	}
+
+	private CompletableFuture<Void> doAnnouncePeer(PeerInfo peer) {
 		TaskFuture<Void> future = new TaskFuture<>();
 		AtomicInteger completion = new AtomicInteger(0);
 
@@ -738,10 +819,24 @@ public class Node implements elastos.carrier.Node {
 	}
 
 	@Override
-	public PeerInfo getPeerInfo(Id peerId) throws CarrierException {
+	public boolean removeValue(Id valueId) throws KadException {
+		checkArgument(valueId != null, "Invalid value id");
+
+		return getStorage().removeValue(valueId);
+	}
+
+	@Override
+	public PeerInfo getPeer(Id peerId) throws KadException {
 		checkArgument(peerId != null, "Invalid peer id");
 
 		return getStorage().getPeer(peerId, this.getId());
+	}
+
+	@Override
+	public boolean removePeer(Id peerId) throws KadException {
+		checkArgument(peerId != null, "Invalid peer id");
+
+		return getStorage().removePeer(peerId, this.getId());
 	}
 
 	@Override
@@ -757,5 +852,4 @@ public class Node implements elastos.carrier.Node {
 
 		return repr.toString();
 	}
-
 }

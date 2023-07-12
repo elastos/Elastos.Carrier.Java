@@ -802,15 +802,16 @@ public class DHT {
 		task.setResultHandler((v) -> {
 			if (valueRef.get() == null)
 				valueRef.set(v);
+			else {
+				if (valueRef.get().getSequenceNumber() < v.getSequenceNumber())
+					valueRef.set(v);
+			}
 
 			// all immutable values will stop the lookup
 			if (option != LookupOption.CONSERVATIVE || !v.isMutable()) {
 				task.cancel();
 				return;
 			}
-
-			if (valueRef.get().getSequenceNumber() < v.getSequenceNumber())
-				valueRef.set(v);
 		});
 
 		task.addListener(t -> {

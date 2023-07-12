@@ -36,6 +36,9 @@ import picocli.CommandLine.Parameters;
 @Command(name = "announcepeer", mixinStandardHelpOptions = true, version = "Carrier announcepeer 2.0",
 		description = "Announce a service peer.")
 public class AnnouncePeerCommand implements Callable<Integer> {
+	@Option(names = { "-p", "--persistent" }, description = "Persistent peer, default is false.")
+	private boolean persistent = false;
+
    	@Option(names = {"-k", "--private-key"}, description = "The private key.")
 	private String privateKey = null;
 
@@ -74,7 +77,7 @@ public class AnnouncePeerCommand implements Callable<Integer> {
 		}
 
 		PeerInfo peer = PeerInfo.create(keypair, peerNodeId, Shell.getCarrierNode().getId(), port, alt);
-		CompletableFuture<Void> f = Shell.getCarrierNode().announcePeer(peer);
+		CompletableFuture<Void> f = Shell.getCarrierNode().announcePeer(peer, persistent);
 		f.get();
 		System.out.println("Peer " + peer.getId() + " announced with private key " +
 				Hex.encode(peer.getPrivateKey()));
