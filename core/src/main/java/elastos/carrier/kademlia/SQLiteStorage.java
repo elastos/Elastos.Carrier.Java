@@ -257,9 +257,6 @@ public class SQLiteStorage implements DataStorage {
 			rs = stmt.executeQuery();
 		} catch (SQLException e) {
 			try {
-				if (rs != null)
-					rs.close();
-
 				if (stmt != null)
 					stmt.close();
 			} catch (SQLException ignore) {
@@ -425,9 +422,6 @@ public class SQLiteStorage implements DataStorage {
 			rs = stmt.executeQuery();
 		} catch (SQLException e) {
 			try {
-				if (rs != null)
-					rs.close();
-
 				if (stmt != null)
 					stmt.close();
 			} catch (SQLException ignore) {
@@ -503,9 +497,6 @@ public class SQLiteStorage implements DataStorage {
 			rs = stmt.executeQuery();
 		} catch (SQLException e) {
 			try {
-				if (rs != null)
-					rs.close();
-
 				if (stmt != null)
 					stmt.close();
 			} catch (SQLException ignore) {
@@ -698,9 +689,6 @@ public class SQLiteStorage implements DataStorage {
 			rs = stmt.executeQuery();
 		} catch (SQLException e) {
 			try {
-				if (rs != null)
-					rs.close();
-
 				if (stmt != null)
 					stmt.close();
 			} catch (SQLException ignore) {
