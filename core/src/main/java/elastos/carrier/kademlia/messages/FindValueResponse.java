@@ -56,7 +56,14 @@ public class FindValueResponse extends LookupResponse {
 		this.value = value.getData();
 	}
 
+	public boolean hasValue() {
+		return value != null && value.length != 0;
+	}
+
 	public Value getValue() {
+		if (!hasValue())
+			return null;
+
 		return Value.of(publicKey, recipient, nonce, sequenceNumber, signature, value);
 	}
 
