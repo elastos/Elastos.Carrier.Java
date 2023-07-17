@@ -23,6 +23,7 @@
 package elastos.carrier.kademlia.tasks;
 
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -88,18 +89,28 @@ public class PeerLookup extends LookupTask {
 		if (response.getType() != Message.Type.RESPONSE || response.getMethod() != Message.Method.FIND_PEER)
 			return;
 
-		FindPeerResponse r = (FindPeerResponse)response;
+		FindPeerResponse r = (FindPeerResponse) response;
+		if (r.hasPeers()) {
+			List<PeerInfo> peers = r.getPeers();
+			boolean invalid = false;
+			final Iterator<PeerInfo> each = peers.iterator();
+			while (each.hasNext()) {
+				PeerInfo peer = each.next();
+				if (!peer.isValid()) {
+					invalid = true;
+					break;
+				}
+			}
 
-		boolean hasPeers = false;
-		List<PeerInfo> peers = r.getPeers();
-		if (peers != null && !peers.isEmpty()) {
+			if (invalid) {
+				log.error("Response include invalid peer, signature mismatch");
+				return; // Ignore
+			}
+
 			if (resultHandler != null)
 				resultHandler.accept(peers);
 
-			hasPeers = true;
-		}
-
-		if (!hasPeers) {
+		} else {
 			List<NodeInfo> nodes = r.getNodes(getDHT().getType());
 			if (nodes.isEmpty())
 				return;

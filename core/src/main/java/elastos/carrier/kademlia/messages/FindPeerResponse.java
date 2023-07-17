@@ -51,6 +51,10 @@ public class FindPeerResponse extends LookupResponse {
 		this.peers = peers;
 	}
 
+	public boolean hasPeers() {
+		return peers != null;
+	}
+
 	public List<PeerInfo> getPeers() {
 		return peers != null ? Collections.unmodifiableList(peers) : Collections.emptyList();
 	}

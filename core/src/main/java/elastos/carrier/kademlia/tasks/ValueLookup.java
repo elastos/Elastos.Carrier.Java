@@ -95,7 +95,7 @@ public class ValueLookup extends LookupTask {
 			return;
 
 		FindValueResponse r = (FindValueResponse)response;
-		if (r.getValue() != null) {
+		if (r.hasValue()) {
 			Value value = r.getValue();
 			if (!value.getId().equals(getTarget())) {
 				log.error("Responsed value id {} mismatched with expected {}", value.getId(), getTarget());
