@@ -20,6 +20,15 @@
  * SOFTWARE.
  */
 
+
+ /*
+  * This command interactive test with native node
+  * 1. delete the file of dht4.cache in the shell's data folder
+  * 2. start the shell app
+  * 3. start the native shell or launcher
+  * 4. input the command on shell: test [native node id]
+  */
+
 package elastos.carrier.node;
 
 import java.util.List;
@@ -65,6 +74,7 @@ public class InteractiveTestCommand implements Callable<Integer> {
 
 		Node node = Shell.getCarrierNode();
 
+        //Test findNode
 		CompletableFuture<List<NodeInfo>> fn = node.findNode(nativeId, option);
 		List<NodeInfo> nl = fn.get();
 		if (!nl.isEmpty()) {
@@ -75,7 +85,7 @@ public class InteractiveTestCommand implements Callable<Integer> {
 			throw new RuntimeException("Node not found.");
 		}
 
-        //Test values
+        //Test storeValue
         byte[] data = "Hello world".getBytes();
 		byte[] newData = "Foo bar".getBytes();
 
@@ -95,6 +105,7 @@ public class InteractiveTestCommand implements Callable<Integer> {
 		fv.get();
 		System.out.println("EncryptedValue " + encryptedValue.getId() + " stored.");
 
+        //Test findValue
 		Node node2;
 //		node2 = Shell.createNode(4233);
 //		node2.start();
@@ -138,7 +149,7 @@ public class InteractiveTestCommand implements Callable<Integer> {
 			throw new RuntimeException("EncryptedValue not found.");
 		}
 
-
+        //Test value update
         Value updatevalue = signedValue.update(data);
         fv = Shell.getCarrierNode().storeValue(updatevalue, true);
 		fv.get();
@@ -156,7 +167,7 @@ public class InteractiveTestCommand implements Callable<Integer> {
 			throw new RuntimeException("Update value not found.");
 		}
 
-
+        //Test announcePeer
 		PeerInfo pi = PeerInfo.create(node.getId(), 4234);
 		CompletableFuture<Void> fv2 = node.announcePeer(pi, true);
 		fv2.get();
@@ -168,6 +179,7 @@ public class InteractiveTestCommand implements Callable<Integer> {
 		fv2.get();
 		System.out.println("Peer2 " + pi2.getId() + " annouce.");
 
+        //Test findPeer
 		Node node3;
 		node3 = node;
 
