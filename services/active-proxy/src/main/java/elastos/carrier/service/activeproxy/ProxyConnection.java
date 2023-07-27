@@ -22,7 +22,6 @@
 
 package elastos.carrier.service.activeproxy;
 
-import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -46,7 +45,6 @@ import elastos.carrier.crypto.CryptoBox.Nonce;
 import elastos.carrier.crypto.CryptoBox.PublicKey;
 import elastos.carrier.crypto.CryptoException;
 import elastos.carrier.crypto.Signature;
-import elastos.carrier.utils.Hex;
 import elastos.carrier.utils.ThreadLocals;
 
 public class ProxyConnection implements AutoCloseable {
@@ -59,6 +57,8 @@ public class ProxyConnection implements AutoCloseable {
 
 	private ProxyServer server;
 	private ProxySession session;
+	private byte[] challenge;
+	private Nonce nonce;
 
 	private NetSocket upstreamSocket;
 	private NetSocket clientSocket;
@@ -131,7 +131,28 @@ public class ProxyConnection implements AutoCloseable {
 		dest[pos + 1] = (byte) (num & 0x000000ff);
 	}
 
-	void sendAuthAck(Id clientNodeId, PublicKey sessionPk, Nonce nonce, int port,
+	/*
+	 * Challenge packet
+	 * - plain
+	 *   - Random challenge bytes
+	 */
+	void sendChallenge(Handler<AsyncResult<Void>> handler) {
+		log.trace("Connection {} sending challenge to {}", getName(), upstreamSocket.remoteAddress());
+
+		challenge = new byte[ThreadLocals.random().nextInt(32, 256)];
+		ThreadLocals.random().nextBytes(challenge);
+
+		upstreamSocket.write(Buffer.buffer(challenge), handler);
+	}
+
+	/*
+	 * AUTHACK packet payload:
+	 * - encrypted
+	 *   - sessionPk[server]
+	 *   - port[uint16]
+	 *   - domainEnabled[uint8]
+	 */
+	void sendAuthAck(Id clientNodeId, PublicKey sessionPk, int port, boolean domainEnabled,
 			Handler<AsyncResult<Void>> handler) {
 		log.trace("Connection {} sending AUTH ACK to {}@{}",
 				getName(), clientNodeId, upstreamSocket.remoteAddress());
@@ -139,16 +160,16 @@ public class ProxyConnection implements AutoCloseable {
 
 		// Vert.x Buffer or ByteBuffer both are too heavy,
 		// so we just use the plain byte array
-		byte[] payload = new byte[PublicKey.BYTES + Nonce.BYTES + Short.BYTES];
+		byte[] payload = new byte[PublicKey.BYTES + Short.BYTES + Byte.BYTES];
 
 		int pos = 0;
 		System.arraycopy(sessionPk.bytes(), 0, payload, pos, PublicKey.BYTES);
 
 		pos += PublicKey.BYTES;
-		System.arraycopy(nonce.bytes(), 0, payload, pos, Nonce.BYTES);
-
-		pos += Nonce.BYTES;
 		shortToNetwork(port, payload, pos);
+
+		pos += Short.BYTES;
+		payload[pos] = (byte)(domainEnabled ? 1 : 0);
 
 		byte[] cipher = null;
 		try {
@@ -188,7 +209,7 @@ public class ProxyConnection implements AutoCloseable {
 		byte[] cipher = null;
 		if (payload != null && payload.length > 0) {
 			try {
-				cipher = session.encrypt(payload);
+				cipher = session.encrypt(payload, nonce);
 				size += cipher.length;
 			} catch (CarrierException e) {
 				log.error("SHOULD NEVER HAPPEN: connection {} encrypt packet failed", getName());
@@ -198,12 +219,9 @@ public class ProxyConnection implements AutoCloseable {
 			}
 		}
 
-		String h = Hex.encode(cipher);
-		log.info(h);
-
 		byte[] padding = null;
 		byte type = PacketFlag.getType(flag);
-		if (type != PacketFlag.DATA && type != PacketFlag.ERROR && type != PacketFlag.SIGNATURE) {
+		if (type != PacketFlag.DATA && type != PacketFlag.ERROR) {
 			padding = randomPadding();
 			size += padding.length;
 		}
@@ -224,11 +242,17 @@ public class ProxyConnection implements AutoCloseable {
 		upstreamSocket.write(buf, handler);
 	}
 
+	/*
+	 * No payload
+	 */
 	void sendAttachAck(Handler<AsyncResult<Void>> handler) {
 		state = State.Idling;
 		sendPacket(PacketFlag.attachAck(), null, handler);
 	}
 
+	/*
+	 * No payload
+	 */
 	private void sendPingAck() {
 		sendPacket(PacketFlag.pingAck(), null, ar -> {
 			if (ar.failed())
@@ -236,6 +260,13 @@ public class ProxyConnection implements AutoCloseable {
 		});
 	}
 
+	/*
+	 * CONNECT packet payload:
+	 * - encrypted
+	 *   - addrlen[uint8]
+	 *   - addr[16 bytes both for IPv4 or IPv6]
+	 *   - port[uint16]
+	 */
 	private void sendConnect(InetAddress address, int port) {
 		byte[] addr = address.getAddress();
 
@@ -253,6 +284,9 @@ public class ProxyConnection implements AutoCloseable {
 		});
 	}
 
+	/*
+	 * No payload
+	 */
 	private void sendDisconnect() {
 		sendPacket(PacketFlag.disconnect(), null, ar -> {
 			if (ar.failed())
@@ -260,6 +294,11 @@ public class ProxyConnection implements AutoCloseable {
 		});
 	}
 
+	/*
+	 * DATA packet payload:
+	 * - encrypted
+	 *   - data
+	 */
 	private void sendData(byte[] data) {
 		sendPacket(PacketFlag.data(), data, ar -> {
 			if (ar.failed())
@@ -272,39 +311,6 @@ public class ProxyConnection implements AutoCloseable {
 			clientSocket.pause();
 			upstreamSocket.drainHandler(v -> clientSocket.resume());
 		}
-	}
-
-    void sendSignature(String alt) {
-        Id clientNodeId = session.getClientNodeId();
-        int port = session.getPort();
-
-		log.trace("Connection {} sending signature to {}@{}",
-				getName(), clientNodeId, upstreamSocket.remoteAddress());
-
-        int altLength = 0;
-        if (alt != null) {
-            altLength = alt.getBytes().length;
-        }
-
-		byte[] payload = new byte[Short.BYTES + Signature.BYTES + altLength];
-
-		int pos = 0;
-		shortToNetwork(port, payload, pos);
-
-		pos += Short.BYTES;
-        if (alt != null) {
-            System.arraycopy(alt.getBytes(), 0, payload, pos, altLength);
-            pos += altLength;
-        }
-
-		//byte[] signature = server.getNode().createPeerSignature(clientNodeId, port, alt);
-        byte[] signature = new byte[Signature.BYTES];
-		System.arraycopy(signature, 0, payload, pos, signature.length);
-
-		sendPacket(PacketFlag.signature(), payload, ar -> {
-			if (ar.failed())
-				close();
-		});
 	}
 
 	private void sendError(short code, String message) {
@@ -411,9 +417,6 @@ public class ProxyConnection implements AutoCloseable {
 			if (!ack && type == PacketFlag.PING) {
 				handleKeepAlive(packet);
 				return;
-			} else if (!ack && type == PacketFlag.SIGNATURE) {
-				handleSignature(packet);
-				return;
 			} else {
 				log.error("Connection {} got wrong packet {}, PING excepted",
 						getName(), PacketFlag.toString(flag));
@@ -452,11 +455,22 @@ public class ProxyConnection implements AutoCloseable {
 		}
 	}
 
+	/*
+	 * AUTH packet payload:
+	 *   - plain
+	 *     - clientNodeId
+	 *   - encrypted
+	 *     - sessionPk[client]
+	 *     - connectionNonce
+	 *     - signature[challenge]
+	 *     - domain length[uint8]
+	 *     - domain[optional]
+	 */
 	private void handleAuth(Buffer packet) {
 		int size = PACKET_HEADER_BYTES + Id.BYTES + CryptoBox.MAC_BYTES +
-				CryptoBox.PublicKey.BYTES + CryptoBox.Nonce.BYTES;
+				CryptoBox.PublicKey.BYTES + CryptoBox.Nonce.BYTES + Signature.BYTES + Byte.BYTES;
 		if (packet.length() < size) {
-			log.error("Connection {} got invalid authentication packet from {}.",
+			log.error("Connection {} got invalid auth packet from {}.",
 					getName(), upstreamSocket.remoteAddress());
 			close();
 			return;
@@ -469,25 +483,62 @@ public class ProxyConnection implements AutoCloseable {
 		Id nodeId = Id.of(packet.getBytes(pos, pos + Id.BYTES));
 
 		pos += Id.BYTES;
+		size = packet.length() - PACKET_HEADER_BYTES - Id.BYTES;
 		byte[] payload = null;
 		try {
 			byte[] cipher = packet.getBytes(pos, size);
 			payload = server.decrypt(nodeId, cipher);
 		} catch (CarrierException e) {
-			log.error("Connection {} decrypt the packet failed.", getName());
+			log.error("Connection {} decrypt the auth packet failed.", getName());
 			close();
 			return;
 		}
 
-		Id sessionId = Id.of(Arrays.copyOfRange(payload, 0, CryptoBox.PublicKey.BYTES));
-		Nonce nonce = Nonce.fromBytes(Arrays.copyOfRange(payload, CryptoBox.PublicKey.BYTES,
-				CryptoBox.PublicKey.BYTES + CryptoBox.Nonce.BYTES));
+		pos = 0;
+		Id sessionId = Id.of(Arrays.copyOfRange(payload, pos, pos + CryptoBox.PublicKey.BYTES));
+		pos += CryptoBox.PublicKey.BYTES;
 
-		server.authenticate(this, nodeId, sessionId, nonce);
+		nonce = Nonce.fromBytes(Arrays.copyOfRange(payload, pos, pos + CryptoBox.Nonce.BYTES));
+		pos += CryptoBox.Nonce.BYTES;
+		byte[] sig = Arrays.copyOfRange(payload, pos, pos + Signature.BYTES);
+		if (!Signature.verify(challenge, sig, Signature.PublicKey.fromBytes(nodeId.bytes()))) {
+			log.error("Connection {} verify the auth challenge signature failed.", getName());
+			close();
+			return;
+		}
+
+		// clear the random challenge
+		this.challenge = null;
+
+		pos += Signature.BYTES;
+		int domainLength = Byte.toUnsignedInt(payload[pos++]);
+		String domain = null;
+		if (domainLength != 0) {
+			if (payload.length-pos < domainLength) {
+				log.error("Connection {} invalid auth packet", getName());
+				close();
+				return;
+
+			}
+
+			domain = new String(payload, pos, domainLength);
+		}
+
+		server.authenticate(this, nodeId, sessionId, domain);
 	}
 
+	/*
+	 * ATTACH packet:
+	 *   - plain
+	 *     - clientNodeId
+	 *   - encrypted
+	 *     - sessionPk[client]
+	 *     - connectionNonce
+	 *     - signature[challenge]
+	 */
 	private void handleAttach(Buffer packet) {
-		int size = PACKET_HEADER_BYTES + CryptoBox.PublicKey.BYTES + CryptoBox.MAC_BYTES +  Short.BYTES;
+		int size = PACKET_HEADER_BYTES + Id.BYTES + CryptoBox.MAC_BYTES +
+				CryptoBox.PublicKey.BYTES + CryptoBox.Nonce.BYTES + Signature.BYTES;
 		if (packet.length() < size) {
 			log.error("Connection {} got invalid attach packet from {}.",
 					getName(), upstreamSocket.remoteAddress());
@@ -499,13 +550,42 @@ public class ProxyConnection implements AutoCloseable {
 				getName(), upstreamSocket.remoteAddress());
 
 		int pos = PACKET_HEADER_BYTES;
-		Id sessionId = Id.of(packet.getBytes(pos, pos + Id.BYTES));
+		Id nodeId = Id.of(packet.getBytes(pos, pos + Id.BYTES));
+
+		pos += Id.BYTES;
+		size = packet.length() - PACKET_HEADER_BYTES - Id.BYTES;
+		byte[] payload = null;
+		try {
+			byte[] cipher = packet.getBytes(pos, size);
+			payload = server.decrypt(nodeId, cipher);
+		} catch (CarrierException e) {
+			log.error("Connection {} decrypt the attach packet failed.", getName());
+			close();
+			return;
+		}
+
+		pos = 0;
+		Id sessionId = Id.of(Arrays.copyOfRange(payload, pos, pos + CryptoBox.PublicKey.BYTES));
 		pos += CryptoBox.PublicKey.BYTES;
 
-		byte[] payload = packet.getBytes(pos, pos + CryptoBox.MAC_BYTES +  Short.BYTES);
-		server.attach(this, sessionId, payload);
+		nonce = Nonce.fromBytes(Arrays.copyOfRange(payload, pos, pos + CryptoBox.Nonce.BYTES));
+		pos += CryptoBox.Nonce.BYTES;
+		byte[] sig = Arrays.copyOfRange(payload, pos, pos + Signature.BYTES);
+		if (!Signature.verify(challenge, sig, Signature.PublicKey.fromBytes(nodeId.bytes()))) {
+			log.error("Connection {} verify the attach challenge signature failed.", getName());
+			close();
+			return;
+		}
+
+		// clear the random challenge
+		this.challenge = null;
+
+		server.attach(this, sessionId);
 	}
 
+	/*
+	 * No payload
+	 */
 	private void handleKeepAlive(Buffer packet) {
 		log.trace("Connection {} got PING packet from {}.",
 				getName(), upstreamSocket.remoteAddress());
@@ -513,6 +593,11 @@ public class ProxyConnection implements AutoCloseable {
 		sendPingAck();
 	}
 
+	/*
+	 * CONNECTACK packet payload:
+	 * - plain
+	 *   - success[uint8]
+	 */
 	private void handleConnectAck(Buffer packet) {
 		int size = PACKET_HEADER_BYTES + Byte.BYTES;
 		if (packet.length() < size) {
@@ -536,6 +621,9 @@ public class ProxyConnection implements AutoCloseable {
 		}
 	}
 
+	/*
+	 * No payload
+	 */
 	private void handleDisconnect(Buffer packet) {
 		log.trace("Connection {} got DISCONNECT packet from {}.",
 				getName(), upstreamSocket.remoteAddress());
@@ -543,12 +631,17 @@ public class ProxyConnection implements AutoCloseable {
 		disconnectClient();
 	}
 
+	/*
+	 * CONNECTACK packet payload:
+	 * - encrypted
+	 *   - data
+	 */
 	private void handleData(Buffer data) {
 		log.trace("Connection {} got DATA packet from {}.",
 				getName(), upstreamSocket.remoteAddress());
 
 		try {
-			byte[] payload = session.decrypt(data.getBytes(PACKET_HEADER_BYTES, data.length()));
+			byte[] payload = session.decrypt(data.getBytes(PACKET_HEADER_BYTES, data.length()), nonce);
 			clientSocket.write(Buffer.buffer(payload));
 			// Flow control for upstream -> client
 			if (clientSocket.writeQueueFull()) {
@@ -562,27 +655,6 @@ public class ProxyConnection implements AutoCloseable {
 			close();
 		}
 	}
-
-    private void handleSignature(Buffer packet) {
-        log.trace("Connection {} got SIGNATURE packet from {}.",
-				getName(), upstreamSocket.remoteAddress());
-
-		try {
-			byte[] payload = session.decrypt(packet.getBytes(PACKET_HEADER_BYTES, packet.length()));
-			byte hasAlt = payload[0];
-	        if (hasAlt > 0) {
-	        	String alt = new String(payload, 1, payload.length - 1, "UTF-8");
-	            //TODO::  to helper servic verify alt
-	            sendSignature(alt);
-	        }
-	        else {
-	            sendSignature(null);
-	        }
-		} catch (CryptoException | UnsupportedEncodingException e) {
-			log.error("Connection {} decrypt the SIGNATURE payload failed.", getName());
-			close();
-		}
-    }
 
 	public void connectClient(NetSocket clientSocket) {
 		log.debug("Connection {} assigned for client {} from {}", getName(),

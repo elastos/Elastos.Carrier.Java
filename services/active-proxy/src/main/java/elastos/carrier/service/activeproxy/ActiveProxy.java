@@ -33,8 +33,6 @@ import elastos.carrier.service.ServiceContext;
 
 public class ActiveProxy implements CarrierService {
 	static final String NAME = "ActiveProxy";
-	static final int DEFAULT_PORT = 8090;
-	static final String DEFAULT_PORT_MAPPING_RANGE = "32768-65535";
 
 	@SuppressWarnings("unused")
 	private ServiceContext context;

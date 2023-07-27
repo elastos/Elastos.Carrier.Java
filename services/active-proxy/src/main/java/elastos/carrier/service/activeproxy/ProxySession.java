@@ -34,10 +34,14 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetServer;
 import io.vertx.core.net.NetServerOptions;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
+import io.vertx.ext.web.client.HttpRequest;
+import io.vertx.ext.web.client.WebClient;
 
 import elastos.carrier.Id;
 import elastos.carrier.crypto.CryptoBox;
@@ -55,11 +59,11 @@ public class ProxySession implements AutoCloseable {
 
 	private Id clientNodeId;
 	private Id sessionId;
+	private String domain;
 
 	private KeyPair keyPair;
 
 	private CryptoBox box;
-	private Nonce nonce;
 
 	private ProxyServer server;
 
@@ -70,9 +74,6 @@ public class ProxySession implements AutoCloseable {
 	private ConcurrentLinkedQueue<NetSocket> clientSocks;
 	private ConcurrentHashMap<ProxyConnection, Object> connections;
 	private ConcurrentLinkedQueue<ProxyConnection> idleConnections;
-
-	private String clientPeerAlt;
-	private byte[] clientPeerSignatrue;
 
 	long idleTimestamp;
 
@@ -90,15 +91,15 @@ public class ProxySession implements AutoCloseable {
 	 * @param nonce the encryption nonce for the new session
 	 * @throws CryptoException
 	 */
-	public ProxySession(ProxyServer server, Id clientNodeId, Id sessionId, Nonce nonce) throws CryptoException {
+	public ProxySession(ProxyServer server, Id clientNodeId, Id sessionId, String domain) throws CryptoException {
 		this.name = sessionId.toString();
 
 		this.server = server;
 
 		this.clientNodeId = clientNodeId;
 		this.sessionId = sessionId;
+		this.domain = domain;
 
-		this.nonce = nonce;
 		this.keyPair = CryptoBox.KeyPair.random();
 
 		this.box = CryptoBox.fromKeys(CryptoBox.PublicKey.fromBytes(sessionId.bytes()),
@@ -115,7 +116,7 @@ public class ProxySession implements AutoCloseable {
 		return sessionId;
 	}
 
-    public Id getClientNodeId() {
+	public Id getClientNodeId() {
 		return clientNodeId;
 	}
 
@@ -135,16 +136,54 @@ public class ProxySession implements AutoCloseable {
 		return server.getVertx();
 	}
 
-	byte[] encrypt(byte[] plain) throws CryptoException {
+	byte[] encrypt(byte[] plain, Nonce nonce) throws CryptoException {
 		return box.encrypt(plain, nonce);
 	}
 
-	byte[] decrypt(byte[] cipher) throws CryptoException {
+	byte[] decrypt(byte[] cipher, Nonce nonce) throws CryptoException {
 		return box.decrypt(cipher, nonce);
 	}
 
+	private void updateVirtualHost(Handler<AsyncResult<Boolean>> handler) {
+		Vertx vertx = getVertx();
+		WebClient client = WebClient.create(vertx);
+		JsonObject data = new JsonObject()
+				.put("nodeId", getClientNodeId().toString())
+				.put("domain", domain)
+				.put("upstream", server.getHost() + ":" + getPort());
+
+		HttpRequest<Buffer> request = client.post(server.getConfig().getHelperPort(),
+				server.getConfig().getHelperServer(), "/vhosts");
+
+		String apiKey = server.getConfig().getHelperApiKey();
+		if (apiKey != null && !apiKey.isEmpty())
+			request.putHeader("Authorization", "Bearer " + apiKey);
+
+		if (server.getConfig().isHelperEnabledSSL())
+			request.ssl(true);
+
+		request.sendJsonObject(data)
+			.onSuccess(res -> handler.handle(Future.succeededFuture(true)))
+			.onFailure(res -> handler.handle(Future.succeededFuture(false)));
+	}
+
 	private void establish(ProxyConnection connection, Handler<AsyncResult<ProxySession>> startHandler) {
-        connection.sendAuthAck(clientNodeId, keyPair.publicKey(), nonce, port, ar -> {
+		if (domain != null && !domain.isEmpty() && server.getConfig().isHelperEnabled()) {
+			updateVirtualHost(ar -> {
+				establish2(connection, ar.result(), startHandler);
+
+				if (ar.result()) {
+					server.getVertx().setPeriodic(server.getConfig().getHelperUpdateInterval(),
+							l -> updateVirtualHost(v -> {}));
+				}
+			});
+		} else {
+			establish2(connection, false, startHandler);
+		}
+	}
+
+	private void establish2(ProxyConnection connection, boolean domainEnabled, Handler<AsyncResult<ProxySession>> startHandler) {
+		connection.sendAuthAck(clientNodeId, keyPair.publicKey(), port, domainEnabled, ar -> {
 			if (ar.succeeded()) {
 				log.info("Session {} server started.", getName());
 
@@ -178,17 +217,17 @@ public class ProxySession implements AutoCloseable {
 		SocketAddress localAddress = SocketAddress.inetSocketAddress(port, server.getHost());
 		log.debug("Session {} server try to start on {}", getName(), localAddress);
 		sessionServer.listen((localAddress), ar -> {
-            if (ar.succeeded()) {
-                log.info("Session {} server is listening on {}", getName(), localAddress);
-                idleTimestamp = -1;
-                establish(connection, handler);
-            } else {
-                log.warn("Session " + getName() + " listening on " + localAddress +
-                		" failed, trying the next available port...", ar.cause());
-                // TODO: Check the port unavailable error.
-                server.setPortUnavailable(port);
-                getVertx().runOnContext((v) -> start(connection, sessionServer, handler));
-            }
+			if (ar.succeeded()) {
+				log.info("Session {} server is listening on {}", getName(), localAddress);
+				idleTimestamp = -1;
+				establish(connection, handler);
+			} else {
+				log.warn("Session " + getName() + " listening on " + localAddress +
+						" failed, trying the next available port...", ar.cause());
+				// TODO: Check the port unavailable error.
+				server.setPortUnavailable(port);
+				getVertx().runOnContext((v) -> start(connection, sessionServer, handler));
+			}
 		});
 	}
 

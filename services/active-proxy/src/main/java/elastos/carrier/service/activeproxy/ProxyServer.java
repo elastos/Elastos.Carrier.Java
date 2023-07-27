@@ -39,7 +39,6 @@ import io.vertx.core.net.SocketAddress;
 import elastos.carrier.CarrierException;
 import elastos.carrier.Id;
 import elastos.carrier.Node;
-import elastos.carrier.crypto.CryptoBox.Nonce;
 import elastos.carrier.crypto.CryptoException;
 import elastos.carrier.service.CarrierServiceException;
 import elastos.carrier.service.ServiceContext;
@@ -51,8 +50,7 @@ public class ProxyServer extends AbstractVerticle {
 	private ServiceContext context;
 	private Node node;
 
-	private String host;
-	private int port;
+	private Configuration config;
 
 	private NetServer server;
 
@@ -73,11 +71,13 @@ public class ProxyServer extends AbstractVerticle {
 		this.sessions = new ConcurrentHashMap<>();
 		this.connections = new ConcurrentHashMap<>();
 
-		this.host = (String)context.getConfiguration().getOrDefault("host", NetServerOptions.DEFAULT_HOST);
-		this.port = (int)context.getConfiguration().getOrDefault("port", ActiveProxy.DEFAULT_PORT);
+		try {
+			this.config = new Configuration(context.getConfiguration());
+		} catch (Exception e) {
+			throw new CarrierServiceException("Invalid configuration");
+		}
 
-		String portMappingRange = (String)context.getConfiguration().getOrDefault("portMappingRange", ActiveProxy.DEFAULT_PORT_MAPPING_RANGE);
-		initMappingPorts(portMappingRange);
+		initMappingPorts(config.getPortMappingRange());
 	}
 
 	private void initMappingPorts(String spec) throws CarrierServiceException {
@@ -107,15 +107,15 @@ public class ProxyServer extends AbstractVerticle {
 	}
 
 	public String getHost() {
-		return host;
+		return config.getHost();
 	}
 
 	public int getPort() {
-		return port;
+		return config.getPort();
 	}
-	
-	public Node getNode() {
-		return node;
+
+	Configuration getConfig() {
+		return config;
 	}
 
 	public boolean isRunning() {
@@ -169,7 +169,7 @@ public class ProxyServer extends AbstractVerticle {
 				.setTcpFastOpen(true)
 				.setReuseAddress(true);
 
-		SocketAddress localAddress = SocketAddress.inetSocketAddress(port, host);
+		SocketAddress localAddress = SocketAddress.inetSocketAddress(getPort(), getHost());
 		server = vertx.createNetServer(options)
 				.connectHandler(sock -> handleConnection(sock))
 				.exceptionHandler(e -> log.error("ActiveProxy server error: " + e.getMessage(), e))
@@ -205,11 +205,17 @@ public class ProxyServer extends AbstractVerticle {
 
 	private void handleConnection(NetSocket socket) {
 		ProxyConnection connection = new ProxyConnection(this, socket);
-		connections.put(connection, ProxyConnection.OBJECT);
 		log.debug("New proxy connection {} from {}", connection.getName(), socket.remoteAddress());
+
+		connection.sendChallenge(ar -> {
+			if (ar.succeeded()) {
+				connection.closeHandler((v) -> connections.remove(connection));
+				connections.put(connection, ProxyConnection.OBJECT);
+			}
+		});
 	}
 
-	void authenticate(ProxyConnection connection, Id nodeId, Id sessionId, Nonce nonce) {
+	void authenticate(ProxyConnection connection, Id nodeId, Id sessionId, String domain) {
 		log.debug("Authenticating connection {} from {}...", connection.getName(), connection.upstreamAddress());
 
 		if (sessions.containsKey(sessionId)) {
@@ -222,7 +228,7 @@ public class ProxyServer extends AbstractVerticle {
 
 		ProxySession session;
 		try {
-			session = new ProxySession(this, nodeId, sessionId, nonce);
+			session = new ProxySession(this, nodeId, sessionId, domain);
 		} catch (CryptoException e) {
 			log.error("Authenticate connection {} from {} failed - session id {} is invalid.",
 					connection.getName(), connection.upstreamAddress(), sessionId);
@@ -251,7 +257,7 @@ public class ProxyServer extends AbstractVerticle {
 		});
 	}
 
-	void attach(ProxyConnection connection, Id sessionId, byte[] cookie) {
+	void attach(ProxyConnection connection, Id sessionId) {
 		log.debug("Attaching connection {} from {} with session id {}.",
 				connection.getName(), connection.upstreamAddress(), sessionId);
 
@@ -260,23 +266,6 @@ public class ProxyServer extends AbstractVerticle {
 			log.error("Attach connection {} from {} failed - session id {} not exists.",
 					connection.getName(), connection.upstreamAddress(), sessionId);
 			connection.close();
-			connections.remove(connection);
-			return;
-		}
-
-		try {
-			byte[] payload = session.decrypt(cookie);
-			if (payload.length != Short.BYTES)
-				throw new CryptoException("Invalid encrypted cookie");
-
-			int port = ((payload[0] & 0x00ff) << 8) | (payload[1] & 0x00ff);
-			if (port != session.getPort())
-				throw new CryptoException("Invalid encrypted cookie");
-		} catch (CryptoException e) {
-			log.error("attach connection {} from {} failed - invalid attach cookie.",
-					connection.getName(), connection.upstreamAddress());
-			connection.close();
-			connections.remove(connection);
 			return;
 		}
 
