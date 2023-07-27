@@ -92,19 +92,13 @@ public class PeerLookup extends LookupTask {
 		FindPeerResponse r = (FindPeerResponse) response;
 		if (r.hasPeers()) {
 			List<PeerInfo> peers = r.getPeers();
-			boolean invalid = false;
 			final Iterator<PeerInfo> each = peers.iterator();
 			while (each.hasNext()) {
 				PeerInfo peer = each.next();
 				if (!peer.isValid()) {
-					invalid = true;
-					break;
+					log.error("Response include invalid peer, signature mismatch");
+					return;
 				}
-			}
-
-			if (invalid) {
-				log.error("Response include invalid peer, signature mismatch");
-				return; // Ignore
 			}
 
 			if (resultHandler != null)

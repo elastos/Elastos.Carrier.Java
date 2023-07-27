@@ -609,7 +609,12 @@ public class SQLiteStorage implements DataStorage {
 			for (PeerInfo peer : peers) {
 				stmt.setBytes(1, peer.getId().bytes());
 				stmt.setBoolean(2, false);
-				stmt.setBytes(3, peer.getPrivateKey());
+
+				if (peer.hasPrivateKey())
+					stmt.setBytes(3, peer.getPrivateKey());
+				else
+					stmt.setNull(3, Types.BLOB);
+
 				stmt.setBytes(4, peer.getNodeId().bytes());
 				stmt.setBytes(5, peer.getOrigin().bytes());
 				stmt.setInt(6, peer.getPort());

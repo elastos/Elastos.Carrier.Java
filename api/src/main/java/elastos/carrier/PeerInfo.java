@@ -223,7 +223,7 @@ public class PeerInfo {
 
 	@Override
 	public int hashCode() {
-		return publicKey.hashCode() + nodeId.hashCode() + 0x70; // 'p'
+		return publicKey.hashCode() + nodeId.hashCode() + origin.hashCode() + 0x70; // 'p'
 	}
 
 	@Override
@@ -234,11 +234,16 @@ public class PeerInfo {
 		if (o instanceof PeerInfo) {
 			PeerInfo v = (PeerInfo)o;
 
+			/*
 			return Objects.equals(publicKey, v.publicKey) &&
 					Objects.equals(nodeId, v.nodeId) &&
 					Objects.equals(origin, v.origin) &&
 					port == v.port &&
 					Objects.equals(alternativeURL, v.alternativeURL);
+			*/
+
+			return Objects.equals(publicKey, v.publicKey) &&
+					Objects.equals(signature, v.signature);
 		}
 
 		return false;
