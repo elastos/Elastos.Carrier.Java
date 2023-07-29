@@ -84,10 +84,10 @@ public class SQLiteStorage implements DataStorage {
 
 	private static final String CREATE_PEERS_TABLE = "CREATE TABLE IF NOT EXISTS peers(" +
 			"id BLOB NOT NULL, " +
-			"persistent BOOLEAN NOT NULL DEFAULT FALSE, " +
-			"privateKey BLOB, " +
 			"nodeId BLOB NOT NULL, " +
 			"origin BLOB NOT NULL, " +
+			"persistent BOOLEAN NOT NULL DEFAULT FALSE, " +
+			"privateKey BLOB, " +
 			"port INTEGER NOT NULL, " +
 			"alternativeURL VARCHAR(512), " +
 			"signature BLOB NOT NULL, " +
@@ -117,11 +117,12 @@ public class SQLiteStorage implements DataStorage {
 			"SET timestamp=?, announced = ? WHERE id = ?";
 
 	private static final String UPSERT_PEER = "INSERT INTO peers(" +
-			"id, persistent, privateKey, nodeId, origin, port, alternativeURL, signature, timestamp, announced) " +
+			"id, nodeId, origin, persistent, privateKey, port, alternativeURL, signature, timestamp, announced) " +
 			"VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id, nodeId, origin) DO UPDATE SET " +
-			"privateKey=excluded.privateKey, " +
+			"persistent=excluded.persistent, privateKey=excluded.privateKey, " +
 			"port=excluded.port, alternativeURL=excluded.alternativeURL, " +
-			"signature=excluded.signature, timestamp=excluded.timestamp";
+			"signature=excluded.signature, timestamp=excluded.timestamp, " +
+			"announced=excluded.announced";
 
 	private static final String SELECT_PEER = "SELECT * from peers " +
 			"WHERE id = ? and timestamp >= ? " +
@@ -252,8 +253,10 @@ public class SQLiteStorage implements DataStorage {
 		ResultSet rs = null;
 
 		try {
-			stmt = getConnection().prepareStatement("SELECT id from valores ORDER BY id");
+			stmt = getConnection().prepareStatement("SELECT id from valores ORDER BY id WHERE timestamp >= ?");
 			stmt.closeOnCompletion();
+			long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
+			stmt.setLong(1, when);
 			rs = stmt.executeQuery();
 		} catch (SQLException e) {
 			try {
@@ -492,8 +495,10 @@ public class SQLiteStorage implements DataStorage {
 		ResultSet rs = null;
 
 		try {
-			stmt = getConnection().prepareStatement("SELECT DISTINCT id from peers ORDER BY id");
+			stmt = getConnection().prepareStatement("SELECT DISTINCT id from peers ORDER BY id WHERE timestamp >= ?");
 			stmt.closeOnCompletion();
+			long when = System.currentTimeMillis() - Constants.MAX_PEER_AGE;
+			stmt.setLong(1, when);
 			rs = stmt.executeQuery();
 		} catch (SQLException e) {
 			try {
@@ -608,15 +613,15 @@ public class SQLiteStorage implements DataStorage {
 		try (PreparedStatement stmt = connection.prepareStatement(UPSERT_PEER)) {
 			for (PeerInfo peer : peers) {
 				stmt.setBytes(1, peer.getId().bytes());
-				stmt.setBoolean(2, false);
+				stmt.setBytes(2, peer.getNodeId().bytes());
+				stmt.setBytes(3, peer.getOrigin().bytes());
+				stmt.setBoolean(4, false);
 
 				if (peer.hasPrivateKey())
-					stmt.setBytes(3, peer.getPrivateKey());
+					stmt.setBytes(5, peer.getPrivateKey());
 				else
-					stmt.setNull(3, Types.BLOB);
+					stmt.setNull(5, Types.BLOB);
 
-				stmt.setBytes(4, peer.getNodeId().bytes());
-				stmt.setBytes(5, peer.getOrigin().bytes());
 				stmt.setInt(6, peer.getPort());
 
 				if (peer.hasAlternativeURL())
@@ -643,10 +648,10 @@ public class SQLiteStorage implements DataStorage {
 	public void putPeer(PeerInfo peer, boolean persistent, boolean updateLastAnnounce) throws KadException {
 		try (PreparedStatement stmt = getConnection().prepareStatement(UPSERT_PEER)) {
 			stmt.setBytes(1, peer.getId().bytes());
-			stmt.setBoolean(2, persistent);
-			stmt.setBytes(3, peer.getPrivateKey());
-			stmt.setBytes(4, peer.getNodeId().bytes());
-			stmt.setBytes(5, peer.getOrigin().bytes());
+			stmt.setBytes(2, peer.getNodeId().bytes());
+			stmt.setBytes(3, peer.getOrigin().bytes());
+			stmt.setBoolean(4, persistent);
+			stmt.setBytes(5, peer.getPrivateKey());
 			stmt.setInt(6, peer.getPort());
 
 			if (peer.hasAlternativeURL())
