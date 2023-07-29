@@ -11,7 +11,7 @@ import picocli.CommandLine.Parameters;
 
 @Command(name = "displaycache", mixinStandardHelpOptions = true, version = "Carrier displaycache 2.0",
 		description = "Display the cached routing table.")
-public class DisplayCache implements Callable<Integer> {
+public class DisplayCacheCommnand implements Callable<Integer> {
 	@ArgGroup(exclusive = true, multiplicity = "0..1")
     AddressFamily af;
 

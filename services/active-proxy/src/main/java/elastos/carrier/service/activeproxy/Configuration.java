@@ -28,10 +28,13 @@ import java.util.Map;
 
 import io.vertx.core.net.NetServerOptions;
 
+import elastos.carrier.crypto.Signature.KeyPair;
+import elastos.carrier.utils.Hex;
+
 public class Configuration {
 	private static final int DEFAULT_PORT = 8090;
 	private static final String DEFAULT_PORT_MAPPING_RANGE = "32768-65535";
-    public static final int	DEFAULT_HELPER_UPDATE_INTERVAL = 540; // 9 minutes
+	public static final int	DEFAULT_HELPER_UPDATE_INTERVAL = 8; // minutes
 
 	private String host;
 	private int port;
@@ -42,6 +45,8 @@ public class Configuration {
 	private boolean helperEnabledSSL;
 	private String helperApiKey;
 	private int helperUpdateInterval;
+
+	private KeyPair peerKeypair;
 
 	public Configuration(Map<String, Object> config) throws IllegalArgumentException {
 		host = (String)config.getOrDefault("host", NetServerOptions.DEFAULT_HOST);
@@ -62,11 +67,20 @@ public class Configuration {
 				helperServer = url.getHost();
 				helperPort = url.getPort() > 0 ? url.getPort() : url.getDefaultPort();
 			} catch (MalformedURLException e) {
-				throw new IllegalArgumentException("helper service config error", e);
+				throw new IllegalArgumentException("helper service config error, invalid helper URL", e);
 			}
 
-			helperApiKey = (String)config.get("helpApiKey");
-			helperUpdateInterval = (int)config.getOrDefault("helperUpdateInterval", DEFAULT_HELPER_UPDATE_INTERVAL);
+			helperApiKey = (String)config.get("helperApiKey");
+			helperUpdateInterval = (int)config.getOrDefault("helperUpdateInterval", DEFAULT_HELPER_UPDATE_INTERVAL) * 60 * 1000;
+
+			String sk = (String)config.get("peerPrivateKey");
+			if (sk != null) {
+				try {
+					peerKeypair = KeyPair.fromPrivateKey(Hex.decode(sk));
+				} catch (Exception e) {
+					throw new IllegalArgumentException("helper service config error, invalid peer private key", e);
+				}
+			}
 		}
 	}
 
@@ -104,5 +118,9 @@ public class Configuration {
 
 	public int getHelperUpdateInterval() {
 		return helperUpdateInterval;
+	}
+
+	public KeyPair getPeerKeypair() {
+		return peerKeypair;
 	}
 }

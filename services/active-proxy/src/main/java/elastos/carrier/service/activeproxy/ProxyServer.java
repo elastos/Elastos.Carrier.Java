@@ -42,12 +42,14 @@ import io.vertx.core.net.SocketAddress;
 import elastos.carrier.CarrierException;
 import elastos.carrier.Id;
 import elastos.carrier.Node;
+import elastos.carrier.PeerInfo;
 import elastos.carrier.crypto.CryptoException;
 import elastos.carrier.service.CarrierServiceException;
 import elastos.carrier.service.ServiceContext;
 
 public class ProxyServer extends AbstractVerticle {
 	private static final int IDLE_CHECK_INTERVAL = 120000; // 2 minute
+	private static final int RE_ANNOUNCE_INTERVAL = 60 * 60 * 1000;
 
 	@SuppressWarnings("unused")
 	private ServiceContext context;
@@ -62,6 +64,9 @@ public class ProxyServer extends AbstractVerticle {
 	private int currentIndex;
 
 	private long idleCheckTimer;
+
+	PeerInfo peer;
+	private long announcePeerTimer;
 
 	private Map<Id, ProxySession> sessions;
 	private Map<ProxyConnection, Object> connections;
@@ -90,6 +95,9 @@ public class ProxyServer extends AbstractVerticle {
 			.maximumSize(1024)
 			.removalListener(rn -> releasePort((Integer)rn.getValue()))
 			.build();
+
+		if (config.getPeerKeypair() != null)
+			peer = PeerInfo.create(config.getPeerKeypair(), node.getId(), getPort());
 	}
 
 	private void initMappingPorts(String spec) throws CarrierServiceException {
@@ -196,6 +204,8 @@ public class ProxyServer extends AbstractVerticle {
 				.listen(localAddress, (asyncResult) -> {
 					if (asyncResult.succeeded()) {
 						idleCheckTimer = getVertx().setPeriodic(IDLE_CHECK_INTERVAL, this::idleCheck);
+						if (peer != null)
+							announcePeerTimer = getVertx().setPeriodic(10, RE_ANNOUNCE_INTERVAL, this::announceService);
 						log.info("ActiveProxy Server started, listening on {}", localAddress);
 					} else {
 						log.error("ActiveProxy Server listen failed on {} - {}", localAddress, asyncResult.cause());
@@ -210,6 +220,8 @@ public class ProxyServer extends AbstractVerticle {
 		if (server != null) {
 			log.debug("ActiveProxy server stopping...");
 			getVertx().cancelTimer(idleCheckTimer);
+			if (peer != null)
+				getVertx().cancelTimer(announcePeerTimer);
 			server.close(asyncResult -> log.info("ActiveProxy Server stopped"));
 			server = null;
 		}
@@ -220,6 +232,17 @@ public class ProxyServer extends AbstractVerticle {
 
 		sessions.forEach((id, session) -> {
 			session.tryCloseIdleConnections();
+		});
+	}
+
+	private void announceService(long timer) {
+		log.info("Announce peer: {}...", peer.getId());
+
+		node.announcePeer(peer).whenComplete((v, e) -> {
+			if (e == null)
+				log.info("Announce peer succeeded");
+			else
+				log.error("Announce peer failed: " + e.getMessage(), e);
 		});
 	}
 
