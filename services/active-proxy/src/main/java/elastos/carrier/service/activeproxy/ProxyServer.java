@@ -30,6 +30,9 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.net.NetServer;
 import io.vertx.core.net.NetServerOptions;
@@ -63,6 +66,8 @@ public class ProxyServer extends AbstractVerticle {
 	private Map<Id, ProxySession> sessions;
 	private Map<ProxyConnection, Object> connections;
 
+	Cache<Id, Integer> portMappingCache;
+
 	private static final Logger log = LoggerFactory.getLogger(ProxyServer.class);
 
 	public ProxyServer(ServiceContext context) throws CarrierServiceException {
@@ -78,6 +83,13 @@ public class ProxyServer extends AbstractVerticle {
 		}
 
 		initMappingPorts(config.getPortMappingRange());
+
+		portMappingCache = CacheBuilder.newBuilder()
+			.expireAfterAccess(5, TimeUnit.MINUTES)
+			.initialCapacity(128)
+			.maximumSize(1024)
+			.removalListener(rn -> releasePort((Integer)rn.getValue()))
+			.build();
 	}
 
 	private void initMappingPorts(String spec) throws CarrierServiceException {
@@ -122,7 +134,11 @@ public class ProxyServer extends AbstractVerticle {
 		return server != null;
 	}
 
-	int allocPort() throws CarrierServiceException {
+	int allocPort(Id nodeId) throws CarrierServiceException {
+		Integer port = portMappingCache.getIfPresent(nodeId);
+		if (port != null)
+			return port;
+
 		synchronized(mappingPorts) {
 			currentIndex = mappingPorts.nextSetBit(currentIndex);
 			if (currentIndex < 0 || currentIndex >= 65536) {
@@ -136,10 +152,14 @@ public class ProxyServer extends AbstractVerticle {
 		}
 	}
 
-	void releasePort(int port) {
+	private void releasePort(int port) {
 		synchronized(mappingPorts) {
 			mappingPorts.set(port);
 		}
+	}
+
+	void releasePort(Id nodeId, int port) {
+		portMappingCache.put(nodeId, port);
 	}
 
 	void setPortUnavailable(int port) {

@@ -207,7 +207,7 @@ public class ProxySession implements AutoCloseable {
 	// but can not call lambda itself inside the lambda
 	private void start(ProxyConnection connection, NetServer sessionServer, Handler<AsyncResult<ProxySession>> handler) {
 		try {
-			port = server.allocPort();
+			port = server.allocPort(clientNodeId);
 		} catch (CarrierServiceException e) {
 			log.error("Session {} server can not start bacause of no port available", getName());
 			handler.handle(Future.failedFuture(e));
@@ -267,6 +267,8 @@ public class ProxySession implements AutoCloseable {
 
 			clientSocks.forEach(s -> s.close());
 			clientSocks.clear();
+
+			server.releasePort(clientNodeId, port);
 
 			stopPromise.complete();
 		}
