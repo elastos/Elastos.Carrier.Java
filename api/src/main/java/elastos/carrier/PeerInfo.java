@@ -88,20 +88,20 @@ public class PeerInfo {
 	}
 
 	public static PeerInfo of(Id peerId, Id nodeId, int port, byte[] signature) {
-		return new PeerInfo(peerId, null, nodeId, null, port, null, signature);
+		return new PeerInfo(peerId, null, nodeId, nodeId, port, null, signature);
 	}
 
 	public static PeerInfo of(Id peerId, byte[] privateKey, Id nodeId, int port, byte[] signature) {
-		return new PeerInfo(peerId, privateKey, nodeId, null, port, null, signature);
+		return new PeerInfo(peerId, privateKey, nodeId, nodeId, port, null, signature);
 	}
 
 	public static PeerInfo of(Id peerId, Id nodeId, int port, String alternativeURL, byte[] signature) {
-		return new PeerInfo(peerId, null, nodeId, null, port, alternativeURL, signature);
+		return new PeerInfo(peerId, null, nodeId, nodeId, port, alternativeURL, signature);
 	}
 
 	public static PeerInfo of(Id peerId, byte[] privateKey, Id nodeId, int port,
 			String alternativeURL, byte[] signature) {
-		return new PeerInfo(peerId, privateKey, nodeId, null, port, alternativeURL, signature);
+		return new PeerInfo(peerId, privateKey, nodeId, nodeId, port, alternativeURL, signature);
 	}
 
 	public static PeerInfo of(Id peerId, Id nodeId, Id origin, int port, byte[] signature) {
@@ -122,11 +122,11 @@ public class PeerInfo {
 	}
 
 	public static PeerInfo create(Id nodeId, int port) {
-		return create(null, nodeId, null, port, null);
+		return create(null, nodeId, nodeId, port, null);
 	}
 
 	public static PeerInfo create(Signature.KeyPair keypair, Id nodeId, int port) {
-		return create(keypair, nodeId, null, port, null);
+		return create(keypair, nodeId, nodeId, port, null);
 	}
 
 	public static PeerInfo create(Id nodeId, Id origin, int port) {
@@ -138,11 +138,11 @@ public class PeerInfo {
 	}
 
 	public static PeerInfo create(Id nodeId, int port, String alternativeURL) {
-		return create(null, nodeId, null, port, alternativeURL);
+		return create(null, nodeId, nodeId, port, alternativeURL);
 	}
 
 	public static PeerInfo create(Signature.KeyPair keypair, Id nodeId, int port, String alternativeURL) {
-		return create(keypair, nodeId, null, port, alternativeURL);
+		return create(keypair, nodeId, nodeId, port, alternativeURL);
 	}
 
 	public static PeerInfo create(Id nodeId, Id origin, int port, String alternativeURL) {
@@ -223,7 +223,7 @@ public class PeerInfo {
 
 	@Override
 	public int hashCode() {
-		return publicKey.hashCode() + nodeId.hashCode() + 0x70; // 'p'
+		return publicKey.hashCode() + nodeId.hashCode() + origin.hashCode() + 0x70; // 'p'
 	}
 
 	@Override

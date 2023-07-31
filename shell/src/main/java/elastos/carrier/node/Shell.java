@@ -70,7 +70,8 @@ import picocli.shell.jline3.PicocliCommands.PicocliCommandsFactory;
 			RoutingTableCommand.class,
 			StorageCommand.class,
 			StopCommand.class,
-			DisplayCache.class
+			DisplayCacheCommnand.class,
+			GenerateKeyPairCommand.class
 		})
 public class Shell implements Callable<Integer> {
 	private static final String DEFAULT_DATA_DIR = "~/.cache/carrier";

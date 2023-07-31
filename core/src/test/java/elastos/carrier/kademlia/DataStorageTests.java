@@ -361,13 +361,13 @@ public class DataStorageTests {
 
 	@ParameterizedTest
 	@ValueSource(classes = { SQLiteStorage.class })
-	public void testPutAndGetPeer(Class<? extends DataStorage> clazz) throws Exception {
+	public void testPutAndGetPeerWithRandomData(Class<? extends DataStorage> clazz) throws Exception {
 		DataStorage ds = open(clazz);
 
 		Map<Id, List<PeerInfo>> allPeers  = new HashMap<>();
 
 		int basePort = 8000;
-		byte[] sig = new byte[64];
+		byte[] sig;
 
 		System.out.println("Writing peers...");
 		for (int i = 1; i <= 64; i++) {
@@ -375,12 +375,14 @@ public class DataStorageTests {
 
 			List<PeerInfo> peers = new ArrayList<PeerInfo>();
 			for (int j = 0; j < i; j++) {
+				sig = new byte[64];
 				new SecureRandom().nextBytes(sig);
 				PeerInfo pi = PeerInfo.of(id, Id.random(), basePort + i, sig);
 				peers.add(pi);
 
+				sig = new byte[64];
 				new SecureRandom().nextBytes(sig);
-				pi = PeerInfo.of(id, Id.random(), Id.random(), basePort + i, "https://test.pc2.net", sig);
+				pi = PeerInfo.of(id, Id.random(), Id.random(), basePort + i, "https://test" + i + ".pc2.net", sig);
 				peers.add(pi);
 			}
 			ds.putPeer(peers);
@@ -406,7 +408,107 @@ public class DataStorageTests {
 			assertEquals(peers.size(), ps.size());
 
 			Comparator<PeerInfo> c = (a, b) -> {
-				int r = a.getNodeId().compareTo(b.getNodeId());
+				int r = a.getId().compareTo(b.getId());
+				if (r != 0)
+					return r;
+
+				r = a.getNodeId().compareTo(b.getNodeId());
+				if (r != 0)
+					return r;
+
+				return a.getOrigin().compareTo(b.getOrigin());
+			};
+
+			peers.sort(c);
+			ps.sort(c);
+			assertArrayEquals(peers.toArray(), ps.toArray());
+
+			// limited
+			ps = ds.getPeer(id, 16);
+			assertNotNull(ps);
+			assertEquals(Math.min(16, peers.size()), ps.size());
+			for (PeerInfo pi : ps)
+				assertEquals(peers.get(0).getPort(), pi.getPort());
+
+			for (PeerInfo p : peers) {
+				PeerInfo pi = ds.getPeer(p.getId(), p.getOrigin());
+				assertNotNull(pi);
+				assertEquals(p, pi);
+
+				boolean removed = ds.removePeer(p.getId(), p.getOrigin());
+				assertTrue(removed);
+
+				pi = ds.getPeer(p.getId(), p.getOrigin());
+				assertNull(pi);
+
+				removed = ds.removePeer(p.getId(), p.getOrigin());
+				assertFalse(removed);
+			}
+
+			System.out.print(".");
+			if (total % 16 == 0)
+				System.out.println();
+		}
+
+		assertEquals(64, total);
+
+		ds.close();
+	}
+
+	@ParameterizedTest
+	@ValueSource(classes = { SQLiteStorage.class })
+	public void testPutAndGetPeer(Class<? extends DataStorage> clazz) throws Exception {
+		DataStorage ds = open(clazz);
+
+		Map<Id, List<PeerInfo>> allPeers  = new HashMap<>();
+
+		int basePort = 8000;
+
+		System.out.println("Writing peers...");
+		for (int i = 1; i <= 64; i++) {
+			Signature.KeyPair kp = Signature.KeyPair.random();
+
+			List<PeerInfo> peers = new ArrayList<PeerInfo>();
+			for (int j = 0; j < i; j++) {
+				PeerInfo pi = PeerInfo.create(kp, Id.random(), basePort + i);
+				peers.add(pi);
+
+				assertTrue(pi.isValid());
+
+				pi = PeerInfo.create(kp, Id.random(), Id.random(), basePort + i, "https://test" + i + ".pc2.net");
+				peers.add(pi);
+
+				assertTrue(pi.isValid());
+			}
+			ds.putPeer(peers);
+
+			allPeers.put(Id.of(kp.publicKey().bytes()), peers);
+
+			System.out.print(".");
+			if (i % 16 == 0)
+				System.out.println();
+		}
+
+		System.out.println("\nReading peers...");
+		int total = 0;
+		for (Map.Entry<Id, List<PeerInfo>> entry : allPeers.entrySet()) {
+			total++;
+
+			Id id = entry.getKey();
+			List<PeerInfo> peers = entry.getValue();
+
+			// all
+			List<PeerInfo> ps = ds.getPeer(id, peers.size() + 8);
+			assertNotNull(ps);
+			assertEquals(peers.size(), ps.size());
+			ps.forEach(pi -> assertTrue(pi.isValid()));
+
+			Comparator<PeerInfo> c = (a, b) -> {
+				int r = a.getId().compareTo(b.getId());
+				if (r != 0)
+					return r;
+
+				r = a.getNodeId().compareTo(b.getNodeId());
 				if (r != 0)
 					return r;
 

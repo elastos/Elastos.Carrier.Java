@@ -80,7 +80,7 @@ public final class Constants {
 	public static final int		STORAGE_EXPIRE_INTERVAL					= 5 * 60 * 1000;
 	public static final int		TOKEN_TIMEOUT							= 5 * 60 * 1000;
 	public static final int		MAX_PEER_AGE							= 120 * 60 * 1000;
-	public static final int		MAX_VALUE_AGE							= 60 * 60 * 1000;
+	public static final int		MAX_VALUE_AGE							= 120 * 60 * 1000;
 	public static final int		RE_ANNOUNCE_INTERVAL					= 5 * 60 * 1000;
 
 
