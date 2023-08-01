@@ -483,10 +483,9 @@ public class ProxyConnection implements AutoCloseable {
 		Id nodeId = Id.of(packet.getBytes(pos, pos + Id.BYTES));
 
 		pos += Id.BYTES;
-		size = packet.length() - PACKET_HEADER_BYTES - Id.BYTES;
 		byte[] payload = null;
 		try {
-			byte[] cipher = packet.getBytes(pos, size);
+			byte[] cipher = packet.getBytes(pos, packet.length());
 			payload = server.decrypt(nodeId, cipher);
 		} catch (CarrierException e) {
 			log.error("Connection {} decrypt the auth packet failed.", getName());
@@ -553,7 +552,6 @@ public class ProxyConnection implements AutoCloseable {
 		Id nodeId = Id.of(packet.getBytes(pos, pos + Id.BYTES));
 
 		pos += Id.BYTES;
-		size = packet.length() - PACKET_HEADER_BYTES - Id.BYTES;
 		byte[] payload = null;
 		try {
 			byte[] cipher = packet.getBytes(pos, size);
