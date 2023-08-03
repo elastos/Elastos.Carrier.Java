@@ -546,7 +546,7 @@ public class SQLiteStorage implements DataStorage {
 
 		List<PeerInfo> peers = new ArrayList<>(maxPeers > 32 ? 32 : maxPeers);
 		try (PreparedStatement stmt = getConnection().prepareStatement(SELECT_PEER)) {
-			long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
+			long when = System.currentTimeMillis() - Constants.MAX_PEER_AGE;
 			stmt.setBytes(1, peerId.bytes());
 			stmt.setLong(2, when);
 			stmt.setInt(3, maxPeers);
@@ -575,7 +575,7 @@ public class SQLiteStorage implements DataStorage {
 	@Override
 	public PeerInfo getPeer(Id peerId, Id origin) throws KadException {
 		try (PreparedStatement stmt = getConnection().prepareStatement(SELECT_PEER_WITH_SRC)) {
-			long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
+			long when = System.currentTimeMillis() - Constants.MAX_PEER_AGE;
 			stmt.setBytes(1, peerId.bytes());
 			stmt.setBytes(2, origin.bytes());
 			stmt.setLong(3, when);
