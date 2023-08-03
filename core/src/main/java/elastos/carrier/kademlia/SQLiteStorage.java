@@ -253,7 +253,7 @@ public class SQLiteStorage implements DataStorage {
 		ResultSet rs = null;
 
 		try {
-			stmt = getConnection().prepareStatement("SELECT id from valores ORDER BY id WHERE timestamp >= ?");
+			stmt = getConnection().prepareStatement("SELECT id from valores WHERE timestamp >= ? ORDER BY id");
 			stmt.closeOnCompletion();
 			long when = System.currentTimeMillis() - Constants.MAX_VALUE_AGE;
 			stmt.setLong(1, when);
@@ -495,7 +495,7 @@ public class SQLiteStorage implements DataStorage {
 		ResultSet rs = null;
 
 		try {
-			stmt = getConnection().prepareStatement("SELECT DISTINCT id from peers ORDER BY id WHERE timestamp >= ?");
+			stmt = getConnection().prepareStatement("SELECT DISTINCT id from peers WHERE timestamp >= ? ORDER BY id");
 			stmt.closeOnCompletion();
 			long when = System.currentTimeMillis() - Constants.MAX_PEER_AGE;
 			stmt.setLong(1, when);
