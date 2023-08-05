@@ -455,8 +455,6 @@ public class Node implements elastos.carrier.Node {
 	private void persistentAnnounce() {
 		log.info("Re-announce the persistent values and peers...");
 
-		List<CompletableFuture<Void>> futures = new ArrayList<>();
-
 		long ts = System.currentTimeMillis() - Constants.MAX_VALUE_AGE +
 				Constants.RE_ANNOUNCE_INTERVAL * 2;
 		Stream<Value> vs;
@@ -472,7 +470,12 @@ public class Node implements elastos.carrier.Node {
 					log.error("Can not update last announce timestamp for value", e);
 				}
 
-				futures.add(doStoreValue(v));
+				doStoreValue(v).whenComplete((na, e) -> {
+					if (e == null)
+						log.debug("Re-announce the value {} success", v.getId());
+					else
+						log.error("Re-announce the value " + v.getId() + " failed", e);
+				});
 			});
 		} catch (KadException e) {
 			log.error("Can not read the persistent values", e);
@@ -492,16 +495,15 @@ public class Node implements elastos.carrier.Node {
 					log.error("Can not update last announce timestamp for peer", e);
 				}
 
-				futures.add(doAnnouncePeer(p));
+				doAnnouncePeer(p).whenComplete((na, e) -> {
+					if (e == null)
+						log.debug("Re-announce the peer {} success", p.getId());
+					else
+						log.error("Re-announce the peer " + p.getId() + " failed", e);
+				});
 			});
 		} catch (KadException e) {
 			log.error("Can not read the persistent peers", e);
-		}
-
-		try {
-			CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
-		} catch (InterruptedException | ExecutionException e) {
-			log.error("Error occurred during re-announce the persistent values and peers", e);
 		}
 	}
 

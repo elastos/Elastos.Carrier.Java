@@ -48,7 +48,7 @@ import elastos.carrier.service.CarrierServiceException;
 import elastos.carrier.service.ServiceContext;
 
 public class ProxyServer extends AbstractVerticle {
-	private static final int IDLE_CHECK_INTERVAL = 120000; // 2 minute
+	private static final int PERIODIC_CHECK_INTERVAL = 60000; // 1 minute
 	private static final int RE_ANNOUNCE_INTERVAL = 60 * 60 * 1000;
 
 	@SuppressWarnings("unused")
@@ -63,10 +63,10 @@ public class ProxyServer extends AbstractVerticle {
 	private int minPort = 0;
 	private int currentIndex;
 
-	private long idleCheckTimer;
+	private long periodicCheckTimer;
 
-	PeerInfo peer;
-	private long announcePeerTimer;
+	private PeerInfo peer;
+	private long lastPeerAnnounce;
 
 	private Map<Id, ProxySession> sessions;
 	private Map<ProxyConnection, Object> connections;
@@ -203,9 +203,9 @@ public class ProxyServer extends AbstractVerticle {
 				.exceptionHandler(e -> log.error("ActiveProxy server error: " + e.getMessage(), e))
 				.listen(localAddress, (asyncResult) -> {
 					if (asyncResult.succeeded()) {
-						idleCheckTimer = getVertx().setPeriodic(IDLE_CHECK_INTERVAL, this::idleCheck);
+						periodicCheckTimer = getVertx().setPeriodic(PERIODIC_CHECK_INTERVAL, this::periodicCheck);
 						if (peer != null)
-							announcePeerTimer = getVertx().setPeriodic(10, RE_ANNOUNCE_INTERVAL, this::announceService);
+							announceService();
 						log.info("ActiveProxy Server started, listening on {}", localAddress);
 					} else {
 						log.error("ActiveProxy Server listen failed on {} - {}", localAddress, asyncResult.cause());
@@ -219,32 +219,36 @@ public class ProxyServer extends AbstractVerticle {
 	public void stop() {
 		if (server != null) {
 			log.debug("ActiveProxy server stopping...");
-			getVertx().cancelTimer(idleCheckTimer);
-			if (peer != null)
-				getVertx().cancelTimer(announcePeerTimer);
+			getVertx().cancelTimer(periodicCheckTimer);
 			server.close(asyncResult -> log.info("ActiveProxy Server stopped"));
 			server = null;
 		}
 	}
 
-	private void idleCheck(long timer) {
-		log.info("Checking the idle sessions...");
-
-		sessions.forEach((id, session) -> {
-			session.tryCloseIdleConnections();
-		});
-	}
-
-	private void announceService(long timer) {
+	private void announceService() {
 		log.info("Announce peer: {}...", peer.getId());
 
 		node.announcePeer(peer).whenComplete((v, e) -> {
-			if (e == null)
+			if (e == null) {
+				lastPeerAnnounce = System.currentTimeMillis();
 				log.info("Announce peer succeeded");
-			else
+			} else {
 				log.error("Announce peer failed: " + e.getMessage(), e);
+			}
 		});
 	}
+
+	private void periodicCheck(long timer) {
+		if (peer != null && System.currentTimeMillis() - lastPeerAnnounce >= RE_ANNOUNCE_INTERVAL)
+			announceService();
+
+		log.info("Periodic checking for all sessions...");
+
+		sessions.forEach((id, session) -> {
+			session.periodicCheck();
+		});
+	}
+
 
 	private void handleConnection(NetSocket socket) {
 		ProxyConnection connection = new ProxyConnection(this, socket);

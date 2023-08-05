@@ -76,6 +76,7 @@ public class ProxySession implements AutoCloseable {
 	private ConcurrentLinkedQueue<ProxyConnection> idleConnections;
 
 	long idleTimestamp;
+	long lastVirtualHostUpdate;
 
 	private Promise<Void> stopPromise;
 	private Handler<Void> stopHandler;
@@ -98,7 +99,7 @@ public class ProxySession implements AutoCloseable {
 
 		this.clientNodeId = clientNodeId;
 		this.sessionId = sessionId;
-		this.domain = domain;
+		this.domain = domain == null || domain.isEmpty() ? null : domain;
 
 		this.keyPair = CryptoBox.KeyPair.random();
 
@@ -108,6 +109,9 @@ public class ProxySession implements AutoCloseable {
 		this.clientSocks = new ConcurrentLinkedQueue<>();
 		this.connections = new ConcurrentHashMap<>();
 		this.idleConnections = new ConcurrentLinkedQueue<>();
+
+		this.idleTimestamp = -1;
+		this.lastVirtualHostUpdate = -1;
 
 		this.ready = false;
 	}
@@ -152,6 +156,8 @@ public class ProxySession implements AutoCloseable {
 				.put("domain", domain)
 				.put("upstream", server.getHost() + ":" + getPort());
 
+		log.info("Updating virtual host with: {} ...", data);
+
 		HttpRequest<Buffer> request = client.post(server.getConfig().getHelperPort(),
 				server.getConfig().getHelperServer(), "/vhosts");
 
@@ -163,19 +169,23 @@ public class ProxySession implements AutoCloseable {
 			request.ssl(true);
 
 		request.sendJsonObject(data)
-			.onSuccess(res -> handler.handle(Future.succeededFuture(true)))
-			.onFailure(res -> handler.handle(Future.succeededFuture(false)));
+			.onSuccess(res -> {
+				log.info("Update virtual host success");
+				handler.handle(Future.succeededFuture(true));
+			})
+			.onFailure(res -> {
+				log.error("Update virtual host faied", res.getCause());
+				handler.handle(Future.succeededFuture(false));
+			});
 	}
 
 	private void establish(ProxyConnection connection, Handler<AsyncResult<ProxySession>> startHandler) {
-		if (domain != null && !domain.isEmpty() && server.getConfig().isHelperEnabled()) {
+		if (domain != null && server.getConfig().isHelperEnabled()) {
 			updateVirtualHost(ar -> {
 				establish2(connection, ar.result(), startHandler);
 
-				if (ar.result()) {
-					server.getVertx().setPeriodic(server.getConfig().getHelperUpdateInterval(),
-							l -> updateVirtualHost(v -> {}));
-				}
+				if (ar.result())
+					lastVirtualHostUpdate = System.currentTimeMillis();
 			});
 		} else {
 			establish2(connection, false, startHandler);
@@ -278,11 +288,12 @@ public class ProxySession implements AutoCloseable {
 		this.stopHandler = handler;
 	}
 
-	protected void tryCloseIdleConnections() {
+	private void tryCloseIdleConnections() {
 		log.info("STATUS: session={}, connections={}, idle={}",
 				getName(), connections.size(), idleConnections.size());
 
-		if (idleTimestamp < 0 || connections.size() <= 1 || idleConnections.size() < connections.size() ||
+		if (!ready || idleTimestamp < 0 || connections.size() <= 1 ||
+				idleConnections.size() < connections.size() ||
 				System.currentTimeMillis() - idleTimestamp < MAX_IDLE_TIME)
 			return;
 
@@ -292,6 +303,23 @@ public class ProxySession implements AutoCloseable {
 			connections.remove(c);
 			c.close();
 		}
+	}
+
+	private void tryUpdateVirtualHost() {
+		if (!ready || domain == null || !server.getConfig().isHelperEnabled() ||
+				lastVirtualHostUpdate < 0 || System.currentTimeMillis() - lastVirtualHostUpdate <
+				server.getConfig().getHelperUpdateInterval())
+			return;
+
+		updateVirtualHost(ar -> {
+			if (ar.result())
+				lastVirtualHostUpdate = System.currentTimeMillis();
+		});
+	}
+
+	protected void periodicCheck() {
+		tryUpdateVirtualHost();
+		tryCloseIdleConnections();
 	}
 
 	protected void attachUpstreamConnection(ProxyConnection connection) {
