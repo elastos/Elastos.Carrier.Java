@@ -31,6 +31,7 @@ public final class Version {
 	@SuppressWarnings("serial")
 	private static final Map<String, String> names = new HashMap<String, String>() {{
 	    put("OR", "Orca");		// Java super node
+	    put("MK", "Meerkat");	// Native regular node
 	}};
 
 	public static int build(String name, int version) {
