@@ -170,8 +170,13 @@ public class ProxySession implements AutoCloseable {
 
 		request.sendJsonObject(data)
 			.onSuccess(res -> {
-				log.info("Update virtual host success");
-				handler.handle(Future.succeededFuture(true));
+				log.info("Update virtual host success, statusCode: {}", res.statusCode());
+				if (res.statusCode() == 201) {
+					handler.handle(Future.succeededFuture(true));
+				}
+				else {
+					handler.handle(Future.succeededFuture(false));
+				}
 			})
 			.onFailure(res -> {
 				log.error("Update virtual host faied", res.getCause());
