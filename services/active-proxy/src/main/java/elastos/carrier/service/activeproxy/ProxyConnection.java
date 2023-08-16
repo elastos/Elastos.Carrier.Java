@@ -734,15 +734,15 @@ public class ProxyConnection implements AutoCloseable {
 
 		if (clientSocket != null) {
 			clientCloseHandler = null;
-			clientSocket.handler(null);
-			clientSocket.closeHandler(null);
+			clientSocket.handler((b) -> {});
+			clientSocket.closeHandler(v -> {});
 			clientSocket.close(null);
 			clientSocket = null;
 		}
 
 		if (upstreamSocket != null) {
-			upstreamSocket.handler(null);
-			upstreamSocket.closeHandler(null);
+			upstreamSocket.handler((b) -> {});
+			upstreamSocket.closeHandler(v -> {});
 			upstreamSocket.close();
 			upstreamSocket = null;
 		}

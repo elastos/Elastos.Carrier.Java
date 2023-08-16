@@ -72,14 +72,14 @@ public class Configuration {
 
 			helperApiKey = (String)config.get("helperApiKey");
 			helperUpdateInterval = (int)config.getOrDefault("helperUpdateInterval", DEFAULT_HELPER_UPDATE_INTERVAL) * 60 * 1000;
+		}
 
-			String sk = (String)config.get("peerPrivateKey");
-			if (sk != null) {
-				try {
-					peerKeypair = KeyPair.fromPrivateKey(Hex.decode(sk));
-				} catch (Exception e) {
-					throw new IllegalArgumentException("helper service config error, invalid peer private key", e);
-				}
+		String sk = (String)config.get("peerPrivateKey");
+		if (sk != null) {
+			try {
+				peerKeypair = KeyPair.fromPrivateKey(Hex.decode(sk));
+			} catch (Exception e) {
+				throw new IllegalArgumentException("helper service config error, invalid peer private key", e);
 			}
 		}
 	}
