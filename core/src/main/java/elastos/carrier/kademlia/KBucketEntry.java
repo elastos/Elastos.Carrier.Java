@@ -250,11 +250,11 @@ public class KBucketEntry extends NodeInfo {
 		this.reachable = reachable;
 	}
 
-	public boolean match(KBucketEntry entry) {
+	public boolean matches(KBucketEntry entry) {
 		if (entry == null)
 			return false;
 
-		return super.match(entry);
+		return super.matches(entry);
 	}
 
 	// for routing table persistence

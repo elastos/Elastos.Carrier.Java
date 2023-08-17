@@ -119,7 +119,7 @@ public class NodeInfo {
 		return version;
 	}
 
-	public boolean match(NodeInfo other) {
+	public boolean matches(NodeInfo other) {
 		if (other != null)
 			return this.id.equals(other.id) || this.addr.equals(other.addr);
 		else
