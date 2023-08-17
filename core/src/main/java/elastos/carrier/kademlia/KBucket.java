@@ -279,7 +279,7 @@ public class KBucket implements Comparable<KBucket> {
 
 			// Node id and address conflict
 			// Log the conflict and keep the existing entry
-			if (existing.match(newEntry)) {
+			if (existing.matches(newEntry)) {
 				log.info("New node {} claims same ID or IP as  {}, might be impersonation attack or IP change. "
 						+ "ignoring until old entry times out", newEntry, existing);
 
@@ -399,7 +399,7 @@ public class KBucket implements Comparable<KBucket> {
 	private void _update(KBucketEntry toRemove, KBucketEntry toInsert) {
 		List<KBucketEntry> entriesRef = getEntries();
 
-		if (toInsert != null && anyMatch(toInsert::match))
+		if (toInsert != null && anyMatch(toInsert::matches))
 			return;
 
 		List<KBucketEntry> newEntries = new ArrayList<>(entriesRef);
@@ -477,7 +477,7 @@ public class KBucket implements Comparable<KBucket> {
 
 			// Node id and address conflict
 			// Log the conflict and keep the existing entry
-			if (existing.match(toInsert)) {
+			if (existing.matches(toInsert)) {
 				log.info("New node {} claims same ID or IP as  {}, might be impersonation attack or IP change. "
 						+ "ignoring until old entry times out", toInsert, existing);
 				return;
