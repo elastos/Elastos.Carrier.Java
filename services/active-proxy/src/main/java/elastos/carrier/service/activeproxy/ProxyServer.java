@@ -43,6 +43,7 @@ import elastos.carrier.CarrierException;
 import elastos.carrier.Id;
 import elastos.carrier.Node;
 import elastos.carrier.PeerInfo;
+import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.CryptoException;
 import elastos.carrier.service.CarrierServiceException;
 import elastos.carrier.service.ServiceContext;
@@ -262,12 +263,12 @@ public class ProxyServer extends AbstractVerticle {
 		});
 	}
 
-	void authenticate(ProxyConnection connection, Id nodeId, Id sessionId, String domain) {
+	void authenticate(ProxyConnection connection, Id nodeId, CryptoBox.PublicKey clientPk, String domain) {
 		log.debug("Authenticating connection {} from {}...", connection.getName(), connection.upstreamAddress());
 
-		if (sessions.containsKey(sessionId)) {
+		if (sessions.containsKey(nodeId)) {
 			log.error("Authenticate connection {} from {} failed - session {} already exists.",
-					connection.getName(), connection.upstreamAddress(), sessionId);
+					connection.getName(), connection.upstreamAddress(), nodeId);
 			connection.close();
 			connections.remove(connection);
 			return;
@@ -275,10 +276,10 @@ public class ProxyServer extends AbstractVerticle {
 
 		ProxySession session;
 		try {
-			session = new ProxySession(this, nodeId, sessionId, domain);
+			session = new ProxySession(this, nodeId, clientPk, domain);
 		} catch (CryptoException e) {
 			log.error("Authenticate connection {} from {} failed - session id {} is invalid.",
-					connection.getName(), connection.upstreamAddress(), sessionId);
+					connection.getName(), connection.upstreamAddress(), nodeId);
 			connection.close();
 			connections.remove(connection);
 			return;
@@ -287,7 +288,7 @@ public class ProxyServer extends AbstractVerticle {
 		log.debug("Authenticating connection {} from {} success.", connection.getName(), connection.upstreamAddress());
 
 		session.stopHandler(asyncResult -> {
-			ProxySession s = sessions.remove(sessionId);
+			ProxySession s = sessions.remove(nodeId);
 			if (s != null)
 				s.close();
 		});
@@ -296,7 +297,7 @@ public class ProxyServer extends AbstractVerticle {
 			connections.remove(connection);
 
 			if (asyncResult.succeeded()) {
-				sessions.put(sessionId, session);
+				sessions.put(nodeId, session);
 			} else {
 				connection.close();
 				session.close();
@@ -304,16 +305,23 @@ public class ProxyServer extends AbstractVerticle {
 		});
 	}
 
-	void attach(ProxyConnection connection, Id sessionId) {
+	void attach(ProxyConnection connection, Id clientNodeId, CryptoBox.PublicKey clientPk) {
 		log.debug("Attaching connection {} from {} with session id {}.",
-				connection.getName(), connection.upstreamAddress(), sessionId);
+				connection.getName(), connection.upstreamAddress(), clientNodeId);
 
-		ProxySession session = sessions.get(sessionId);
+		ProxySession session = sessions.get(clientNodeId);
 		if (session == null) {
 			log.error("Attach connection {} from {} failed - session id {} not exists.",
-					connection.getName(), connection.upstreamAddress(), sessionId);
+					connection.getName(), connection.upstreamAddress(), clientNodeId);
 			connection.close();
 			return;
+		} else {
+			if (!session.getClientPublicKey().equals(clientPk)) {
+				log.error("Attach connection {} from {} failed - invalid public key.",
+						connection.getName(), connection.upstreamAddress(), clientNodeId);
+				connection.close();
+				return;
+			}
 		}
 
 		connection.sendAttachAck(asyncResult -> {

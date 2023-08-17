@@ -313,6 +313,7 @@ public class ProxyConnection implements AutoCloseable {
 		}
 	}
 
+	@SuppressWarnings("unused")
 	private void sendError(short code, String message) {
 		byte[] msg = message.getBytes();
 		byte[] payload = new byte[3 + msg.length];
@@ -494,7 +495,8 @@ public class ProxyConnection implements AutoCloseable {
 		}
 
 		pos = 0;
-		Id sessionId = Id.of(Arrays.copyOfRange(payload, pos, pos + CryptoBox.PublicKey.BYTES));
+		CryptoBox.PublicKey clientPk = CryptoBox.PublicKey.fromBytes(
+				Arrays.copyOfRange(payload, pos, pos + CryptoBox.PublicKey.BYTES));
 		pos += CryptoBox.PublicKey.BYTES;
 
 		nonce = Nonce.fromBytes(Arrays.copyOfRange(payload, pos, pos + CryptoBox.Nonce.BYTES));
@@ -523,7 +525,7 @@ public class ProxyConnection implements AutoCloseable {
 			domain = new String(payload, pos, domainLength);
 		}
 
-		server.authenticate(this, nodeId, sessionId, domain);
+		server.authenticate(this, nodeId, clientPk, domain);
 	}
 
 	/*
@@ -563,7 +565,8 @@ public class ProxyConnection implements AutoCloseable {
 		}
 
 		pos = 0;
-		Id sessionId = Id.of(Arrays.copyOfRange(payload, pos, pos + CryptoBox.PublicKey.BYTES));
+		CryptoBox.PublicKey clientPk = CryptoBox.PublicKey.fromBytes(
+				Arrays.copyOfRange(payload, pos, pos + CryptoBox.PublicKey.BYTES));
 		pos += CryptoBox.PublicKey.BYTES;
 
 		nonce = Nonce.fromBytes(Arrays.copyOfRange(payload, pos, pos + CryptoBox.Nonce.BYTES));
@@ -578,7 +581,7 @@ public class ProxyConnection implements AutoCloseable {
 		// clear the random challenge
 		this.challenge = null;
 
-		server.attach(this, sessionId);
+		server.attach(this, nodeId, clientPk);
 	}
 
 	/*
@@ -736,14 +739,14 @@ public class ProxyConnection implements AutoCloseable {
 			clientCloseHandler = null;
 			clientSocket.handler((b) -> {});
 			clientSocket.closeHandler(v -> {});
-			clientSocket.close(null);
+			clientSocket.close(v -> {});
 			clientSocket = null;
 		}
 
 		if (upstreamSocket != null) {
 			upstreamSocket.handler((b) -> {});
 			upstreamSocket.closeHandler(v -> {});
-			upstreamSocket.close();
+			upstreamSocket.close(v -> {});
 			upstreamSocket = null;
 		}
 

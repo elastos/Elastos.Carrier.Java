@@ -52,13 +52,13 @@ import elastos.carrier.crypto.CryptoException;
 import elastos.carrier.service.CarrierServiceException;;
 
 public class ProxySession implements AutoCloseable {
-	private static final int STOP_DELAY = 60000; // 1 minute
+	private static final int STOP_DELAY = 5000; // 5 seconds
 	private static final int MAX_IDLE_TIME = 600000; // 10 minutes
 
 	private String name;
 
 	private Id clientNodeId;
-	private Id sessionId;
+	private PublicKey clientPk;
 	private String domain;
 
 	private KeyPair keyPair;
@@ -88,23 +88,22 @@ public class ProxySession implements AutoCloseable {
 	 *
 	 * @param server the proxy server instance
 	 * @param clientNodeId the client DHT node id
-	 * @param sessionId the client session(encryption, not signature) public key
+	 * @param clientPk the client public key for the session(encryption, not signature) public key
 	 * @param nonce the encryption nonce for the new session
 	 * @throws CryptoException
 	 */
-	public ProxySession(ProxyServer server, Id clientNodeId, Id sessionId, String domain) throws CryptoException {
-		this.name = sessionId.toString();
+	public ProxySession(ProxyServer server, Id clientNodeId, PublicKey clientPk, String domain) throws CryptoException {
+		this.name = clientNodeId.toString();
 
 		this.server = server;
 
 		this.clientNodeId = clientNodeId;
-		this.sessionId = sessionId;
+		this.clientPk = clientPk;
 		this.domain = domain == null || domain.isEmpty() ? null : domain;
 
 		this.keyPair = CryptoBox.KeyPair.random();
 
-		this.box = CryptoBox.fromKeys(CryptoBox.PublicKey.fromBytes(sessionId.bytes()),
-				this.keyPair.privateKey());
+		this.box = CryptoBox.fromKeys(clientPk, this.keyPair.privateKey());
 
 		this.clientSocks = new ConcurrentLinkedQueue<>();
 		this.connections = new ConcurrentHashMap<>();
@@ -117,11 +116,15 @@ public class ProxySession implements AutoCloseable {
 	}
 
 	public Id getId() {
-		return sessionId;
+		return clientNodeId;
 	}
 
 	public Id getClientNodeId() {
 		return clientNodeId;
+	}
+
+	PublicKey getClientPublicKey() {
+		return clientPk;
 	}
 
 	public String getName() {
@@ -170,13 +173,8 @@ public class ProxySession implements AutoCloseable {
 
 		request.sendJsonObject(data)
 			.onSuccess(res -> {
-				log.info("Update virtual host success, statusCode: {}", res.statusCode());
-				if (res.statusCode() == 201) {
-					handler.handle(Future.succeededFuture(true));
-				}
-				else {
-					handler.handle(Future.succeededFuture(false));
-				}
+				log.info("Update virtual host success");
+				handler.handle(Future.succeededFuture(true));
 			})
 			.onFailure(res -> {
 				log.error("Update virtual host faied", res.getCause());
@@ -345,7 +343,6 @@ public class ProxySession implements AutoCloseable {
 						log.debug("Session {} stopping due to non active connections.", getName());
 						stop();
 					}
-					getVertx().cancelTimer(id);
 				});
 			}
 		});
