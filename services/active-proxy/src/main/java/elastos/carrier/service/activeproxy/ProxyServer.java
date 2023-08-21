@@ -259,6 +259,8 @@ public class ProxyServer extends AbstractVerticle {
 			if (ar.succeeded()) {
 				connection.closeHandler((v) -> connections.remove(connection));
 				connections.put(connection, ProxyConnection.OBJECT);
+			} else {
+				connection.close();
 			}
 		});
 	}
@@ -270,7 +272,6 @@ public class ProxyServer extends AbstractVerticle {
 			log.error("Authenticate connection {} from {} failed - session {} already exists.",
 					connection.getName(), connection.upstreamAddress(), nodeId);
 			connection.close();
-			connections.remove(connection);
 			return;
 		}
 
@@ -281,7 +282,6 @@ public class ProxyServer extends AbstractVerticle {
 			log.error("Authenticate connection {} from {} failed - session id {} is invalid.",
 					connection.getName(), connection.upstreamAddress(), nodeId);
 			connection.close();
-			connections.remove(connection);
 			return;
 		}
 
