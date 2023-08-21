@@ -69,7 +69,7 @@ public class ProxySession implements AutoCloseable {
 
 	private NetServer sessionServer;
 	int port;
-	private boolean ready;
+	private volatile boolean ready;
 
 	private ConcurrentLinkedQueue<NetSocket> clientSocks;
 	private ConcurrentHashMap<ProxyConnection, Object> connections;
@@ -139,7 +139,7 @@ public class ProxySession implements AutoCloseable {
 		return port;
 	}
 
-	public Vertx getVertx() {
+	private Vertx getVertx() {
 		return server.getVertx();
 	}
 
@@ -200,11 +200,12 @@ public class ProxySession implements AutoCloseable {
 			if (ar.succeeded()) {
 				log.info("Session {} server started.", getName());
 
+				ready = true;
+
 				attachUpstreamConnection(connection);
 
 				if (startHandler != null)
 					startHandler.handle(Future.succeededFuture(this));
-				ready = true;
 			} else {
 				log.error("Session " + getName() + " server establish failed.", ar.cause());
 				sessionServer.close();
@@ -321,11 +322,21 @@ public class ProxySession implements AutoCloseable {
 	}
 
 	protected void periodicCheck() {
+		if (!ready)
+			return;
+
 		tryUpdateVirtualHost();
 		tryCloseIdleConnections();
 	}
 
 	protected void attachUpstreamConnection(ProxyConnection connection) {
+		if (!ready) {
+			log.error("Session {} reject the proxy connection {} because of the session server not ready",
+					getName(), connection.getName());
+			connection.close();
+			return;
+		}
+
 		log.debug("Session {} attached connection {}", getName(), connection.getName());
 
 		connection.setSession(this);
@@ -368,18 +379,18 @@ public class ProxySession implements AutoCloseable {
 	}
 
 	private void handleClientSocket(NetSocket socket) {
-		log.debug("Session {} new client connection {} from {}", getName(),
-				Integer.toHexString(socket.hashCode()), socket.remoteAddress());
-
-		// Pause the socket first, will resume when the assigned connection opened the upstream
-		socket.pause();
-
 		if (!ready) {
 			log.error("Session {} reject the client connection {} because of the session server not ready",
 					getName(), Integer.toHexString(socket.hashCode()));
 			socket.close();
 			return;
 		}
+
+		log.debug("Session {} new client connection {} from {}", getName(),
+				Integer.toHexString(socket.hashCode()), socket.remoteAddress());
+
+		// Pause the socket first, will resume when the assigned connection opened the upstream
+		socket.pause();
 
 		idleTimestamp = -1;
 
