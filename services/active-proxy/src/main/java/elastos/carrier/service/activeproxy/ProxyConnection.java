@@ -66,20 +66,54 @@ public class ProxyConnection implements AutoCloseable {
 	private Promise<Void> closePromise;
 
 	private Handler<Void> clientCloseHandler;
-	private boolean needSendDisconnect;
 
 	private Buffer stickyBuffer;
 
 	private /* volatile */ State state;
+	private AtomicInteger disconnectConfirms;
 
 	private static final Logger log = LoggerFactory.getLogger(ProxyConnection.class);
 
 	public enum State {
-		Authenticating,
-		Idling,
-		Connecting,
-		Relaying,
-		Closed
+		Authenticating {
+			@Override
+			public boolean accept(PacketType type) {
+				return type == PacketType.AUTH || type == PacketType.ATTACH;
+			}
+		},
+		Idling {
+			@Override
+			public boolean accept(PacketType type) {
+				return type == PacketType.PING;
+			}
+		},
+		Connecting {
+			@Override
+			public boolean accept(PacketType type) {
+				return type == PacketType.CONNECT_ACK || type == PacketType.PING;
+			}
+		},
+		Relaying {
+			@Override
+			public boolean accept(PacketType type) {
+				return type == PacketType.DATA || type == PacketType.DISCONNECT;
+			}
+		},
+		Disconnecting {
+			@Override
+			public boolean accept(PacketType type) {
+				return type == PacketType.DISCONNECT || type == PacketType.DISCONNECT_ACK ||
+						type == PacketType.DATA;
+			}
+		},
+		Closed {
+			@Override
+			public boolean accept(PacketType type) {
+				return false;
+			}
+		};
+
+		public abstract boolean accept(PacketType type);
 	}
 
 	public ProxyConnection(ProxyServer server, NetSocket upstreamSocket) {
@@ -96,6 +130,7 @@ public class ProxyConnection implements AutoCloseable {
 		upstreamSocket.handler(this::upstreamHandler);
 
 		this.state = State.Authenticating;
+		this.disconnectConfirms = new AtomicInteger(0);
 	}
 
 	public long getId() {
@@ -186,7 +221,7 @@ public class ProxyConnection implements AutoCloseable {
 
 		Buffer buf = Buffer.buffer(size);
 		buf.appendUnsignedShort(size);
-		buf.appendByte(PacketFlag.authAck());
+		buf.appendByte(PacketType.AUTH_ACK.value());
 		buf.appendBytes(cipher);
 		buf.appendBytes(padding);
 
@@ -194,15 +229,13 @@ public class ProxyConnection implements AutoCloseable {
 		upstreamSocket.write(buf, handler);
 	}
 
-	private void sendPacket(byte flag, byte[] payload, Handler<AsyncResult<Void>> handler) {
+	private void sendPacket(PacketType type, byte[] payload, Handler<AsyncResult<Void>> handler) {
 		if (state == State.Closed) {
-			log.warn("Connection {} already closed, but try to send {} to upstream",
-					getName(), PacketFlag.toString(flag));
+			log.warn("Connection {} already closed, but try to send {} to upstream", getName(), type);
 			return;
 		}
 
-		log.trace("Connection {} sending {} to {}", getName(),
-				PacketFlag.toString(flag), upstreamSocket.remoteAddress());
+		log.trace("Connection {} sending {} to {}", getName(), type, upstreamSocket.remoteAddress());
 
 		int size = PACKET_HEADER_BYTES;
 
@@ -220,8 +253,7 @@ public class ProxyConnection implements AutoCloseable {
 		}
 
 		byte[] padding = null;
-		byte type = PacketFlag.getType(flag);
-		if (type != PacketFlag.DATA && type != PacketFlag.ERROR) {
+		if (type != PacketType.DATA && type != PacketType.ERROR) {
 			padding = randomPadding();
 			size += padding.length;
 		}
@@ -229,7 +261,7 @@ public class ProxyConnection implements AutoCloseable {
 		// header
 		Buffer buf = Buffer.buffer(size);
 		buf.appendUnsignedShort(size);
-		buf.appendByte(flag);
+		buf.appendByte(type.value());
 
 		// payload
 		if (cipher != null)
@@ -247,14 +279,14 @@ public class ProxyConnection implements AutoCloseable {
 	 */
 	void sendAttachAck(Handler<AsyncResult<Void>> handler) {
 		state = State.Idling;
-		sendPacket(PacketFlag.attachAck(), null, handler);
+		sendPacket(PacketType.ATTACH_ACK, null, handler);
 	}
 
 	/*
 	 * No payload
 	 */
 	private void sendPingAck() {
-		sendPacket(PacketFlag.pingAck(), null, ar -> {
+		sendPacket(PacketType.PING_ACK, null, ar -> {
 			if (ar.failed())
 				close();
 		});
@@ -278,7 +310,7 @@ public class ProxyConnection implements AutoCloseable {
 		pos += 16;
 		shortToNetwork(port, payload, pos);
 
-		sendPacket(PacketFlag.connect(), payload, ar -> {
+		sendPacket(PacketType.CONNECT, payload, ar -> {
 			if (ar.failed())
 				close();
 		});
@@ -288,7 +320,17 @@ public class ProxyConnection implements AutoCloseable {
 	 * No payload
 	 */
 	private void sendDisconnect() {
-		sendPacket(PacketFlag.disconnect(), null, ar -> {
+		sendPacket(PacketType.DISCONNECT, null, ar -> {
+			if (ar.failed())
+				close();
+		});
+	}
+
+	/*
+	 * No payload
+	 */
+	private void sendDisconnectAck() {
+		sendPacket(PacketType.DISCONNECT_ACK, null, ar -> {
 			if (ar.failed())
 				close();
 		});
@@ -300,7 +342,7 @@ public class ProxyConnection implements AutoCloseable {
 	 *   - data
 	 */
 	private void sendData(byte[] data) {
-		sendPacket(PacketFlag.data(), data, ar -> {
+		sendPacket(PacketType.DATA, data, ar -> {
 			if (ar.failed())
 				close();
 		});
@@ -325,7 +367,7 @@ public class ProxyConnection implements AutoCloseable {
 		pos += msg.length;
 		payload[pos] = 0;
 
-		sendPacket(PacketFlag.error(), payload, ar -> {
+		sendPacket(PacketType.ERROR, payload, ar -> {
 			if (ar.failed())
 				close();
 		});
@@ -392,67 +434,47 @@ public class ProxyConnection implements AutoCloseable {
 			throw new IllegalStateException("INTERNAL ERROR: Connection in illegal state!!!");
 		}
 
-		byte flag = packet.getByte(Short.BYTES);
-		boolean ack = PacketFlag.isAck(flag);
-		byte type = PacketFlag.getType(flag);
+		PacketType type = PacketType.valueOf(packet.getByte(Short.BYTES));
 
 		log.trace("Connection {} got {} packet({} bytes) from {}",
-				getName(), PacketFlag.toString(flag), size, upstreamSocket.remoteAddress());
+				getName(), type, size, upstreamSocket.remoteAddress());
 
-		switch (state) {
-		case Authenticating:
-			if (!ack && type == PacketFlag.AUTH) {
-				handleAuth(packet);
-				return;
-			} if (!ack && type == PacketFlag.ATTACH) {
-				handleAttach(packet);
-				return;
-			} else {
-				log.error("Connection {} got wrong packet {}, AUTH or ATTACH excepted",
-						getName(), PacketFlag.toString(flag));
-				close();
-			}
-			break;
+		if (!state.accept(type)) {
+			log.error("Connection {} got wrong {} packet in {} state", getName(), type, state);
+			close();
+		}
 
-		case Idling:
-			if (!ack && type == PacketFlag.PING) {
-				handleKeepAlive(packet);
-				return;
-			} else {
-				log.error("Connection {} got wrong packet {}, PING excepted",
-						getName(), PacketFlag.toString(flag));
-				close();
-			}
-			break;
+		switch (type) {
+		case AUTH:
+			handleAuth(packet);
+			return;
 
-		case Connecting:
-			if (ack && type == PacketFlag.CONNECT) {
-				handleConnectAck(packet);
-				return;
-			} else {
-				log.error("Connection {} got wrong packet {}, CONNECT ACK excepted",
-						getName(), PacketFlag.toString(flag));
-				close();
-			}
-			break;
+		case ATTACH:
+			handleAttach(packet);
+			return;
 
-		case Relaying:
-			if (!ack && type == PacketFlag.DATA) {
-				handleData(packet);
-				return;
-			} else if (!ack && type == PacketFlag.DISCONNECT) {
-				handleDisconnect(packet);
-				return;
-			} else {
-				log.error("Connection {} got wrong packet {}, DATA or DISCONNECT excepted",
-						getName(), PacketFlag.toString(flag));
-				close();
-			}
-			break;
+		case PING:
+			handleKeepAlive(packet);
+			return;
 
-		case Closed:
-			log.error("INTERNAL ERROR: Connection {} got packet after closed!!!", getName());
-			break;
+		case CONNECT_ACK:
+			handleConnectAck(packet);
+			return;
+
+		case DATA:
+			handleData(packet);
+			return;
+
+		case DISCONNECT:
+			handleDisconnect(packet);
+			return;
+
+		case DISCONNECT_ACK:
+			handleDisconnectAck(packet);
+			return;
+
+		default:
+			log.error("INTERNAL ERROR: Connection {} got wrong {} packet in {} state", getName(), type, state);
 		}
 	}
 
@@ -630,6 +652,26 @@ public class ProxyConnection implements AutoCloseable {
 				getName(), upstreamSocket.remoteAddress());
 
 		disconnectClient();
+
+		if (disconnectConfirms.incrementAndGet() == 2) {
+			state = State.Idling;
+			disconnectConfirms.set(0);
+		}
+
+		sendDisconnectAck();
+	}
+
+	/*
+	 * No payload
+	 */
+	private void handleDisconnectAck(Buffer packet) {
+		log.trace("Connection {} got DISCONNECT ACK packet from {}.",
+				getName(), upstreamSocket.remoteAddress());
+
+		if (disconnectConfirms.incrementAndGet() == 2) {
+			state = State.Idling;
+			disconnectConfirms.set(0);
+		}
 	}
 
 	/*
@@ -638,6 +680,12 @@ public class ProxyConnection implements AutoCloseable {
 	 *   - data
 	 */
 	private void handleData(Buffer data) {
+		if (state == State.Disconnecting) {
+			log.trace("Connection {} got DATA packet from {} while disconnecting, ignore.",
+					getName(), upstreamSocket.remoteAddress());
+			return;
+		}
+
 		log.trace("Connection {} got DATA packet from {}.",
 				getName(), upstreamSocket.remoteAddress());
 
@@ -665,22 +713,23 @@ public class ProxyConnection implements AutoCloseable {
 
 		this.clientSocket = clientSocket;
 
-		needSendDisconnect = true;
-
 		Handler<Void> clientClose = v -> {
+			State oldState = state;
+			state = State.Disconnecting;
+
 			this.clientSocket = null;
 
 			upstreamSocket.resume();
 			upstreamSocket.drainHandler(null);
 
-			if (needSendDisconnect)
+			// don't send disconnect in connecting state
+			if (oldState == State.Relaying)
 				sendDisconnect();
 
 			if (clientCloseHandler != null)
 				clientCloseHandler.handle(v);
 
 			log.debug("Connection {} disconnected client.", getName());
-			state = State.Idling;
 		};
 
 		clientSocket.closeHandler(clientClose);
@@ -703,9 +752,10 @@ public class ProxyConnection implements AutoCloseable {
 
 	private void disconnectClient() {
 		if (clientSocket != null) {
-			needSendDisconnect = false;
-			clientSocket.close();
+			NetSocket socket = clientSocket;
 			clientSocket = null;
+
+			socket.close();
 		}
 	}
 
