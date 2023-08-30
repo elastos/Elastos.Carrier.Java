@@ -177,7 +177,12 @@ public class ProxyConnection implements AutoCloseable {
 		challenge = new byte[ThreadLocals.random().nextInt(32, 256)];
 		ThreadLocals.random().nextBytes(challenge);
 
-		upstreamSocket.write(Buffer.buffer(challenge), handler);
+		int size = Short.BYTES + challenge.length;
+		Buffer buf = Buffer.buffer(size);
+		buf.appendUnsignedShort(size);
+		buf.appendBytes(challenge);
+
+		upstreamSocket.write(buf, handler);
 	}
 
 	/*
@@ -656,6 +661,9 @@ public class ProxyConnection implements AutoCloseable {
 		if (disconnectConfirms.incrementAndGet() == 2) {
 			state = State.Idling;
 			disconnectConfirms.set(0);
+
+			if (clientCloseHandler != null)
+				clientCloseHandler.handle(null);
 		}
 
 		sendDisconnectAck();
@@ -671,6 +679,9 @@ public class ProxyConnection implements AutoCloseable {
 		if (disconnectConfirms.incrementAndGet() == 2) {
 			state = State.Idling;
 			disconnectConfirms.set(0);
+
+			if (clientCloseHandler != null)
+				clientCloseHandler.handle(null);
 		}
 	}
 
@@ -725,9 +736,6 @@ public class ProxyConnection implements AutoCloseable {
 			// don't send disconnect in connecting state
 			if (oldState == State.Relaying)
 				sendDisconnect();
-
-			if (clientCloseHandler != null)
-				clientCloseHandler.handle(v);
 
 			log.debug("Connection {} disconnected client.", getName());
 		};
