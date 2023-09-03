@@ -22,7 +22,9 @@
 
 package elastos.carrier.service.activeproxy;
 
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -221,6 +223,13 @@ public class ProxyServer extends AbstractVerticle {
 		if (server != null) {
 			log.debug("ActiveProxy server stopping...");
 			getVertx().cancelTimer(periodicCheckTimer);
+
+			List<ProxySession> ss = new ArrayList<>(sessions.values());
+			sessions.clear();
+			for (ProxySession session : ss) {
+				session.stop();
+			}
+
 			server.close(asyncResult -> log.info("ActiveProxy Server stopped"));
 			server = null;
 		}

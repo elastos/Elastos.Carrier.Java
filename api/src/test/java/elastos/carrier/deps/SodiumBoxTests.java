@@ -113,7 +113,6 @@ public class SodiumBoxTests {
 		}
 	}
 
-	@Disabled("To be removed")
 	@Test
 	public void checkBoxKeyPairForSignatureKeyPair() {
 		Signature.KeyPair signKeyPair = Signature.KeyPair.random();

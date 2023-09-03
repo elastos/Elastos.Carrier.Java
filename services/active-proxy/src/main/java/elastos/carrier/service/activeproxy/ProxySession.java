@@ -140,7 +140,7 @@ public class ProxySession implements AutoCloseable {
 	}
 
 	private Vertx getVertx() {
-		return server.getVertx();
+		return server != null ? server.getVertx() : null;
 	}
 
 	byte[] encrypt(byte[] plain, Nonce nonce) throws CryptoException {
@@ -266,7 +266,7 @@ public class ProxySession implements AutoCloseable {
 		start(connection, sessionServer, handler);
 	}
 
-	public void stop() {
+	public synchronized void stop() {
 		if (sessionServer != null) {
 			ready = false;
 
@@ -349,12 +349,18 @@ public class ProxySession implements AutoCloseable {
 			if (connections.isEmpty()) {
 				log.debug("Session {} will stop if no new connections in {} seconds", getName(), STOP_DELAY / 1000);
 
-				getVertx().setTimer(STOP_DELAY, (id) -> {
-					if (connections.isEmpty()) {
-						log.debug("Session {} stopping due to non active connections.", getName());
-						stop();
-					}
-				});
+				Vertx vertx = getVertx();
+				if (vertx != null) {
+					vertx.setTimer(STOP_DELAY, (id) -> {
+						if (connections.isEmpty()) {
+							log.debug("Session {} stopping due to non active connections.", getName());
+							stop();
+						}
+					});
+				} else {
+					log.debug("Session {} stopping due to non active connections.", getName());
+					stop();
+				}
 			}
 		});
 

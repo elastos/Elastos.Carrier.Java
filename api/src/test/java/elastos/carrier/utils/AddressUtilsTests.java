@@ -32,9 +32,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import elastos.carrier.utils.AddressUtils.NetMask;
@@ -104,17 +102,17 @@ public class AddressUtilsTests {
 		assertTrue(result);
 	}
 
-	@Disabled("To be removed")
 	@Test
 	public void getAllAddress() {
-		Stream<InetAddress> addrs = AddressUtils.getAllAddresses();
+		List<InetAddress> addrs = AddressUtils.getAllAddresses().collect(Collectors.toList());
 
 		addrs.forEach((a) -> {
 			System.out.println(a);
 		});
+
+		assertFalse(addrs.isEmpty());
 	}
 
-	@Disabled("To be removed")
 	@Test
 	public void getDefaultAddress() {
 		List<InetAddress> newBindAddrs = AddressUtils.getAllAddresses().filter(Inet4Address.class::isInstance)
@@ -125,5 +123,7 @@ public class AddressUtilsTests {
 		newBindAddrs.forEach((a) -> {
 			System.out.println(a);
 		});
+
+		assertFalse(newBindAddrs.isEmpty());
 	}
 }

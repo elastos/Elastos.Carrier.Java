@@ -22,29 +22,51 @@
 
 package elastos.carrier.kademlia;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.DatagramChannel;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.slf4j.LoggerFactory;
 
-import elastos.carrier.Id;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import elastos.carrier.DefaultConfiguration;
 import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.DHT.Type;
 import elastos.carrier.kademlia.exceptions.KadException;
+import elastos.carrier.kademlia.messages.ErrorMessage;
 import elastos.carrier.kademlia.messages.Message;
+import elastos.carrier.kademlia.messages.MessageException;
+import elastos.carrier.kademlia.messages.PingRequest;
+import elastos.carrier.kademlia.messages.PingResponse;
+import elastos.carrier.utils.AddressUtils;
+import elastos.carrier.utils.ByteBufferOutputStream;
 
-@Disabled("Internal only!")
+//@Disabled()
+@EnabledIfSystemProperty(named = "elastos.carrier.enviroment", matches = "development")
 public class RPCServerTests {
-	private final static InetSocketAddress sa1 = new InetSocketAddress("192.168.8.81", 8888);
-	private final static InetSocketAddress sa2 = new InetSocketAddress("192.168.8.81", 9999);
+	private final static InetAddress localAddr =
+			AddressUtils.getAllAddresses().filter(Inet4Address.class::isInstance)
+				.filter((a) -> AddressUtils.isAnyUnicast(a))
+				.distinct().findFirst().get();
 
-	private final static Id id1 = Id.random();
-	private final static Id id2 = Id.random();
-
-	private final static NodeInfo ni1 = new NodeInfo(id1, sa1);
-	private final static NodeInfo ni2 = new NodeInfo(id2, sa2);
+	private final static InetSocketAddress sa1 = new InetSocketAddress(localAddr, 8888);
+	private final static InetSocketAddress sa2 = new InetSocketAddress(localAddr, 9999);
 
 	static class InvalidMessage extends Message {
 		public InvalidMessage() {
@@ -77,6 +99,11 @@ public class RPCServerTests {
 		}
 
 		@Override
+		public Node getNode() {
+			return node;
+		}
+
+		@Override
 		public Type getType() {
 			return Type.IPV4;
 		}
@@ -101,21 +128,31 @@ public class RPCServerTests {
 
 	static class TestNode extends Node {
 		private InetSocketAddress addr4;
-		NodeInfo peer;
+		TestNode peer;
 		RPCServer rpcServer;
 		TestDHT dht;
 		TestRoutine testRoutine;
 		private Thread testThread;
+		private NetworkEngine networkEngine;
 
 		private final static CyclicBarrier barrier = new CyclicBarrier(2);
 
-		public TestNode(InetSocketAddress addr4, NodeInfo peer) throws KadException {
-			super(null);
+		public TestNode(InetSocketAddress addr4) throws KadException {
+			super(new DefaultConfiguration.Builder().build());
 			this.addr4 = addr4;
-			this.peer = peer;
 		}
 
-		public void setup(TestDHT dht, TestRoutine testRoutine) {
+		public InetSocketAddress getAddress() {
+			return addr4;
+		}
+
+		public NodeInfo getInfo() {
+			return new NodeInfo(getId(), getAddress());
+		}
+
+		public void setup(TestNode peer, TestDHT dht, TestRoutine testRoutine) {
+			this.peer = peer;
+
 			dht.setNode(this);
 			if (testRoutine != null)
 				testRoutine.setNode(this);
@@ -123,7 +160,7 @@ public class RPCServerTests {
 			this.dht = dht;
 			this.testRoutine = testRoutine;
 
-			this.rpcServer = new RPCServer(dht, addr4);
+			this.rpcServer = new RPCServer(dht, addr4, false);
 		}
 
 		@Override
@@ -137,9 +174,16 @@ public class RPCServerTests {
 
 		@Override
 		public void start() throws KadException {
+			networkEngine = new NetworkEngine();
+			super.setScheduler(new ScheduledThreadPoolExecutor(4));
 			rpcServer.start();
 			testThread = new Thread(this::testRouineWrapper);
 			testThread.start();
+		}
+
+		@Override
+		public NetworkEngine getNetworkEngine() {
+			return networkEngine;
 		}
 
 		@Override
@@ -165,7 +209,7 @@ public class RPCServerTests {
 				testRoutine.run();
 		}
 	}
-/*
+
 	@BeforeAll
 	public static void beforeAll(){
 		Level level = Level.INFO;
@@ -177,12 +221,10 @@ public class RPCServerTests {
 
 	@Test
 	public void testAllSuccessCalls() throws Exception {
-		TestNode node1 = new TestNode(sa1, ni2);
-		TestNode node2 = new TestNode(sa2, ni1);
+		TestNode node1 = new TestNode(sa1);
+		TestNode node2 = new TestNode(sa2);
 
 		class MyDHT  extends TestDHT {
-
-
 			@Override
 			public void onMessage(Message msg) {
 				if (msg.getType() == Message.Type.REQUEST) {
@@ -200,7 +242,7 @@ public class RPCServerTests {
 					}
 
 					int delay = ThreadLocalRandom.current().nextInt(100, 200);
-					response.setRemote(msg.getOrigin());
+					response.setRemote(msg.getId(), msg.getOrigin());
 					sentPingResponses.incrementAndGet();
 					node.getScheduler().schedule(() -> node.rpcServer.sendMessage(response), delay, TimeUnit.MILLISECONDS);
 				} else if (msg.getType() == Message.Type.RESPONSE) {
@@ -239,8 +281,8 @@ public class RPCServerTests {
 						e.printStackTrace();
 					}
 
-					RPCCall call = new RPCCall(node.peer, msg);
-					msg.setRemote(node.peer.getAddress());
+					RPCCall call = new RPCCall(node.peer.getInfo(), msg);
+					msg.setRemote(node.peer.getId(), node.peer.getAddress());
 					node.rpcServer.sendCall(call);
 					sentPings++;
 					System.out.print(".");
@@ -249,8 +291,8 @@ public class RPCServerTests {
 		};
 
 
-		node1.setup(new MyDHT(), new MyRoutine());
-		node2.setup(new MyDHT(), new MyRoutine());
+		node1.setup(node2, new MyDHT(), new MyRoutine());
+		node2.setup(node1, new MyDHT(), new MyRoutine());
 
 		node1.start();
 		node2.start();
@@ -296,8 +338,8 @@ public class RPCServerTests {
 
 	@Test
 	public void testAllInvalidCalls() throws Exception {
-		TestNode node1 = new TestNode(sa1, ni2);
-		TestNode node2 = new TestNode(sa2, ni1);
+		TestNode node1 = new TestNode(sa1);
+		TestNode node2 = new TestNode(sa2);
 
 		class MyDHT  extends TestDHT {
 			@Override
@@ -332,8 +374,8 @@ public class RPCServerTests {
 						e.printStackTrace();
 					}
 
-					RPCCall call = new RPCCall(node.peer, msg);
-					msg.setRemote(node.peer.getAddress());
+					RPCCall call = new RPCCall(node.peer.getInfo(), msg);
+					msg.setRemote(node.peer.getId(), node.peer.getAddress());
 					node.rpcServer.sendCall(call);
 					sentPings++;
 					System.out.print(".");
@@ -341,8 +383,8 @@ public class RPCServerTests {
 			}
 		};
 
-		node1.setup(new MyDHT(), new MyRoutine());
-		node2.setup(new MyDHT(), new MyRoutine());
+		node1.setup(node2, new MyDHT(), new MyRoutine());
+		node2.setup(node1, new MyDHT(), new MyRoutine());
 
 		node1.start();
 		node2.start();
@@ -359,26 +401,18 @@ public class RPCServerTests {
 		System.out.println(node1.rpcServer.getStats().toString());
 		System.out.println(node2.rpcServer.getStats().toString());
 
-		assertEquals(node1.testRoutine.sentPings, node1.dht.receivedErrors.get());
+		assertEquals(0, node1.dht.receivedErrors.get());
 		assertEquals(node1.testRoutine.sentPings, node1.dht.timeoutMessages.get());
 
-		assertEquals(node2.testRoutine.sentPings, node2.dht.receivedErrors.get());
+		assertEquals(0, node2.dht.receivedErrors.get());
 		assertEquals(node2.testRoutine.sentPings, node2.dht.timeoutMessages.get());
 
-		// the Error message was sent by RPCServer internal
-		// assertEquals(node1.testRoutine.sentPings, node2.dht.sentErrors);
-		// assertEquals(node2.testRoutine.sentPings, node1.dht.sentErrors);
-
-		assertEquals(node1.testRoutine.sentPings + node2.testRoutine.sentPings, node1.rpcServer.getStats().getTotalSentMessages());
+		assertEquals(node1.testRoutine.sentPings, node1.rpcServer.getStats().getTotalSentMessages());
 		assertEquals(node1.testRoutine.sentPings, node1.rpcServer.getStats().getSentMessages(Message.Method.UNKNOWN, Message.Type.REQUEST));
-		assertEquals(node2.testRoutine.sentPings, node1.rpcServer.getStats().getSentMessages(Message.Method.UNKNOWN, Message.Type.ERROR));
-		assertEquals(node1.dht.receivedErrors.get(), node1.rpcServer.getStats().getReceivedMessages(Message.Method.UNKNOWN, Message.Type.ERROR));
 		assertEquals(node2.testRoutine.sentPings, node1.rpcServer.getStats().getDroppedPackets());
 
-		assertEquals(node2.testRoutine.sentPings + node1.testRoutine.sentPings, node2.rpcServer.getStats().getTotalSentMessages());
+		assertEquals(node2.testRoutine.sentPings, node2.rpcServer.getStats().getTotalSentMessages());
 		assertEquals(node2.testRoutine.sentPings, node2.rpcServer.getStats().getSentMessages(Message.Method.UNKNOWN, Message.Type.REQUEST));
-		assertEquals(node1.testRoutine.sentPings, node2.rpcServer.getStats().getSentMessages(Message.Method.UNKNOWN, Message.Type.ERROR));
-		assertEquals(node2.dht.receivedErrors.get(), node2.rpcServer.getStats().getReceivedMessages(Message.Method.UNKNOWN, Message.Type.ERROR));
 		assertEquals(node1.testRoutine.sentPings, node2.rpcServer.getStats().getDroppedPackets());
 
 		assertEquals(node1.rpcServer.getNumberOfSentMessages(), node1.rpcServer.getStats().getTotalSentMessages());
@@ -393,8 +427,8 @@ public class RPCServerTests {
 
 	@Test
 	public void testTimeoutCalls() throws Exception {
-		TestNode node1 = new TestNode(sa1, ni2);
-		TestNode node2 = new TestNode(sa2, ni1);
+		TestNode node1 = new TestNode(sa1);
+		TestNode node2 = new TestNode(sa2);
 
 		class MyDHT  extends TestDHT {
 			@Override
@@ -414,7 +448,7 @@ public class RPCServerTests {
 					}
 
 					int delay = 12000; // will cause the call timeout
-					response.setRemote(msg.getOrigin());
+					response.setRemote(msg.getId(), msg.getOrigin());
 					sentPingResponses.incrementAndGet();
 					node.getScheduler().schedule(() -> node.rpcServer.sendMessage(response), delay, TimeUnit.MILLISECONDS);
 				} else if (msg.getType() == Message.Type.RESPONSE) {
@@ -454,8 +488,8 @@ public class RPCServerTests {
 						e.printStackTrace();
 					}
 
-					RPCCall call = new RPCCall(node.peer, msg);
-					msg.setRemote(node.peer.getAddress());
+					RPCCall call = new RPCCall(node.peer.getInfo(), msg);
+					msg.setRemote(node.peer.getId(), node.peer.getAddress());
 					node.rpcServer.sendCall(call);
 					sentPings++;
 					System.out.print(".");
@@ -464,8 +498,8 @@ public class RPCServerTests {
 		};
 
 
-		node1.setup(new MyDHT(), new MyRoutine());
-		node2.setup(new MyDHT(), new MyRoutine());
+		node1.setup(node2, new MyDHT(), new MyRoutine());
+		node2.setup(node1, new MyDHT(), new MyRoutine());
 
 		node1.start();
 		node2.start();
@@ -513,8 +547,8 @@ public class RPCServerTests {
 
 	@Test
 	public void testSendThrottle() throws Exception {
-		TestNode node1 = new TestNode(sa1, ni2);
-		TestNode node2 = new TestNode(sa2, ni1);
+		TestNode node1 = new TestNode(sa1);
+		TestNode node2 = new TestNode(sa2);
 
 		class MyDHT  extends TestDHT {
 			@Override
@@ -534,7 +568,7 @@ public class RPCServerTests {
 					}
 
 					int delay = ThreadLocalRandom.current().nextInt(100, 200);
-					response.setRemote(msg.getOrigin());
+					response.setRemote(msg.getId(), msg.getOrigin());
 					sentPingResponses.incrementAndGet();
 					node.getScheduler().schedule(() -> node.rpcServer.sendMessage(response), delay, TimeUnit.MILLISECONDS);
 				} else if (msg.getType() == Message.Type.RESPONSE) {
@@ -567,8 +601,8 @@ public class RPCServerTests {
 
 				for (int i = 0; i < rnd.nextInt(20, 32); i++) {
 					Message msg = new PingRequest();
-					RPCCall call = new RPCCall(node.peer, msg);
-					msg.setRemote(node.peer.getAddress());
+					RPCCall call = new RPCCall(node.peer.getInfo(), msg);
+					msg.setRemote(node.peer.getId(), node.peer.getAddress());
 					node.rpcServer.sendCall(call);
 					sentPings++;
 					System.out.print(".");
@@ -576,8 +610,8 @@ public class RPCServerTests {
 			}
 		};
 
-		node1.setup(new MyDHT(), new MyRoutine());
-		node2.setup(new MyDHT(), null);
+		node1.setup(node2, new MyDHT(), new MyRoutine());
+		node2.setup(node1, new MyDHT(), null);
 
 		node1.start();
 		node2.start();
@@ -619,8 +653,8 @@ public class RPCServerTests {
 
 	@Test
 	public void testReceiveThrottle() throws Exception {
-		TestNode node1 = new TestNode(sa1, ni2);
-		TestNode node2 = new TestNode(sa2, ni1);
+		TestNode node1 = new TestNode(sa1);
+		TestNode node2 = new TestNode(sa2);
 
 		class MyDHT  extends TestDHT {
 			@Override
@@ -640,7 +674,7 @@ public class RPCServerTests {
 					}
 
 					int delay = ThreadLocalRandom.current().nextInt(100, 200);
-					response.setRemote(msg.getOrigin());
+					response.setRemote(msg.getId(), msg.getOrigin());
 					sentPingResponses.incrementAndGet();
 					node.getScheduler().schedule(() -> node.rpcServer.sendMessage(response), delay, TimeUnit.MILLISECONDS);
 				} else if (msg.getType() == Message.Type.RESPONSE) {
@@ -676,7 +710,7 @@ public class RPCServerTests {
 				for (int i = 0; i < rnd.nextInt(20, 32); i++) {
 					Message msg = new PingRequest();
 					msg.setId(node.getId());
-					msg.setRemote(node.peer.getAddress());
+					msg.setRemote(node.peer.getId(), node.peer.getAddress());
 					msg.setTxid(i+1);
 
 					try {
@@ -685,7 +719,7 @@ public class RPCServerTests {
 						writeBuffer.flip();
 
 						DatagramChannel ch = (DatagramChannel)node.rpcServer.getChannel();
-						int bytesSent = ch.send(writeBuffer, msg.getRemote());
+						int bytesSent = ch.send(writeBuffer, msg.getRemoteAddress());
 						if (bytesSent > 0)
 							sentPings++;
 					} catch (MessageException | IOException e) {
@@ -697,8 +731,8 @@ public class RPCServerTests {
 			}
 		};
 
-		node1.setup(new MyDHT(), new MyRoutine());
-		node2.setup(new MyDHT(), new MyRoutine());
+		node1.setup(node2, new MyDHT(), new MyRoutine());
+		node2.setup(node1, new MyDHT(), new MyRoutine());
 
 		node1.start();
 		node2.start();
@@ -733,8 +767,8 @@ public class RPCServerTests {
 
 	@Test
 	public void testRandomCalls() throws Exception {
-		TestNode node1 = new TestNode(sa1, ni2);
-		TestNode node2 = new TestNode(sa2, ni1);
+		TestNode node1 = new TestNode(sa1);
+		TestNode node2 = new TestNode(sa2);
 
 		class MyDHT  extends TestDHT {
 			@Override
@@ -755,11 +789,11 @@ public class RPCServerTests {
 
 					int delay = ThreadLocalRandom.current().nextInt(100, Constants.RPC_CALL_TIMEOUT_MAX + 2000);
 					if (delay >= Constants.RPC_CALL_TIMEOUT_MAX) {
-						System.out.println("Deley a response to make the call timeout");
+						System.out.println("Delay a response to make the call timeout");
 						manualTimeouts.incrementAndGet();
 					}
 
-					response.setRemote(msg.getOrigin());
+					response.setRemote(msg.getId(), msg.getOrigin());
 					sentPingResponses.incrementAndGet();
 					node.getScheduler().schedule(() -> node.rpcServer.sendMessage(response), delay, TimeUnit.MILLISECONDS);
 				} else if (msg.getType() == Message.Type.RESPONSE) {
@@ -798,8 +832,8 @@ public class RPCServerTests {
 						e.printStackTrace();
 					}
 
-					RPCCall call = new RPCCall(node.peer, msg);
-					msg.setRemote(node.peer.getAddress());
+					RPCCall call = new RPCCall(node.peer.getInfo(), msg);
+					msg.setRemote(node.peer.getId(), node.peer.getAddress());
 					node.rpcServer.sendCall(call);
 					sentPings++;
 					System.out.print(".");
@@ -807,8 +841,8 @@ public class RPCServerTests {
 			}
 		};
 
-		node1.setup(new MyDHT(), new MyRoutine());
-		node2.setup(new MyDHT(), new MyRoutine());
+		node1.setup(node2, new MyDHT(), new MyRoutine());
+		node2.setup(node1, new MyDHT(), new MyRoutine());
 
 		node1.start();
 		node2.start();
@@ -842,5 +876,4 @@ public class RPCServerTests {
 		node1.stop();
 		node2.stop();
 	}
-	*/
 }

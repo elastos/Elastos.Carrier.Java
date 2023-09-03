@@ -30,17 +30,17 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import elastos.carrier.Id;
 import elastos.carrier.kademlia.Blacklist.ObservationData;
 
-@Disabled("Manual")
+@EnabledIfSystemProperty(named = "elastos.carrier.enviroment", matches = "development")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class BlacklistTests {
 	// Observation: 2 minutes

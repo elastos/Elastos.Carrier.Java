@@ -35,8 +35,8 @@ import java.util.Comparator;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import elastos.carrier.Configuration;
 import elastos.carrier.Id;
@@ -45,7 +45,7 @@ import elastos.carrier.kademlia.messages.FindNodeRequest;
 import elastos.carrier.kademlia.messages.Message;
 import elastos.carrier.utils.AddressUtils;
 
-@Disabled("Manual")
+@EnabledIfSystemProperty(named = "elastos.carrier.enviroment", matches = "development")
 public class SybilTests {
 	private InetAddress getIPv4Address() {
 		return AddressUtils.getAllAddresses()

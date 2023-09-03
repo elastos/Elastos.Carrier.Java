@@ -69,7 +69,19 @@
       <artifactId>junit-jupiter-params</artifactId>
       <version>${junit.version}</version>
       <scope>test</scope>
-    </dependency>    
+    </dependency>
+     <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-junit5</artifactId>
+      <version>${vertx.version}</version>
+      <scope>test</scope>
+    </dependency>
+     <dependency>
+      <groupId>elastos.carrier</groupId>
+      <artifactId>carrier-core</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency> 
   </dependencies>
 
   <build>

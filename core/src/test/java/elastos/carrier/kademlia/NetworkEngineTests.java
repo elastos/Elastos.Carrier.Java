@@ -43,18 +43,18 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import elastos.carrier.kademlia.NetworkEngine.Selectable;
 
-@Disabled("Internal only!")
+@EnabledIfSystemProperty(named = "elastos.carrier.enviroment", matches = "development")
 @TestMethodOrder(OrderAnnotation.class)
 public class NetworkEngineTests {
 	private NetworkEngine networkEngine = new NetworkEngine();
@@ -263,7 +263,7 @@ public class NetworkEngineTests {
 	}
 
 	@Test
-	@Order(2)
+	@Order(3)
 	public void testSelectEvents() throws Exception {
 		String host = "127.0.0.1";
 		int groupSize = 32;

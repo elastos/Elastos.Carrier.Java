@@ -107,7 +107,7 @@ public class RPCServer implements Selectable {
 		STOPPED
 	}
 
-	public RPCServer(DHT dht, InetSocketAddress addr) {
+	public RPCServer(DHT dht, InetSocketAddress addr, boolean enableThrottle) {
 		checkArgument(addr != null, "Invalid socket address");
 
 		this.dht = dht;
@@ -121,8 +121,8 @@ public class RPCServer implements Selectable {
 		this.callQueue = new ConcurrentLinkedQueue<>();
 		this.pipeline = new ConcurrentLinkedQueue<>();
 
-		this.outboundThrottle = new Throttle();
-		this.inboundThrottle = new Throttle();
+		this.outboundThrottle = enableThrottle ? new Throttle.Eanbled() : new Throttle.Disabled();
+		this.inboundThrottle = enableThrottle ? new Throttle.Eanbled() : new Throttle.Disabled();
 		this.timeoutSampler = new TimeoutSampler();
 		this.stats = new RPCStatistics();
 
@@ -135,12 +135,16 @@ public class RPCServer implements Selectable {
 		dht.setRPCServer(this);
 	}
 
-	public RPCServer(DHT dht, InetAddress addr, int port) {
-		this(dht, new InetSocketAddress(addr, port));
+	public RPCServer(DHT dht, InetSocketAddress addr) {
+		this(dht, addr, true);
 	}
 
-	public RPCServer(Node node, DHT dht, String addr, int port) {
-		this(dht, new InetSocketAddress(addr, port));
+	public RPCServer(DHT dht, InetAddress addr, int port, boolean enableThrottle) {
+		this(dht, new InetSocketAddress(addr, port), enableThrottle);
+	}
+
+	public RPCServer(DHT dht, InetAddress addr, int port) {
+		this(dht, addr, port, true);
 	}
 
 	public InetSocketAddress getAddress() {

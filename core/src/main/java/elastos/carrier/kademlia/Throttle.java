@@ -35,6 +35,9 @@ public class Throttle {
 	private static final int LIMITS = 16;
 	private static final int PERMITS_PER_SECOND = 4;
 
+	protected Throttle() {
+	}
+
 	public boolean saturatingInc(InetAddress addr) {
 		int count = counter.compute(addr, (key, old) -> old == null ? 1 : Math.min(old + 1, LIMITS));
 		return count >= LIMITS;
@@ -72,5 +75,37 @@ public class Throttle {
 		// minor optimization: delete first, then replace only what's left
 		counter.entrySet().removeIf(entry -> entry.getValue() <= delta);
 		counter.replaceAll((k, v) -> v - delta);
+	}
+
+	public static class Eanbled extends Throttle {
+	}
+
+	public static class Disabled extends Throttle {
+		@Override
+		public boolean saturatingInc(InetAddress addr) {
+			return false;
+		}
+
+		@Override
+		public void saturatingDec(InetAddress addr) {
+		}
+
+		@Override
+		public void clear(InetAddress addr) {
+		}
+
+		@Override
+		public boolean test(InetAddress addr) {
+			return false;
+		}
+
+		@Override
+		public int estimateDeplayAndInc(InetAddress addr) {
+			return 0;
+		}
+
+		@Override
+		public void decay() {
+		}
 	}
 }
