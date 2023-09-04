@@ -29,6 +29,18 @@
       <version>${jackson.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>elastos.carrier</groupId>
+      <artifactId>carrier-dht-proxy</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>elastos.carrier</groupId>
+      <artifactId>carrier-active-proxy</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
   </dependencies>
 
   <build>
