@@ -103,7 +103,7 @@ public class ProxyConnection implements AutoCloseable {
 			@Override
 			public boolean accept(PacketType type) {
 				return type == PacketType.DISCONNECT || type == PacketType.DISCONNECT_ACK ||
-						type == PacketType.DATA;
+						type == PacketType.PING || type == PacketType.DATA;
 			}
 		},
 		Closed {
