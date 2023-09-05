@@ -17,16 +17,11 @@
   <name>Carrier Interactive Shell</name>
 
   <dependencies>
+    <!-- Compile dependencies -->
     <dependency>
       <groupId>elastos.carrier</groupId>
       <artifactId>carrier-core</artifactId>
       <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
@@ -68,6 +63,7 @@
               <goal>copy-dependencies</goal>
             </goals>
             <configuration>
+              <includeScope>runtime</includeScope>
               <outputDirectory>${project.build.directory}/lib</outputDirectory>
               <overWriteReleases>false</overWriteReleases>
               <overWriteSnapshots>false</overWriteSnapshots>

@@ -17,6 +17,7 @@
   <name>Carrier API</name>
 
   <dependencies>
+    <!-- Compile dependencies -->
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
@@ -49,6 +50,7 @@
       <version>${tuweni.version}</version>
     </dependency>
 
+    <!-- Test dependencies -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>

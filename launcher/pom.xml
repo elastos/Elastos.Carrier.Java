@@ -17,18 +17,28 @@
   <name>Carrier Node Launcher</name>
 
   <dependencies>
+    <!-- Compile dependencies -->
     <dependency>
       <groupId>elastos.carrier</groupId>
       <artifactId>carrier-core</artifactId>
       <version>${project.version}</version>
     </dependency>
 
+    <!-- Provided dependencies -->
+    <!-- The following provided dependencies ONLY for the debug purpose in development time -->
     <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
-      <version>${jackson.version}</version>
+      <groupId>elastos.carrier</groupId>
+      <artifactId>carrier-active-proxy</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
 
+    <dependency>
+      <groupId>elastos.carrier</groupId>
+      <artifactId>carrier-dht-proxy</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -78,6 +88,7 @@
               <goal>copy-dependencies</goal>
             </goals>
             <configuration>
+              <includeScope>runtime</includeScope>
               <outputDirectory>${project.build.directory}/lib</outputDirectory>
               <overWriteReleases>false</overWriteReleases>
               <overWriteSnapshots>false</overWriteSnapshots>
