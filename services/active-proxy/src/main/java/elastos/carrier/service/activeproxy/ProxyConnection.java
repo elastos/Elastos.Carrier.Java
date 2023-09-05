@@ -436,7 +436,8 @@ public class ProxyConnection implements AutoCloseable {
 		int size = packet.getUnsignedShort(0);
 		if (size != packet.length()) {
 			log.error("Connection {} in illegal state!!!", getName());
-			throw new IllegalStateException("INTERNAL ERROR: Connection in illegal state!!!");
+			close();
+			return;
 		}
 
 		PacketType type = PacketType.valueOf(packet.getByte(Short.BYTES));
@@ -447,6 +448,7 @@ public class ProxyConnection implements AutoCloseable {
 		if (!state.accept(type)) {
 			log.error("Connection {} got wrong {} packet in {} state", getName(), type, state);
 			close();
+			return;
 		}
 
 		switch (type) {
