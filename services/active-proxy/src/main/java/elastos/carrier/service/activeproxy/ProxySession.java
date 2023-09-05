@@ -34,14 +34,16 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
+import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.net.NetServer;
 import io.vertx.core.net.NetServerOptions;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.net.SocketAddress;
-import io.vertx.ext.web.client.HttpRequest;
-import io.vertx.ext.web.client.WebClient;
 
 import elastos.carrier.Id;
 import elastos.carrier.crypto.CryptoBox;
@@ -80,6 +82,8 @@ public class ProxySession implements AutoCloseable {
 
 	private Promise<Void> stopPromise;
 	private Handler<Void> stopHandler;
+
+	HttpClientOptions httpClientOptions;
 
 	private static final Logger log = LoggerFactory.getLogger(ProxySession.class);
 
@@ -151,9 +155,25 @@ public class ProxySession implements AutoCloseable {
 		return box.decrypt(cipher, nonce);
 	}
 
+	private HttpClientOptions getHttpClientOptions() {
+		if (httpClientOptions == null) {
+			HttpClientOptions opts = new HttpClientOptions();
+
+			opts.setDefaultHost(server.getConfig().getHelperServer())
+				.setDefaultPort(server.getConfig().getHelperPort())
+				.setSsl(server.getConfig().isHelperEnabledSSL())
+				.setKeepAlive(false);
+
+			httpClientOptions = opts;
+		}
+
+		return httpClientOptions;
+	}
+
 	private void updateVirtualHost(Handler<AsyncResult<Boolean>> handler) {
 		Vertx vertx = getVertx();
-		WebClient client = WebClient.create(vertx);
+		HttpClient client = vertx.createHttpClient(getHttpClientOptions());
+
 		JsonObject data = new JsonObject()
 				.put("nodeId", getClientNodeId().toString())
 				.put("domain", domain)
@@ -161,25 +181,35 @@ public class ProxySession implements AutoCloseable {
 
 		log.info("Updating virtual host with: {} ...", data);
 
-		HttpRequest<Buffer> request = client.post(server.getConfig().getHelperPort(),
-				server.getConfig().getHelperServer(), "/vhosts");
+		client.request(HttpMethod.POST, "/vhosts", req -> {
+			if (req.succeeded()) {
+				HttpClientRequest request = req.result();
 
-		String apiKey = server.getConfig().getHelperApiKey();
-		if (apiKey != null && !apiKey.isEmpty())
-			request.putHeader("Authorization", "Bearer " + apiKey);
+				String apiKey = server.getConfig().getHelperApiKey();
+				if (apiKey != null && !apiKey.isEmpty())
+					request.putHeader("Authorization", "Bearer " + apiKey);
 
-		if (server.getConfig().isHelperEnabledSSL())
-			request.ssl(true);
-
-		request.sendJsonObject(data)
-			.onSuccess(res -> {
-				log.info("Update virtual host success");
-				handler.handle(Future.succeededFuture(true));
-			})
-			.onFailure(res -> {
-				log.error("Update virtual host faied", res.getCause());
+				request.send(data.toBuffer(), res -> {
+					if (res.succeeded()) {
+						HttpClientResponse response = res.result();
+						int status = response.statusCode();
+						if (status >= 200 || status <= 202) {
+							log.info("Update virtual host success");
+							handler.handle(Future.succeededFuture(true));
+						} else {
+							log.error("Update virtual host faied, status: {}", status);
+							handler.handle(Future.succeededFuture(false));
+						}
+					} else {
+						log.error("Update virtual host faied", res.cause());
+						handler.handle(Future.succeededFuture(false));
+					}
+				});
+			} else {
+				log.error("Update virtual host faied", req.cause());
 				handler.handle(Future.succeededFuture(false));
-			});
+			}
+		});
 	}
 
 	private void establish(ProxyConnection connection, Handler<AsyncResult<ProxySession>> startHandler) {
