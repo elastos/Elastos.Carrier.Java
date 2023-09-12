@@ -736,8 +736,15 @@ public class ProxyConnection implements AutoCloseable {
 			upstreamSocket.drainHandler(null);
 
 			// don't send disconnect in connecting state
-			if (oldState == State.Relaying)
+			if (oldState == State.Connecting) {
+				state = State.Idling;
+				disconnectConfirms.set(0);
+
+				if (clientCloseHandler != null)
+					clientCloseHandler.handle(null);
+			} else if (oldState == State.Relaying) {
 				sendDisconnect();
+			}
 
 			log.debug("Connection {} disconnected client.", getName());
 		};
