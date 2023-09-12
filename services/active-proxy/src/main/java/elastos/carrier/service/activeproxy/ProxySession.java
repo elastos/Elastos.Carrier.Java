@@ -398,7 +398,7 @@ public class ProxySession implements AutoCloseable {
 		if (connection != null) {
 			connection.connectClient(socket);
 		} else {
-			log.debug("Session {} no connection available for the client connection {}, add it to the queue.",
+			log.debug("Session {} no upstream connection available for the client connection {}, add it to the queue.",
 					getName(), Integer.toHexString(socket.hashCode()));
 			socket.closeHandler(v -> clientSocks.remove(socket));
 			clientSocks.add(socket);
