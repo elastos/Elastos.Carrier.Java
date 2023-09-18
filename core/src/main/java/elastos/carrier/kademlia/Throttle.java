@@ -32,8 +32,8 @@ public class Throttle {
 	private Map<InetAddress, Integer> counter = new ConcurrentHashMap<>();
 	private AtomicLong lastDecayTime = new AtomicLong(System.currentTimeMillis());
 
-	private static final int LIMITS = 16;
-	private static final int PERMITS_PER_SECOND = 4;
+	private static final int LIMITS = 128;
+	private static final int PERMITS_PER_SECOND = 32;
 
 	protected Throttle() {
 	}

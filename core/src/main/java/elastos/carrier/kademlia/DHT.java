@@ -31,6 +31,7 @@ import java.net.InetSocketAddress;
 import java.net.ProtocolFamily;
 import java.net.StandardProtocolFamily;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -184,6 +185,10 @@ public class DHT {
 		return type;
 	}
 
+	public InetSocketAddress getAddress() {
+		return addr;
+	}
+
 	public Node getNode() {
 		return node;
 	}
@@ -274,12 +279,28 @@ public class DHT {
 	}
 
 	public void bootstrap(NodeInfo bootstrapNode) {
-		if (!type.canUseAddress(bootstrapNode.getInetAddress()) ||
-				bootstrapNode.getId().equals(node.getId()))
-			return;
+		bootstrap(Arrays.asList(bootstrapNode));
+	}
 
-		if (!this.bootstrapNodes.contains(bootstrapNode)) {
-			this.bootstrapNodes.add(bootstrapNode);
+	public void bootstrap(Collection<NodeInfo> bootstrapNodes) {
+		int added = 0;
+
+		for (NodeInfo bootstrapNode : bootstrapNodes) {
+			if (!type.canUseAddress(bootstrapNode.getInetAddress()))
+				continue;
+
+			if (node.isLocalId(bootstrapNode.getId())) {
+				log.warn("Can not bootstrap from local node: {}", node.getId());
+				continue;
+			}
+
+			if (!this.bootstrapNodes.contains(bootstrapNode)) {
+				this.bootstrapNodes.add(bootstrapNode);
+				added++;
+			}
+		}
+
+		if (added > 0) {
 			lastBootstrap = 0;
 			bootstrap();
 		}
@@ -786,10 +807,23 @@ public class DHT {
 	}
 
 	public Task findNode(Id id, Consumer<NodeInfo> completeHandler) {
+		return findNode(id, LookupOption.CONSERVATIVE, completeHandler);
+	}
+
+	public Task findNode(Id id, LookupOption option, Consumer<NodeInfo> completeHandler) {
+		AtomicReference<NodeInfo> nodeRef = new AtomicReference<>(routingTable.getEntry(id, true));
 		NodeLookup task = new NodeLookup(this, id);
+		task.setResultHandler((v) -> {
+			nodeRef.set(v);
+
+			if (option != LookupOption.CONSERVATIVE) {
+				task.cancel();
+				return;
+			}
+		});
+
 		task.addListener(t -> {
-			NodeInfo ni = routingTable.getEntry(id, true);
-			completeHandler.accept(ni);
+			completeHandler.accept(nodeRef.get());
 		});
 
 		taskMan.add(task);

@@ -193,6 +193,14 @@ public class DefaultConfiguration implements Configuration {
 			return this;
 		}
 
+		public Builder addBootstrap(Collection<NodeInfo> nodes) {
+			if (nodes == null)
+				throw new IllegalArgumentException("Invaild node info: null");
+
+			getConfiguration().bootstraps.addAll(nodes);
+			return this;
+		}
+
 		public Builder addService(String clazz, Map<String, Object> configuration) {
 			if (clazz == null || clazz.isEmpty())
 				throw new IllegalArgumentException("Invaild service class name");

@@ -33,6 +33,7 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -99,7 +100,7 @@ public class Node implements elastos.carrier.Node {
 	private DHT dht4;
 	private DHT dht6;
 	private int numDHTs;
-	private LookupOption defaultLookupOption;
+	private LookupOption defaultLookupOption = LookupOption.CONSERVATIVE;
 
 	private LoadingCache<Id, CryptoContext> cryptoContexts;
 	private Blacklist blacklist;
@@ -155,7 +156,6 @@ public class Node implements elastos.carrier.Node {
 
 		setupCryptoBoxesCache();
 
-		defaultLookupOption = LookupOption.CONSERVATIVE;
 		status = NodeStatus.Stopped;
 
 		this.config = config;
@@ -240,6 +240,16 @@ public class Node implements elastos.carrier.Node {
 	}
 
 	@Override
+	public NodeInfo getNodeInfo4() {
+		return dht4 != null ? new NodeInfo(id, dht4.getAddress()) : null;
+	}
+
+	@Override
+	public NodeInfo getNodeInfo6() {
+		return dht6 != null ? new NodeInfo(id, dht6.getAddress()) : null;
+	}
+
+	@Override
 	public boolean isLocalId(Id id) {
 		return this.id.equals(id);
 	}
@@ -307,9 +317,9 @@ public class Node implements elastos.carrier.Node {
 					corePoolSize);
 
 			ScheduledThreadPoolExecutor s = new ScheduledThreadPoolExecutor(corePoolSize, factory, (r, e) -> {
-				log.error("Scheduler encounter a reject exception.", e);
+				log.error("Scheduler rejected {} exception because the thread bounds and queue capacities are reached.",
+						r.toString());
 			});
-			// s.setCorePoolSize(corePoolSize);
 			s.setKeepAliveTime(20, TimeUnit.SECONDS);
 			s.allowCoreThreadTimeOut(true);
 			defaultScheduler = s;
@@ -322,16 +332,18 @@ public class Node implements elastos.carrier.Node {
 	public void bootstrap(NodeInfo node) throws KadException {
 		checkArgument(node != null, "Invalid bootstrap node");
 
-		if (node.getId().equals(this.id)) {
-			log.warn("Can not bootstrap from local node: {}", node.getId());
-			return;
-		}
+		bootstrap(Arrays.asList(node));
+	}
+
+	@Override
+	public void bootstrap(Collection<NodeInfo> bootstrapNodes) throws KadException {
+		checkArgument(bootstrapNodes != null, "Invalid bootstrap nodes");
 
 		if (dht4 != null)
-			dht4.bootstrap(node);
+			dht4.bootstrap(bootstrapNodes);
 
 		if (dht6 != null)
-			dht6.bootstrap(node);
+			dht6.bootstrap(bootstrapNodes);
 	}
 
 	@Override
@@ -564,23 +576,16 @@ public class Node implements elastos.carrier.Node {
 
 		LookupOption lookupOption = option == null ? defaultLookupOption : option;
 
-		List<NodeInfo> results = new ArrayList<NodeInfo>(2);
+		// 0: node4; 1: node6
+		List<NodeInfo> results = new ArrayList<>(2);
 
-		if (lookupOption == LookupOption.ARBITRARY) {
-			if (dht4 != null) {
-				NodeInfo n = dht4.getNode(id);
-				if (n != null)
-					results.add(n);
-			}
+		results.add(dht4 != null ? dht4.getNode(id) : null);
+		results.add(dht6 != null ? dht6.getNode(id) : null);
 
-			if (dht6 != null) {
-				NodeInfo n = dht6.getNode(id);
-				if (n != null)
-					results.add(n);
-			}
-
-			if (!results.isEmpty())
-				return CompletableFuture.completedFuture(results);
+		if (lookupOption == LookupOption.ARBITRARY &&
+				(results.get(0) != null || results.get(1) != null)) {
+			results.removeIf((ni) -> ni == null);
+			return CompletableFuture.completedFuture(results);
 		}
 
 		TaskFuture<List<NodeInfo>> future = new TaskFuture<>();
@@ -589,21 +594,26 @@ public class Node implements elastos.carrier.Node {
 		Consumer<NodeInfo> completeHandler = (n) -> {
 			int c = completion.incrementAndGet();
 
-			if (n != null)
-				results.add(n);
+			if (n != null) {
+				int index = n.getAddress().getAddress() instanceof Inet4Address ? 0 : 1;
+				results.set(index, n);
+			}
 
-			if ((lookupOption == LookupOption.OPTIMISTIC && !results.isEmpty()) || c >= numDHTs)
+
+			if ((lookupOption == LookupOption.OPTIMISTIC && n != null) || c >= numDHTs) {
+				results.removeIf((ni) -> ni == null);
 				future.complete(results);
+			}
 		};
 
 		Task t4 = null, t6 = null;
 		if (dht4 != null) {
-			t4 = dht4.findNode(id, completeHandler);
+			t4 = dht4.findNode(id, option, completeHandler);
 			future.addTask(t4);
 		}
 
 		if (dht6 != null) {
-			t6 = dht6.findNode(id, completeHandler);
+			t6 = dht6.findNode(id, option, completeHandler);
 			future.addTask(t6);
 		}
 

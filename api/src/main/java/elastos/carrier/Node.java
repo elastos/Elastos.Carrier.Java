@@ -22,12 +22,17 @@
 
 package elastos.carrier;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
 public interface Node {
 	public Id getId();
+
+	public NodeInfo getNodeInfo4();
+
+	public NodeInfo getNodeInfo6();
 
 	public boolean isLocalId(Id id);
 
@@ -44,6 +49,8 @@ public interface Node {
 	public void setScheduler(ScheduledExecutorService scheduler);
 
 	public void bootstrap(NodeInfo node) throws CarrierException;
+
+	public void bootstrap(Collection<NodeInfo> bootstrapNodes) throws CarrierException;
 
 	public void start() throws CarrierException;
 

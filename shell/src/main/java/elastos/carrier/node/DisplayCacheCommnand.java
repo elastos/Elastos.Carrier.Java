@@ -1,9 +1,19 @@
 package elastos.carrier.node;
 
 import java.io.File;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.util.Date;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
-import elastos.carrier.kademlia.RoutingTable;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
+
+import elastos.carrier.kademlia.KBucketEntry;
+import elastos.carrier.utils.ThreadLocals;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -28,10 +38,34 @@ public class DisplayCacheCommnand implements Callable<Integer> {
 	private String cachePath = null;
 
 	private void print(File cache) {
-		RoutingTable routingTable = new RoutingTable(null);
-		routingTable.load(cache);
+		CBORMapper mapper = new CBORMapper(ThreadLocals.CBORFactory());
+		long now = System.currentTimeMillis();
+		try {
+			JsonNode node = mapper.readTree(cache);
+			long timestamp = node.get("timestamp").asLong();
+			System.out.format("Timestamp: %s / %s\n",
+					new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ").format(new Date(timestamp)),
+					Duration.ofMillis(now - timestamp));
 
-		System.out.println(routingTable);
+			JsonNode nodes = node.get("entries");
+			System.out.println("Entries: " + nodes.size());
+			for (JsonNode n : nodes) {
+				Map<String, Object> map = mapper.convertValue(n, new TypeReference<Map<String, Object>>() {});
+				KBucketEntry entry = KBucketEntry.fromMap(map);
+				System.out.println("    " + entry);
+			}
+
+			nodes = node.get("cache");
+			System.out.println("Cached: " + nodes.size());
+			for (JsonNode n : nodes) {
+				Map<String, Object> map = mapper.convertValue(n, new TypeReference<Map<String, Object>>() {});
+				KBucketEntry entry = KBucketEntry.fromMap(map);
+				System.out.println("    " + entry);
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	@Override

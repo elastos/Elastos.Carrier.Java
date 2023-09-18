@@ -24,6 +24,7 @@ package elastos.carrier.kademlia.tasks;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +43,8 @@ import elastos.carrier.kademlia.messages.Message;
 public class NodeLookup extends LookupTask {
 	private boolean bootstrap = false;
 	private boolean wantToken = false;
+	Consumer<NodeInfo> resultHandler;
+
 	private static final Logger log = LoggerFactory.getLogger(NodeLookup.class);
 
 	public NodeLookup(DHT dht, Id nodeId) {
@@ -66,6 +69,10 @@ public class NodeLookup extends LookupTask {
 
 	public void injectCandidates(Collection<NodeInfo> nodes) {
 		addCandidates(nodes);
+	}
+
+	public void setResultHandler(Consumer<NodeInfo> resultHandler) {
+		this.resultHandler = resultHandler;
 	}
 
 	@Override
@@ -116,6 +123,13 @@ public class NodeLookup extends LookupTask {
 			return;
 
 		addCandidates(nodes);
+
+		if (resultHandler != null) {
+			for (NodeInfo node : nodes) {
+				if (node.getId().equals(getTarget()))
+					resultHandler.accept(node);
+			}
+		}
 	}
 
 	@Override

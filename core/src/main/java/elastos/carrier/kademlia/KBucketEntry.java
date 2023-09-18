@@ -274,7 +274,7 @@ public class KBucketEntry extends NodeInfo {
 		return map;
 	}
 
-	static KBucketEntry fromMap(Map<String, Object> map) {
+	static public KBucketEntry fromMap(Map<String, Object> map) {
 		try {
 			Id id = Id.of((byte[])map.get("id"));
 			InetAddress addr = InetAddress.getByAddress((byte[])map.get("addr"));
@@ -320,6 +320,10 @@ public class KBucketEntry extends NodeInfo {
 	public String toString() {
 		long now = System.currentTimeMillis();
 		StringBuilder repr = new StringBuilder(80);
+
+		if (Constants.DEVELOPMENT_ENVIRONMENT)
+			repr.append(getId().toHexString()).append('/');
+
 		repr.append(getId()).append('@').append(AddressUtils.toString(getAddress()));
 		repr.append(";seen:").append(Duration.ofMillis(now - lastSeen));
 		repr.append(";age:").append(Duration.ofMillis(now - created));
