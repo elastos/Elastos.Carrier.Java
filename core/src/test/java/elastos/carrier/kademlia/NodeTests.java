@@ -147,8 +147,8 @@ public class NodeTests {
 		}
 	}
 
-	//@Test
-	//@Timeout(value = TEST_NODES, unit = TimeUnit.MINUTES)
+	@Test
+	@Timeout(value = TEST_NODES, unit = TimeUnit.MINUTES)
 	void testAnnounceAndFindPeer() throws Exception {
 		for (int i = 0; i < TEST_NODES; i++) {
 			var announcer = testNodes.get(i);

@@ -22,6 +22,8 @@
 
 package elastos.carrier.service.activeproxy;
 
+import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -73,9 +75,9 @@ public class ProxySession implements AutoCloseable {
 	int port;
 	private volatile boolean ready;
 
-	private ConcurrentLinkedQueue<NetSocket> clientSocks;
-	private ConcurrentHashMap<ProxyConnection, Object> connections;
-	private ConcurrentLinkedQueue<ProxyConnection> idleConnections;
+	private Queue<NetSocket> clientSocks;
+	private Map<ProxyConnection, Object> connections;
+	private Queue<ProxyConnection> idleConnections;
 
 	long idleTimestamp;
 	long lastVirtualHostUpdate;

@@ -29,6 +29,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
@@ -37,8 +38,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class NetworkEngine {
-	private ConcurrentLinkedQueue<Selectable> registrations;
-	private ConcurrentLinkedQueue<Selectable> interestUpdates;
+	private Queue<Selectable> registrations;
+	private Queue<Selectable> interestUpdates;
 	private List<Selectable> selectables;
 	private AtomicReference<Thread> worker;
 

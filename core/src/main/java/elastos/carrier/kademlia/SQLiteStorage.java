@@ -134,7 +134,7 @@ public class SQLiteStorage implements DataStorage {
 	private static final String UPDATE_PEER_LAST_ANNOUNCE = "UPDATE peers " +
 			"SET timestamp=?, announced = ? WHERE id = ? and origin = ?";
 
-	private static ThreadLocal<Connection> cp;
+	private Connection connection;
 
 	private ScheduledFuture<?> expireFuture;
 
@@ -158,15 +158,12 @@ public class SQLiteStorage implements DataStorage {
 		// URL for memory db: https://www.sqlite.org/inmemorydb.html
 		ds.setUrl("jdbc:sqlite:" + (path != null ? path.toString() : "file:node?mode=memory&cache=shared"));
 
-		cp = ThreadLocal.withInitial(() -> {
-			try {
-				return ds.getConnection();
-			} catch (SQLException e) {
-				log.error("Failed to open the SQLite storage.", e);
-				//throw new IOError("Failed to open the SQLite storage", e);
-				return null;
-			}
-		});
+		try {
+			connection = ds.getConnection();
+		} catch (SQLException e) {
+			log.error("Failed to open the SQLite storage.", e);
+			throw new IOError("Failed to open the SQLite storage", e);
+		}
 
 		int userVersion = getUserVersion();
 
@@ -204,7 +201,7 @@ public class SQLiteStorage implements DataStorage {
 	}
 
 	private Connection getConnection() {
-		return cp.get();
+		return connection;
 	}
 
 	@Override

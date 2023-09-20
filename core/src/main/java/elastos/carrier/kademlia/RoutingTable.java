@@ -37,6 +37,7 @@ import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
@@ -77,7 +78,7 @@ public final class RoutingTable {
 	private volatile List<KBucket> buckets;
 
 	private AtomicInteger writeLock;
-	private ConcurrentLinkedQueue<Operation> pipeline;
+	private Queue<Operation> pipeline;
 
 	private long timeOfLastPingCheck;
 

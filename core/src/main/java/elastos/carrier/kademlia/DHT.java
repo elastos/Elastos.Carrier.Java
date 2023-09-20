@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -885,14 +886,7 @@ public class DHT {
 	}
 
 	public Task findPeer(Id id, int expected, LookupOption option, Consumer<Collection<PeerInfo>> completeHandler) {
-		// NOTICE: Concurrent threads adding to ArrayList
-		//
-		// There is no guaranteed behavior for what happens when add is
-		// called concurrently by two threads on ArrayList.
-		// However, it has been my experience that both objects have been
-		// added fine. Most of the thread safety issues related to lists
-		// deal with iteration while adding/removing.
-		List<PeerInfo> peers = new ArrayList<>();
+		Set<PeerInfo> peers = ConcurrentHashMap.newKeySet();
 		PeerLookup task = new PeerLookup(this, id);
 		task.setReultHandler((ps) -> {
 			peers.addAll(ps);

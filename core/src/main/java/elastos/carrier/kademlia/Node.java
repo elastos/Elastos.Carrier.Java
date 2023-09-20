@@ -36,10 +36,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -732,7 +733,8 @@ public class Node implements elastos.carrier.Node {
 		List<PeerInfo> local;
 		try {
 			local = getStorage().getPeer(id, expected);
-			if (expected > 0 && local.size() >= expected && lookupOption == LookupOption.ARBITRARY)
+			if (((expected <= 0 && local.size() > 0) || (expected > 0 && local.size() >= expected)) &&
+					lookupOption == LookupOption.ARBITRARY)
 				return CompletableFuture.completedFuture(local);
 		} catch (KadException e) {
 			return CompletableFuture.failedFuture(e);
@@ -741,14 +743,8 @@ public class Node implements elastos.carrier.Node {
 		TaskFuture<List<PeerInfo>> future = new TaskFuture<>();
 		AtomicInteger completion = new AtomicInteger(0);
 
-		// NOTICE: Concurrent threads adding to ArrayList
-		//
-		// There is no guaranteed behavior for what happens when add is
-		// called concurrently by two threads on ArrayList.
-		// However, it has been my experience that both objects have been
-		// added fine. Most of the thread safety issues related to lists
-		// deal with iteration while adding/removing.
-		HashSet<PeerInfo> results = new HashSet<>(local);
+		Set<PeerInfo> results = ConcurrentHashMap.newKeySet();
+		results.addAll(local);
 
 		// TODO: improve the value handler
 		Consumer<Collection<PeerInfo>> completeHandler = (ps) -> {

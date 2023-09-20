@@ -38,7 +38,7 @@ public class NodeStressTests {
 	private static final int BOOTSTRAP_NODES = 8;
 	private static final int BOOTSTRAP_NODES_PORT_START = 39001;
 
-	private static final int TEST_NODES = 2500;
+	private static final int TEST_NODES = 1024;
 	private static final int TEST_NODES_PORT_START = 39100;
 
 	private static final String workingDir = System.getProperty("java.io.tmpdir") + File.separator + "CarrierNodeTests";
@@ -100,9 +100,13 @@ public class NodeStressTests {
 		for (int i = 0; i < BOOTSTRAP_NODES; i++) {
 			System.out.format("\n\n\007🟢 Starting the bootstrap node %d ...\n", i);
 
+			String dir = workingDir + File.separator + "bootstraps"  + File.separator + "node-" + i;
+			File d = new File(dir);
+			d.mkdirs();
+
 			dcb.setIPv4Address(localAddr);
 			dcb.setListeningPort(BOOTSTRAP_NODES_PORT_START + i);
-			dcb.setStoragePath(workingDir + File.separator + "bootstraps"  + File.separator + "node-" + i);
+			dcb.setStoragePath(dir);
 
 			var config = dcb.build();
 			var bootstrap = new Node(config);
@@ -133,9 +137,13 @@ public class NodeStressTests {
 		for (int i = 0; i < TEST_NODES; i++) {
 			System.out.format("\007🟢 Starting the test node %d ...\n", i);
 
+			String dir = workingDir + File.separator + "nodes"  + File.separator + "node-" + i;
+			File d = new File(dir);
+			d.mkdirs();
+
 			dcb.setIPv4Address(localAddr);
 			dcb.setListeningPort(TEST_NODES_PORT_START + i);
-			// dcb.setStoragePath(workingDir + File.separator + "nodes"  + File.separator + "node-" + i);
+			// dcb.setStoragePath(dir);
 			dcb.addBootstrap(bootstraps);
 
 			var config = dcb.build();

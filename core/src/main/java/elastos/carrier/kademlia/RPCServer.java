@@ -37,10 +37,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Formatter;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -83,9 +84,9 @@ public class RPCServer implements Selectable {
 	private long lastReachableCheck;
 
 	private AtomicInteger callQueueGuard;
-	private ConcurrentMap<Integer, RPCCall> calls;
-	private ConcurrentLinkedQueue<RPCCall> callQueue;
-	private ConcurrentLinkedQueue<Message> pipeline;
+	private Map<Integer, RPCCall> calls;
+	private Queue<RPCCall> callQueue;
+	private Queue<Message> pipeline;
 
 	private Throttle inboundThrottle;
 	private Throttle outboundThrottle;
