@@ -1,5 +1,5 @@
 Package: carrier-super-node
-Version: 2.0.1-1
+Version: 2.0.5
 Section: java, net
 Priority: optional
 Architecture: all
