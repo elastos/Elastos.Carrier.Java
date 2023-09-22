@@ -16,6 +16,18 @@
 
   <name>Carrier Interactive Shell</name>
 
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>elastos.carrier</groupId>
+        <artifactId>carrier-dependencies</artifactId>
+        <version>${project.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
     <!-- Compile dependencies -->
     <dependency>
@@ -27,17 +39,14 @@
     <dependency>
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
-      <version>${picocli.version}</version>
     </dependency>
     <dependency>
       <groupId>info.picocli</groupId>
       <artifactId>picocli-shell-jline3</artifactId>
-      <version>${picocli.version}</version>
     </dependency>
     <dependency>
       <groupId>org.jline</groupId>
       <artifactId>jline</artifactId>
-      <version>${jline.version}</version>
     </dependency>
   </dependencies>
 
@@ -46,36 +55,16 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>${maven-jar-plugin.version}</version>
-        <configuration>
-          <outputDirectory>${project.build.directory}/lib</outputDirectory>
-        </configuration>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>${maven-dependency-plugin.version}</version>
-        <executions>
-          <execution>
-            <id>copy-dependencies</id>
-            <phase>package</phase>
-            <goals>
-              <goal>copy-dependencies</goal>
-            </goals>
-            <configuration>
-              <includeScope>runtime</includeScope>
-              <outputDirectory>${project.build.directory}/lib</outputDirectory>
-              <overWriteReleases>false</overWriteReleases>
-              <overWriteSnapshots>false</overWriteSnapshots>
-              <overWriteIfNewer>true</overWriteIfNewer>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
-        <version>${maven-resources-plugin.version}</version>
         <executions>
           <execution>
             <id>copy-resource-one</id>
