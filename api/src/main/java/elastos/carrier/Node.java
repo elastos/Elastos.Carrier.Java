@@ -44,6 +44,10 @@ public interface Node {
 
 	public void removeStatusListener(NodeStatusListener listener);
 
+	public void addConnectionStatusListener(ConnectionStatusListener listener);
+
+	public void removeConnectionStatusListener(ConnectionStatusListener listener);
+
 	public ScheduledExecutorService getScheduler();
 
 	public void setScheduler(ScheduledExecutorService scheduler);

@@ -63,8 +63,10 @@ import com.google.common.cache.RemovalNotification;
 
 import elastos.carrier.CarrierException;
 import elastos.carrier.Configuration;
+import elastos.carrier.ConnectionStatusListener;
 import elastos.carrier.Id;
 import elastos.carrier.LookupOption;
+import elastos.carrier.Network;
 import elastos.carrier.NodeInfo;
 import elastos.carrier.NodeStatus;
 import elastos.carrier.NodeStatusListener;
@@ -72,7 +74,6 @@ import elastos.carrier.PeerInfo;
 import elastos.carrier.Value;
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.Signature;
-import elastos.carrier.kademlia.DHT.Type;
 import elastos.carrier.kademlia.exceptions.CryptoError;
 import elastos.carrier.kademlia.exceptions.IOError;
 import elastos.carrier.kademlia.exceptions.KadException;
@@ -111,6 +112,8 @@ public class Node implements elastos.carrier.Node {
 
 	private NodeStatus status;
 	private List<NodeStatusListener> statusListeners;
+
+	private List<ConnectionStatusListener> connectionStatusListeners;
 
 	private static final Logger log = LoggerFactory.getLogger(Node.class);
 
@@ -152,7 +155,8 @@ public class Node implements elastos.carrier.Node {
 		log.info("Carrier Kademlia node: {}", id);
 
 		blacklist = new Blacklist();
-		statusListeners = new ArrayList<>(4);
+		statusListeners = new ArrayList<>();
+		connectionStatusListeners = new ArrayList<>();
 		tokenMan = new TokenManager();
 
 		setupCryptoBoxesCache();
@@ -280,12 +284,40 @@ public class Node implements elastos.carrier.Node {
 			NodeStatus old = this.status;
 			this.status = newStatus;
 			if (!statusListeners.isEmpty()) {
-				for (NodeStatusListener l : statusListeners)
+				for (NodeStatusListener l : statusListeners) {
 					l.statusChanged(newStatus, old);
+
+					switch (newStatus) {
+					case Running:
+						l.started();
+						break;
+
+					case Stopped:
+						l.stopped();
+						break;
+
+					default:
+						break;
+					}
+				}
 			}
 		} else {
-			log.warn("Set status failed, expected is {}, actual is {}", expected, status);
+			log.warn("Set node status failed, expected is {}, actual is {}", expected, status);
 		}
+	}
+
+	@Override
+	public void addConnectionStatusListener(ConnectionStatusListener listener) {
+		connectionStatusListeners.add(listener);
+	}
+
+	@Override
+	public void removeConnectionStatusListener(ConnectionStatusListener listener) {
+		connectionStatusListeners.remove(listener);
+	}
+
+	List<ConnectionStatusListener> getConnectionStatusListeners() {
+		return connectionStatusListeners;
 	}
 
 	@Override
@@ -370,7 +402,7 @@ public class Node implements elastos.carrier.Node {
 						!AddressUtils.isAnyUnicast(addr4.getAddress()))
 					throw new IOError("Invalid DHT/IPv4 address: " + config.IPv4Address());
 
-				dht4 = new DHT(DHT.Type.IPV4, this, addr4);
+				dht4 = new DHT(Network.IPv4, this, addr4);
 				if (persistent)
 					dht4.enablePersistence(new File(storagePath, "dht4.cache"));
 
@@ -385,7 +417,7 @@ public class Node implements elastos.carrier.Node {
 						!AddressUtils.isAnyUnicast(addr6.getAddress()))
 					throw new IOError("Invalid DHT/IPv6 address: " + config.IPv6Address());
 
-				dht6 = new DHT(DHT.Type.IPV6, this, addr6);
+				dht6 = new DHT(Network.IPv6, this, addr6);
 				if (persistent)
 					dht6.enablePersistence(new File(storagePath, "dht6.cache"));
 
@@ -524,8 +556,8 @@ public class Node implements elastos.carrier.Node {
 		return networkEngine;
 	}
 
-	DHT getDHT(Type type) {
-		return type == Type.IPV4 ? dht4 : dht6;
+	DHT getDHT(Network type) {
+		return type == Network.IPv4 ? dht4 : dht6;
 	}
 
 	public DataStorage getStorage() {

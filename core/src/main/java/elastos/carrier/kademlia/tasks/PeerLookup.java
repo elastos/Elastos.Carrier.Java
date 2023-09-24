@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import elastos.carrier.Id;
+import elastos.carrier.Network;
 import elastos.carrier.NodeInfo;
 import elastos.carrier.PeerInfo;
 import elastos.carrier.kademlia.Constants;
@@ -70,8 +71,8 @@ public class PeerLookup extends LookupTask {
 
 			FindPeerRequest q = new FindPeerRequest(getTarget());
 
-			q.setWant4(getDHT().getType() == DHT.Type.IPV4);
-			q.setWant6(getDHT().getType() == DHT.Type.IPV6);
+			q.setWant4(getDHT().getType() == Network.IPv4);
+			q.setWant6(getDHT().getType() == Network.IPv6);
 
 			sendCall(cn, q, (c) -> {
 				cn.setSent();

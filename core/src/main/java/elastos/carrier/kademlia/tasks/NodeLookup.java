@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import elastos.carrier.Id;
+import elastos.carrier.Network;
 import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.Constants;
 import elastos.carrier.kademlia.DHT;
@@ -97,8 +98,8 @@ public class NodeLookup extends LookupTask {
 
 			// send a findNode to the node
 			FindNodeRequest r = new FindNodeRequest(getTarget(), doesWantToken());
-			r.setWant4(getDHT().getType() == DHT.Type.IPV4);
-			r.setWant6(getDHT().getType() == DHT.Type.IPV6);
+			r.setWant4(getDHT().getType() == Network.IPv4);
+			r.setWant6(getDHT().getType() == Network.IPv6);
 
 			sendCall(cn, r, (c) -> {
 				cn.setSent();

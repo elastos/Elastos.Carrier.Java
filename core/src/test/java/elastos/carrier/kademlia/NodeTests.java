@@ -13,6 +13,7 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterAll;
@@ -21,9 +22,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
+import elastos.carrier.ConnectionStatusListener;
 import elastos.carrier.DefaultConfiguration;
 import elastos.carrier.Id;
-import elastos.carrier.NodeInfo;
+import elastos.carrier.Network;
 import elastos.carrier.PeerInfo;
 import elastos.carrier.Value;
 import elastos.carrier.crypto.CryptoBox.Nonce;
@@ -42,8 +44,9 @@ public class NodeTests {
 				.filter((a) -> AddressUtils.isAnyUnicast(a))
 				.distinct().findFirst().get();
 
+	private static Node bootstrap;
 	private static List<Node> testNodes = new ArrayList<>(TEST_NODES);
-	private static List<NodeInfo> bootstraps = new ArrayList<>(TEST_NODES);
+	//private static List<NodeInfo> bootstraps = new ArrayList<>(TEST_NODES);
 
 	private static DefaultConfiguration.Builder dcb = new DefaultConfiguration.Builder();
 
@@ -65,6 +68,18 @@ public class NodeTests {
 		dir.mkdirs();
 	}
 
+	private static void startBootstrap() throws Exception {
+		System.out.println("\n\n\007🟢 Starting the bootstrap node ...");
+
+		dcb.setIPv4Address(localAddr);
+		dcb.setListeningPort(TEST_NODES_PORT_START - 1);
+		dcb.setStoragePath(workingDir + File.separator + "nodes"  + File.separator + "node-bootstrap");
+
+		var config = dcb.build();
+		bootstrap = new Node(config);
+		bootstrap.start();
+	}
+
 	private static void startTestNodes() throws Exception {
 		for (int i = 0; i < TEST_NODES; i++) {
 			System.out.format("\n\n\007🟢 Starting the node %d ...\n", i);
@@ -72,21 +87,23 @@ public class NodeTests {
 			dcb.setIPv4Address(localAddr);
 			dcb.setListeningPort(TEST_NODES_PORT_START + i);
 			dcb.setStoragePath(workingDir + File.separator + "nodes"  + File.separator + "node-" + i);
+			dcb.addBootstrap(bootstrap.getNodeInfo4());
 
 			var config = dcb.build();
 			var node = new Node(config);
+			CompletableFuture<Void> future = new CompletableFuture<>();
+			node.addConnectionStatusListener(new ConnectionStatusListener() {
+				@Override
+				public void profound(Network network) {
+					future.complete(null);
+				}
+			});
 			node.start();
-
 			testNodes.add(node);
-			bootstraps.add(node.getNodeInfo4());
-		}
 
-		int i = 0;
-		for (var node : testNodes) {
-			System.out.printf("\n\n\007⌛ Bootstraping the node %d - %s ...\n", i, node.getId());
-			node.bootstrap(bootstraps);
-			TimeUnit.SECONDS.sleep(20);
-			System.out.printf("\007🟢 The node %d - %s is ready ...\n", i++, node.getId());
+			System.out.printf("\n\n\007⌛ Wainting for the test node %d - %s ready ...\n", i, node.getId());
+			future.get();
+			System.out.printf("\007🟢 The node %d - %s is ready ...\n", i, node.getId());
 		}
 
 		System.out.println("\n\n\007⌛ Wainting for all the nodes ready ...");
@@ -116,6 +133,7 @@ public class NodeTests {
 	@Timeout(value = TEST_NODES + 1, unit = TimeUnit.MINUTES)
 	static void setup() throws Exception {
 		prepareWorkingDirectory();
+		startBootstrap();
 		startTestNodes();
 
 		System.out.println("\n\n\007🟢 All the nodes are ready!!! starting to run the test cases");

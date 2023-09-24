@@ -23,5 +23,12 @@
 package elastos.carrier;
 
 public interface NodeStatusListener {
-	public void statusChanged(NodeStatus newStatus, NodeStatus oldStatus);
+	public default void statusChanged(NodeStatus newStatus, NodeStatus oldStatus) {
+	}
+
+	public default void started() {
+	}
+
+	public default void stopped() {
+	}
 }

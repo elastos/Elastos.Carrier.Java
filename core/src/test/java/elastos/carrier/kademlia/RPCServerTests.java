@@ -46,8 +46,8 @@ import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import elastos.carrier.DefaultConfiguration;
+import elastos.carrier.Network;
 import elastos.carrier.NodeInfo;
-import elastos.carrier.kademlia.DHT.Type;
 import elastos.carrier.kademlia.exceptions.KadException;
 import elastos.carrier.kademlia.messages.ErrorMessage;
 import elastos.carrier.kademlia.messages.Message;
@@ -91,7 +91,7 @@ public class RPCServerTests {
 		AtomicInteger manualTimeouts = new AtomicInteger();
 
 		public TestDHT() {
-			super(Type.IPV4, null, null);
+			super(Network.IPv4, null, null);
 		}
 
 		public void setNode(TestNode node) {
@@ -104,8 +104,8 @@ public class RPCServerTests {
 		}
 
 		@Override
-		public Type getType() {
-			return Type.IPV4;
+		public Network getType() {
+			return Network.IPv4;
 		}
 
 		@Override
@@ -164,12 +164,12 @@ public class RPCServerTests {
 		}
 
 		@Override
-		public DHT getDHT(Type type) {
-			return type == Type.IPV4 ? dht : null;
+		public DHT getDHT(Network type) {
+			return type == Network.IPv4 ? dht : null;
 		}
 
-		public RPCServer getRPCServer(Type type) {
-			return type == Type.IPV4 ? rpcServer : null;
+		public RPCServer getRPCServer(Network type) {
+			return type == Network.IPv4 ? rpcServer : null;
 		}
 
 		@Override

@@ -53,6 +53,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import elastos.carrier.Id;
+import elastos.carrier.Network;
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.kademlia.NetworkEngine.Selectable;
 import elastos.carrier.kademlia.exceptions.CryptoError;
@@ -594,7 +595,7 @@ public class RPCServer implements Selectable {
 			log.warn("Transaction id matched, socket address did not, ignoring message, request: {} -> response: {}, version: {}",
 					call.getRequest().getRemoteAddress(), msg.getOrigin(), msg.getReadableVersion());
 
-			if(msg.getType() == Message.Type.RESPONSE && dht.getType() == DHT.Type.IPV6) {
+			if(msg.getType() == Message.Type.RESPONSE && dht.getType() == Network.IPv6) {
 				// this is more likely due to incorrect binding implementation in ipv6. notify peers about that
 				// don't bother with ipv4, there are too many complications
 				Message err = new ErrorMessage(msg.getMethod(), msg.getTxid(), ErrorCode.ProtocolError.value(),

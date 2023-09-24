@@ -24,18 +24,12 @@ package elastos.carrier.kademlia;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.Inet4Address;
-import java.net.Inet6Address;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.ProtocolFamily;
-import java.net.StandardProtocolFamily;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -55,8 +49,11 @@ import org.slf4j.LoggerFactory;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
+import elastos.carrier.ConnectionStatus;
+import elastos.carrier.ConnectionStatusListener;
 import elastos.carrier.Id;
 import elastos.carrier.LookupOption;
+import elastos.carrier.Network;
 import elastos.carrier.NodeInfo;
 import elastos.carrier.PeerInfo;
 import elastos.carrier.Value;
@@ -89,19 +86,22 @@ import elastos.carrier.kademlia.tasks.ValueLookup;
 import elastos.carrier.utils.AddressUtils;
 
 public class DHT {
-	private Type type;
+	private Network type;
 
 	private Node node;
 	private InetSocketAddress addr;
 	private RPCServer server;
 
+	private ConnectionStatus status;
+
 	private boolean running;
-	private List<ScheduledFuture<?>> scheduledActions = new ArrayList<>();
+	private List<ScheduledFuture<?>> scheduledActions;
 
 	private File persistFile;
 
 	private Set<NodeInfo> bootstrapNodes;
 	private AtomicBoolean bootstrapping;
+	private BootstrapStage bootstrapStage;
 	private long lastBootstrap;
 
 	private RoutingTable routingTable;
@@ -112,66 +112,71 @@ public class DHT {
 
 	private static final Logger log = LoggerFactory.getLogger(DHT.class);
 
-	public static enum Type {
-		IPV4("IPv4", StandardProtocolFamily.INET, Inet4Address.class, 20 + 8, 1450),
-		IPV6("IPv6", StandardProtocolFamily.INET6, Inet6Address.class, 40 + 8, 1200);
+	static enum CompletionStatus {
+		Pending,
+		Canceled,
+		Completed
+	}
 
-		private final ProtocolFamily protocolFamily;
-		private final Class<? extends InetAddress> preferredAddressType;
-		private final int protocolHeaderSize;
-		private final int maxPacketSize;
-		private final String shortName;
+	class BootstrapStage {
+		private CompletionStatus fillHomeBucket = CompletionStatus.Pending;
+		private CompletionStatus fillAllBuckets = CompletionStatus.Pending;
+		private CompletionStatus pingCachedRoutingTable = CompletionStatus.Pending;
 
-		private Type(String shortName, ProtocolFamily family, Class<? extends InetAddress> addresstype, int header,
-				int maxSize) {
-			this.shortName = shortName;
-			this.protocolFamily = family;
-			this.preferredAddressType = addresstype;
-			this.protocolHeaderSize = header;
-			this.maxPacketSize = maxSize;
+		public void fillHomeBucket(CompletionStatus status) {
+			fillHomeBucket = status;
+			updateConnectionStatus();
 		}
 
-		public boolean canUseSocketAddress(InetSocketAddress addr) {
-			return preferredAddressType.isInstance(addr.getAddress());
+		public void fillAllBuckets(CompletionStatus status) {
+			fillAllBuckets = status;
+			updateConnectionStatus();
 		}
 
-		public boolean canUseAddress(InetAddress addr) {
-			return preferredAddressType.isInstance(addr);
+		public void pingCachedRoutingTable(CompletionStatus status) {
+			pingCachedRoutingTable = status;
+			updateConnectionStatus();
 		}
 
-		public static Type of(InetSocketAddress addr) {
-			return (addr.getAddress() instanceof Inet4Address) ? IPV4 : IPV6;
+		public void clearBootstrapStatus() {
+			fillHomeBucket = CompletionStatus.Pending;
+			fillAllBuckets = CompletionStatus.Pending;
 		}
 
-		ProtocolFamily protocolFamily() {
-			return protocolFamily;
+		private boolean completed(CompletionStatus status) {
+			return status.ordinal() > CompletionStatus.Pending.ordinal();
 		}
 
-		public int protocolHeaderSize() {
-			return protocolHeaderSize;
-		}
+		private synchronized void updateConnectionStatus() {
+			log.debug("BootstrapStage {}: [{}, {}, {}]", getNode().getId(), fillHomeBucket, fillAllBuckets, pingCachedRoutingTable);
 
-		public int maxPacketSize() {
-			return maxPacketSize;
-		}
+			if (completed(fillAllBuckets) && completed(pingCachedRoutingTable)) {
+				if (routingTable.getNumBucketEntries() > 0)
+					setStatus(ConnectionStatus.Connected, ConnectionStatus.Profound);
 
-		@Override
-		public String toString() {
-			return shortName;
+				return;
+			}
+
+			if (completed(fillHomeBucket) || completed(pingCachedRoutingTable)) {
+				if (routingTable.getNumBucketEntries() > 0)
+					setStatus(ConnectionStatus.Connecting, ConnectionStatus.Connected);
+
+				return;
+			}
 		}
 	}
 
-	/**
-	 * @param srv
-	 */
-	public DHT(Type type, Node node, InetSocketAddress addr) {
+	public DHT(Network type, Node node, InetSocketAddress addr) {
 		this.type = type;
 		this.node = node;
 		this.addr = addr;
 		this.scheduledActions = new ArrayList<>();
 		this.routingTable = new RoutingTable(this);
-		this.bootstrapNodes = new HashSet<>();
+		this.bootstrapNodes = ConcurrentHashMap.newKeySet();
 		this.bootstrapping = new AtomicBoolean(false);
+
+		this.status = ConnectionStatus.Disconnected;
+		this.bootstrapStage = new BootstrapStage();
 
 		this.knownNodes = CacheBuilder.newBuilder()
 				.initialCapacity(256)
@@ -182,7 +187,7 @@ public class DHT {
 		this.taskMan = new TaskManager(this);
 	}
 
-	public Type getType() {
+	public Network getType() {
 		return type;
 	}
 
@@ -192,6 +197,39 @@ public class DHT {
 
 	public Node getNode() {
 		return node;
+	}
+
+	private void setStatus(ConnectionStatus expected, ConnectionStatus newStatus) {
+		if (this.status.equals(expected)) {
+			ConnectionStatus old = this.status;
+			this.status = newStatus;
+
+			List<ConnectionStatusListener> listeners = node.getConnectionStatusListeners();
+			if (!listeners.isEmpty()) {
+				for (ConnectionStatusListener l : listeners) {
+					l.statusChanged(type, newStatus, old);
+
+					switch (newStatus) {
+					case Connected:
+						l.connected(type);
+						break;
+
+					case Profound:
+						l.profound(type);
+						break;
+
+					case Disconnected:
+						l.disconnected(type);
+						break;
+
+					default:
+						break;
+					}
+				}
+			}
+		} else {
+			log.warn("Set connection status failed, expected is {}, actual is {}", expected, status);
+		}
 	}
 
 	public NodeInfo getNode(Id nodeId) {
@@ -226,23 +264,31 @@ public class DHT {
 		return bootstrapNodes.stream().map(NodeInfo::getId).collect(Collectors.toUnmodifiableSet());
 	}
 
-	public void bootstrap() {
-		if (!isRunning() || bootstrapNodes.isEmpty() || System.currentTimeMillis() - lastBootstrap < Constants.BOOTSTRAP_MIN_INTERVAL)
+	protected void bootstrap() {
+		if (!isRunning() || System.currentTimeMillis() - lastBootstrap < Constants.BOOTSTRAP_MIN_INTERVAL)
+			return;
+
+
+		Set<NodeInfo> bns = !bootstrapNodes.isEmpty() ?
+				bootstrapNodes : routingTable.getRandomEntries(8);
+		if (bns.isEmpty())
 			return;
 
 		if (!bootstrapping.compareAndSet(false, true))
 			return;
 
+		bootstrapStage.clearBootstrapStatus();
+
 		log.info("DHT {} bootstraping...", type);
 
-		List<CompletableFuture<List<NodeInfo>>> futures = new ArrayList<>(bootstrapNodes.size());
+		List<CompletableFuture<List<NodeInfo>>> futures = new ArrayList<>(bns.size());
 
-		for (NodeInfo node : bootstrapNodes) {
+		for (NodeInfo node : bns) {
 			CompletableFuture<List<NodeInfo>> future = new CompletableFuture<>();
 
 			FindNodeRequest request = new FindNodeRequest(Id.random());
-			request.setWant4(type == Type.IPV4);
-			request.setWant6(type == Type.IPV6);
+			request.setWant4(type == Network.IPv4);
+			request.setWant6(type == Network.IPv6);
 
 			RPCCall call = new RPCCall(node, request).addListener(new RPCCallListener() {
 				@Override
@@ -319,8 +365,14 @@ public class DHT {
 			if (!isRunning())
 				return;
 
+			bootstrapStage.fillHomeBucket(CompletionStatus.Completed);
+
 			if (routingTable.getNumBucketEntries() > Constants.MAX_ENTRIES_PER_BUCKET + 2)
-				routingTable.fillBuckets();
+				routingTable.fillBuckets().thenAccept((v) -> {
+					bootstrapStage.fillAllBuckets(CompletionStatus.Completed);
+				});
+			else
+				bootstrapStage.fillAllBuckets(CompletionStatus.Canceled);
 		};
 
 
@@ -332,7 +384,7 @@ public class DHT {
 		getTaskManager().add(task, true);
 	}
 
-	private void update () {
+	private void update() {
 		if (!isRunning())
 			return;
 
@@ -379,6 +431,7 @@ public class DHT {
 		server.start();
 
 		running = true;
+		setStatus(ConnectionStatus.Disconnected, ConnectionStatus.Connecting);
 
 		scheduledActions.add(getNode().getScheduler().scheduleWithFixedDelay(() -> {
 			// tasks maintenance that should run all the time, before the first queries
@@ -386,16 +439,20 @@ public class DHT {
 		}, 5000, Constants.DHT_UPDATE_INTERVAL, TimeUnit.MILLISECONDS));
 
 		// Ping check if the routing table loaded from cache
-		for (KBucket bucket : routingTable.buckets()) {
-			if (bucket.size() == 0)
-				continue;
+		if (routingTable.getNumBucketEntries() > 0)
+			routingTable.pingBuckets().thenAccept((v) -> {
+				bootstrapStage.pingCachedRoutingTable(CompletionStatus.Completed);
+			});
+		else
+			bootstrapStage.pingCachedRoutingTable(CompletionStatus.Canceled);
 
-			Task task = new PingRefreshTask(this, bucket, EnumSet.of(PingRefreshTask.Options.removeOnTimeout));
-			task.setName("Bootstrap cached table ping for " + bucket.prefix());
-			taskMan.add(task);
+		if (!this.bootstrapNodes.isEmpty()) {
+			bootstrap();
+		} else {
+			bootstrapStage.fillHomeBucket(CompletionStatus.Canceled);
+			bootstrapStage.fillAllBuckets(CompletionStatus.Canceled);
 		}
 
-		bootstrap();
 
 		// fix the first time to persist the routing table: 2 min
 		lastSave = System.currentTimeMillis() - Constants.ROUTING_TABLE_PERSIST_INTERVAL + (120 * 1000);
@@ -789,7 +846,7 @@ public class DHT {
 
 	private void populateClosestNodes(LookupResponse r, Id target, int v4, int v6) {
 		if (v4 > 0) {
-			DHT dht4 = type == Type.IPV4 ? this : getNode().getDHT(Type.IPV4);
+			DHT dht4 = type == Network.IPv4 ? this : getNode().getDHT(Network.IPv4);
 			if (dht4 != null) {
 				KClosestNodes kns = new KClosestNodes(dht4, target, v4);
 				kns.fill(this == dht4);
@@ -798,7 +855,7 @@ public class DHT {
 		}
 
 		if (v6 > 0) {
-			DHT dht6 = type == Type.IPV6 ? this : getNode().getDHT(Type.IPV6);
+			DHT dht6 = type == Network.IPv6 ? this : getNode().getDHT(Network.IPv6);
 			if (dht6 != null) {
 				KClosestNodes kns = new KClosestNodes(dht6, target, v6);
 				kns.fill(this == dht6);

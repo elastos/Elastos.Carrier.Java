@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import elastos.carrier.Id;
+import elastos.carrier.Network;
 import elastos.carrier.NodeInfo;
 import elastos.carrier.Value;
 import elastos.carrier.kademlia.Constants;
@@ -73,8 +74,8 @@ public class ValueLookup extends LookupTask {
 
 			FindValueRequest r = new FindValueRequest(getTarget());
 
-			r.setWant4(getDHT().getType() == DHT.Type.IPV4);
-			r.setWant6(getDHT().getType() == DHT.Type.IPV6);
+			r.setWant4(getDHT().getType() == Network.IPv4);
+			r.setWant6(getDHT().getType() == Network.IPv6);
 			if (expectedSequence != -1)
 				r.setSequenceNumber(expectedSequence);
 

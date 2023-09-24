@@ -34,8 +34,8 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.dataformat.cbor.CBORParser;
 
 import elastos.carrier.Id;
+import elastos.carrier.Network;
 import elastos.carrier.NodeInfo;
-import elastos.carrier.kademlia.DHT;
 
 public abstract class LookupResponse extends Message {
 	private List<NodeInfo> nodes4;
@@ -63,8 +63,8 @@ public abstract class LookupResponse extends Message {
 		return nodes6 != null ? Collections.unmodifiableList(nodes6) : Collections.emptyList();
 	}
 
-	public List<NodeInfo> getNodes(DHT.Type type) {
-		if (type == DHT.Type.IPV4)
+	public List<NodeInfo> getNodes(Network type) {
+		if (type == Network.IPv4)
 			return getNodes4();
 		else
 			return getNodes6();

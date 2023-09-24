@@ -34,12 +34,17 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -52,6 +57,7 @@ import com.fasterxml.jackson.dataformat.cbor.CBORGenerator;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 
 import elastos.carrier.Id;
+import elastos.carrier.NodeInfo;
 import elastos.carrier.Prefix;
 import elastos.carrier.kademlia.tasks.PingRefreshTask;
 import elastos.carrier.kademlia.tasks.Task;
@@ -212,6 +218,50 @@ public final class RoutingTable {
 
 		int offset = ThreadLocals.random().nextInt(bucketsRef.size());
 		return bucketsRef.get(offset).random();
+	}
+
+	public Set<NodeInfo> getRandomEntries(int expect) {
+		List<KBucket> bucketsRef = getBuckets();
+
+		List<List<KBucketEntry>> bucketsCopy = new ArrayList<>(bucketsRef.size());
+		int total = 0;
+		for (KBucket bucket : bucketsRef) {
+			List<KBucketEntry> entries = bucket.entries();
+			bucketsCopy.add(entries);
+			total += entries.size();
+		}
+
+		if (total <= expect) {
+			Set<NodeInfo> result = new HashSet<>();
+			bucketsCopy.forEach(result::addAll);
+			return result;
+		}
+
+		AtomicInteger bucketIndex = new AtomicInteger(0);
+		AtomicInteger flatIndex = new AtomicInteger(0);
+		final int totalEntries = total;
+
+		ThreadLocalRandom rnd = ThreadLocals.random();
+		return IntStream.generate(() -> rnd.nextInt(totalEntries))
+				.distinct()
+				.limit(expect)
+				.sorted()
+				.mapToObj((i) -> {
+					while (bucketIndex.get() < bucketsCopy.size()) {
+						int pos = i - flatIndex.get();
+						List<KBucketEntry> b = bucketsCopy.get(bucketIndex.get());
+						int s = b.size();
+						if (pos < s) {
+							return b.get(pos);
+						} else {
+							bucketIndex.incrementAndGet();
+							flatIndex.addAndGet(s);
+						}
+					}
+
+					return null;
+				}).filter(e -> e != null)
+				.collect(Collectors.toSet());
 	}
 
 	private boolean isHomeBucket(Prefix p) {
@@ -464,14 +514,39 @@ public final class RoutingTable {
 		}
 	}
 
+	CompletableFuture<Void> pingBuckets() {
+		List<KBucket> bucketsRef = getBuckets();
+		if (bucketsRef.isEmpty())
+			return CompletableFuture.completedFuture(null);
+
+		List<CompletableFuture<Void>> futures = new ArrayList<>(bucketsRef.size());
+		for (KBucket bucket : bucketsRef) {
+			if (bucket.size() == 0)
+				continue;
+
+			CompletableFuture<Void> future = new CompletableFuture<>();
+			Task task = new PingRefreshTask(getDHT(), bucket, EnumSet.of(PingRefreshTask.Options.removeOnTimeout));
+			task.addListener((v) -> future.complete(null));
+			task.setName("Bootstrap cached table ping for " + bucket.prefix());
+			getDHT().getTaskManager().add(task);
+			futures.add(future);
+		}
+
+		return futures.isEmpty() ? CompletableFuture.completedFuture(null) :
+			CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+	}
+
 	/**
 	 * Check if a buckets needs to be refreshed, and refresh if necesarry
 	 *
 	 * @param dh_table
 	 */
-	void fillBuckets() {
+	CompletableFuture<Void> fillBuckets() {
 		List<KBucket> bucketsRef = getBuckets();
+		if (bucketsRef.isEmpty())
+			return CompletableFuture.completedFuture(null);
 
+		List<CompletableFuture<Void>> futures = new ArrayList<>(bucketsRef.size());
 		for (int i = 0, n = bucketsRef.size(); i < n; i++) {
 			KBucket bucket = bucketsRef.get(i);
 
@@ -480,11 +555,19 @@ public final class RoutingTable {
 			// just try to fill partially populated buckets
 			// not empty ones, they may arise as artifacts from deep splitting
 			if (num < Constants.MAX_ENTRIES_PER_BUCKET) {
+				CompletableFuture<Void> future = new CompletableFuture<>();
+
 				bucket.updateRefreshTimer();
-				Task task = getDHT().findNode(bucket.prefix().createRandomId(), null);
+				Task task = getDHT().findNode(bucket.prefix().createRandomId(), (v) -> {
+					future.complete(null);
+				});
 				task.setName("Filling Bucket - " + bucket.prefix());
+				futures.add(future);
 			}
 		}
+
+		return futures.isEmpty() ? CompletableFuture.completedFuture(null) :
+			CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
 	}
 
 	/**

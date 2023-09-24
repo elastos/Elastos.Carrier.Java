@@ -13,6 +13,7 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -24,8 +25,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
+import elastos.carrier.ConnectionStatusListener;
 import elastos.carrier.DefaultConfiguration;
 import elastos.carrier.Id;
+import elastos.carrier.Network;
 import elastos.carrier.NodeInfo;
 import elastos.carrier.PeerInfo;
 import elastos.carrier.Value;
@@ -149,11 +152,18 @@ public class NodeStressTests {
 			var config = dcb.build();
 			var node = new Node(config);
 			node.setScheduler(testScheduler);
+			CompletableFuture<Void> future = new CompletableFuture<>();
+			node.addConnectionStatusListener(new ConnectionStatusListener() {
+				@Override
+				public void profound(Network network) {
+					future.complete(null);
+				}
+			});
 			node.start();
 
 			testNodes.add(node);
 			System.out.printf("\007⌛ Wainting for the test node %d - %s ready ...\n", i, node.getId());
-			TimeUnit.SECONDS.sleep(20);
+			future.get();
 
 			System.gc();
 			System.runFinalization();

@@ -49,8 +49,9 @@ public class Launcher {
 		try {
 			shutdown = new Object();
 			node = new Node(config);
-			node.addStatusListener((o, n) -> {
-				if (n == NodeStatus.Stopped) {
+			node.addStatusListener(new NodeStatusListener() {
+				@Override
+				public void stopped() {
 					synchronized(shutdown) {
 						shutdown.notifyAll();
 					}

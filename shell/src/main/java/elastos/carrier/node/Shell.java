@@ -47,7 +47,10 @@ import org.jline.terminal.TerminalBuilder;
 import org.jline.widget.TailTipWidgets;
 
 import elastos.carrier.Configuration;
+import elastos.carrier.ConnectionStatusListener;
 import elastos.carrier.DefaultConfiguration;
+import elastos.carrier.Network;
+import elastos.carrier.NodeStatusListener;
 import elastos.carrier.kademlia.Node;
 import elastos.carrier.kademlia.exceptions.KadException;
 import elastos.carrier.utils.ApplicationLock;
@@ -168,6 +171,31 @@ public class Shell implements Callable<Integer> {
 
 	private void initCarrierNode() throws KadException {
 		carrierNode = new Node(config);
+
+		carrierNode.addStatusListener(new NodeStatusListener() {
+			@Override
+			public void started() {
+				System.out.println("Carrier node started");
+			}
+
+			@Override
+			public void stopped() {
+				System.out.println("Carrier node stopped");
+			}
+		});
+
+		carrierNode.addConnectionStatusListener(new ConnectionStatusListener() {
+			@Override
+			public void connected(Network network) {
+				System.out.format("DHT/%s connected\n", network);
+			}
+
+			@Override
+			public void profound(Network network) {
+				System.out.format("DHT/%s profound connected\n", network);
+			}
+		});
+
 		carrierNode.start();
 	}
 

@@ -40,6 +40,7 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import elastos.carrier.Configuration;
 import elastos.carrier.Id;
+import elastos.carrier.Network;
 import elastos.carrier.NodeInfo;
 import elastos.carrier.kademlia.messages.FindNodeRequest;
 import elastos.carrier.kademlia.messages.Message;
@@ -130,7 +131,7 @@ public class SybilTests {
 				}
 			});
 
-			sybil.getDHT(DHT.Type.IPV4).getServer().sendCall(call);
+			sybil.getDHT(Network.IPv4).getServer().sendCall(call);
 
 			synchronized(result) {
 				result.wait();
@@ -203,7 +204,7 @@ public class SybilTests {
 				}
 			});
 
-			sybil.getDHT(DHT.Type.IPV4).getServer().sendCall(call);
+			sybil.getDHT(Network.IPv4).getServer().sendCall(call);
 
 			synchronized(result) {
 				result.wait();
