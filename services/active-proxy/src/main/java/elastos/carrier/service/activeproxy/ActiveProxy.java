@@ -57,6 +57,8 @@ public class ActiveProxy implements CarrierService {
 		this.context = context;
 
 		VertxOptions options = new VertxOptions();
+		options.setPreferNativeTransport(true);
+
 		// options.setBlockedThreadCheckIntervalUnit(TimeUnit.SECONDS);
 		// options.setBlockedThreadCheckInterval(300);
 		this.vertx = Vertx.vertx(options);

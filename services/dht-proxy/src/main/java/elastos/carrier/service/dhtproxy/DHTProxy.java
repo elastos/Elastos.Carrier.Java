@@ -25,6 +25,7 @@ package elastos.carrier.service.dhtproxy;
 import java.util.concurrent.CompletableFuture;
 
 import io.vertx.core.Vertx;
+import io.vertx.core.VertxOptions;
 
 import elastos.carrier.Node;
 import elastos.carrier.service.CarrierService;
@@ -61,7 +62,13 @@ public class DHTProxy implements CarrierService {
 		server = new ProxyServer(node, port);
 
 		this.context = context;
-		this.vertx = Vertx.vertx();
+
+		VertxOptions options = new VertxOptions();
+		options.setPreferNativeTransport(true);
+
+		// options.setBlockedThreadCheckIntervalUnit(TimeUnit.SECONDS);
+		// options.setBlockedThreadCheckInterval(300);
+		this.vertx = Vertx.vertx(options);
 	}
 
 	@Override

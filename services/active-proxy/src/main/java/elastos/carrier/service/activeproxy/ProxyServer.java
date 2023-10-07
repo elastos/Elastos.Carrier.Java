@@ -210,6 +210,8 @@ public class ProxyServer extends AbstractVerticle {
 						if (peer != null)
 							announceService();
 						log.info("ActiveProxy Server started, listening on {}", localAddress);
+						log.info("ActiveProxy transport: {}", vertx.isNativeTransportEnabled() ?
+								"NATIVE" : "NIO");
 					} else {
 						log.error("ActiveProxy Server listen failed on {} - {}", localAddress, asyncResult.cause());
 						server.close();
