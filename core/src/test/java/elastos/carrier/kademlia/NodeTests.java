@@ -87,7 +87,7 @@ public class NodeTests {
 			dcb.setIPv4Address(localAddr);
 			dcb.setListeningPort(TEST_NODES_PORT_START + i);
 			dcb.setStoragePath(workingDir + File.separator + "nodes"  + File.separator + "node-" + i);
-			dcb.addBootstrap(bootstrap.getNodeInfo4());
+			dcb.addBootstrap(bootstrap.getNodeInfo().getV4());
 
 			var config = dcb.build();
 			var node = new Node(config);
@@ -160,7 +160,7 @@ public class NodeTests {
 
 				assertNotNull(nis);
 				assertFalse(nis.isEmpty());
-				assertEquals(target.getNodeInfo4(), nis.get(0));
+				assertEquals(target.getNodeInfo().getV4(), nis.getV4());
 			}
 		}
 	}

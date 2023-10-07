@@ -30,9 +30,7 @@ import java.util.concurrent.ScheduledExecutorService;
 public interface Node {
 	public Id getId();
 
-	public NodeInfo getNodeInfo4();
-
-	public NodeInfo getNodeInfo6();
+	public Result<NodeInfo> getNodeInfo();
 
 	public boolean isLocalId(Id id);
 
@@ -72,11 +70,11 @@ public interface Node {
 
 	public boolean verify(byte[] data, byte[] signature) throws CarrierException;
 
-	public default CompletableFuture<List<NodeInfo>> findNode(Id id) {
+	public default CompletableFuture<Result<NodeInfo>> findNode(Id id) {
 		return findNode(id, null);
 	}
 
-	public CompletableFuture<List<NodeInfo>> findNode(Id id, LookupOption option);
+	public CompletableFuture<Result<NodeInfo>> findNode(Id id, LookupOption option);
 
 	public default CompletableFuture<Value> findValue(Id id) {
 		return findValue(id, null);

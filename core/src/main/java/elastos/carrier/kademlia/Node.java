@@ -71,6 +71,7 @@ import elastos.carrier.NodeInfo;
 import elastos.carrier.NodeStatus;
 import elastos.carrier.NodeStatusListener;
 import elastos.carrier.PeerInfo;
+import elastos.carrier.Result;
 import elastos.carrier.Value;
 import elastos.carrier.crypto.CryptoBox;
 import elastos.carrier.crypto.Signature;
@@ -245,13 +246,10 @@ public class Node implements elastos.carrier.Node {
 	}
 
 	@Override
-	public NodeInfo getNodeInfo4() {
-		return dht4 != null ? new NodeInfo(id, dht4.getAddress()) : null;
-	}
-
-	@Override
-	public NodeInfo getNodeInfo6() {
-		return dht6 != null ? new NodeInfo(id, dht6.getAddress()) : null;
+	public Result<NodeInfo> getNodeInfo() {
+		NodeInfo n4 = dht4 != null ? new NodeInfo(id, dht4.getAddress()) : null;
+		NodeInfo n6 = dht6 != null ? new NodeInfo(id, dht6.getAddress()) : null;
+		return new Result<>(n4, n6);
 	}
 
 	@Override
@@ -603,40 +601,30 @@ public class Node implements elastos.carrier.Node {
 	}
 
 	@Override
-	public CompletableFuture<List<NodeInfo>> findNode(Id id, LookupOption option) {
+	public CompletableFuture<Result<NodeInfo>> findNode(Id id, LookupOption option) {
 		checkState(isRunning(), "Node not running");
 		checkArgument(id != null, "Invalid node id");
 
 		LookupOption lookupOption = option == null ? defaultLookupOption : option;
 
-		// 0: node4; 1: node6
-		List<NodeInfo> results = new ArrayList<>(2);
+		TemporalResult<NodeInfo> result = new TemporalResult<>(
+				dht4 != null ? dht4.getNode(id) : null,
+				dht6 != null ? dht6.getNode(id) : null);
 
-		results.add(dht4 != null ? dht4.getNode(id) : null);
-		results.add(dht6 != null ? dht6.getNode(id) : null);
+		if (lookupOption == LookupOption.ARBITRARY && result.hasValue())
+			return CompletableFuture.completedFuture(result);
 
-		if (lookupOption == LookupOption.ARBITRARY &&
-				(results.get(0) != null || results.get(1) != null)) {
-			results.removeIf((ni) -> ni == null);
-			return CompletableFuture.completedFuture(results);
-		}
-
-		TaskFuture<List<NodeInfo>> future = new TaskFuture<>();
+		TaskFuture<Result<NodeInfo>> future = new TaskFuture<>();
 		AtomicInteger completion = new AtomicInteger(0);
 
 		Consumer<NodeInfo> completeHandler = (n) -> {
 			int c = completion.incrementAndGet();
 
-			if (n != null) {
-				int index = n.getAddress().getAddress() instanceof Inet4Address ? 0 : 1;
-				results.set(index, n);
-			}
+			if (n != null)
+				result.setValue(Network.of(n.getAddress()), n);
 
-
-			if ((lookupOption == LookupOption.OPTIMISTIC && n != null) || c >= numDHTs) {
-				results.removeIf((ni) -> ni == null);
-				future.complete(results);
-			}
+			if ((lookupOption == LookupOption.OPTIMISTIC && n != null) || c >= numDHTs)
+				future.complete(result);
 		};
 
 		Task t4 = null, t6 = null;
@@ -778,13 +766,13 @@ public class Node implements elastos.carrier.Node {
 		Set<PeerInfo> results = ConcurrentHashMap.newKeySet();
 		results.addAll(local);
 
-		// TODO: improve the value handler
 		Consumer<Collection<PeerInfo>> completeHandler = (ps) -> {
 			int c = completion.incrementAndGet();
 
 			results.addAll(ps);
 
 			try {
+				// TODO: CHECKME! overwrite the local existing directly?!
 				getStorage().putPeer(ps);
 			} catch (KadException ignore) {
 				log.error("Save peer " + id + " failed", ignore);

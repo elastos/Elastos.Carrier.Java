@@ -117,7 +117,7 @@ public class NodeStressTests {
 			bootstrap.start();
 
 			bootstrapNodes.add(bootstrap);
-			bootstraps.add(bootstrap.getNodeInfo4());
+			bootstraps.add(bootstrap.getNodeInfo().getV4());
 		}
 
 		int i = 0;
@@ -237,7 +237,7 @@ public class NodeStressTests {
 
 				assertNotNull(nis);
 				assertFalse(nis.isEmpty());
-				assertEquals(target.getNodeInfo4(), nis.get(0));
+				assertEquals(target.getNodeInfo().getV4(), nis.getV4());
 			}
 		}
 	}

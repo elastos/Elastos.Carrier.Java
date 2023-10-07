@@ -22,13 +22,13 @@
 
 package elastos.carrier.node;
 
-import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
 
 import elastos.carrier.Id;
 import elastos.carrier.LookupOption;
+import elastos.carrier.Network;
 import elastos.carrier.NodeInfo;
+import elastos.carrier.Result;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -60,11 +60,15 @@ public class FindNodeCommand implements Callable<Integer> {
 			return -1;
 		}
 
-		CompletableFuture<List<NodeInfo>> f = Shell.getCarrierNode().findNode(id, option);
-		List<NodeInfo> nl = f.get();
-		if (!nl.isEmpty()) {
-			for (NodeInfo n : nl)
-				System.out.println(n);
+		Result<NodeInfo> result =  Shell.getCarrierNode().findNode(id, option).get();
+		if (result.hasValue()) {
+			NodeInfo ni = result.getV4();
+			if (ni != null)
+				System.out.println(Network.IPv4 + ": " + ni);
+
+			ni = result.getV6();
+			if (ni != null)
+				System.out.println(Network.IPv6 + ": " + ni);
 		} else {
 			System.out.println("Not found.");
 		}

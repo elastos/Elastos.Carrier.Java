@@ -139,15 +139,15 @@ public class FindPeerResponse extends LookupResponse {
 	public int estimateSize() {
 		int size = super.estimateSize();
 
-        if (peers != null && !peers.isEmpty()) {
-    		size += (2 + 2 + 2 + Id.BYTES);
+		if (peers != null && !peers.isEmpty()) {
+			size += (2 + 2 + 2 + Id.BYTES);
 
-        	for (PeerInfo pi : peers) {
-                size += (2 + 2 + Id.BYTES + 1 + Short.BYTES + 2 + Signature.BYTES);
-                size += pi.isDelegated() ? 2 + Id.BYTES : 1;
-                size += pi.hasAlternativeURL() ? 2 + pi.getAlternativeURL().getBytes().length : 1;
-            }
-        }
+			for (PeerInfo pi : peers) {
+				size += (2 + 2 + Id.BYTES + 1 + Short.BYTES + 2 + Signature.BYTES);
+				size += pi.isDelegated() ? 2 + Id.BYTES : 1;
+				size += pi.hasAlternativeURL() ? 2 + pi.getAlternativeURL().getBytes().length : 1;
+			}
+		}
 
 		return size;
 	}

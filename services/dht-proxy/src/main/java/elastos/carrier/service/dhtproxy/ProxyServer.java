@@ -40,9 +40,11 @@ import io.vertx.ext.web.handler.BodyHandler;
 
 import elastos.carrier.Id;
 import elastos.carrier.LookupOption;
+import elastos.carrier.Network;
 import elastos.carrier.Node;
 import elastos.carrier.NodeInfo;
 import elastos.carrier.PeerInfo;
+import elastos.carrier.Result;
 import elastos.carrier.Value;
 import elastos.carrier.utils.Hex;
 
@@ -95,6 +97,8 @@ public class ProxyServer extends AbstractVerticle {
 			.listen(port, asyncResult -> {
 				if (asyncResult.succeeded()) {
 					log.info("HTTP server started on port {}", port);
+					log.info("DHT proxy transport: {}", vertx.isNativeTransportEnabled() ?
+							"NATIVE" : "NIO");
 				} else {
 					log.error("HTTP Server listen failed on {} - {}", port, asyncResult.cause());
 					//throw new CarrierServiceException(asyncResult.cause());
@@ -126,19 +130,19 @@ public class ProxyServer extends AbstractVerticle {
 			String mode = ctx.request().params().get("mode");
 			LookupOption option = mode != null ? LookupOption.valueOf(mode.toUpperCase()) : null;
 
-			node.findNode(nodeId, option).whenComplete((nl, e) -> {
+			node.findNode(nodeId, option).whenComplete((result, e) -> {
 				if (e != null) {
 					vertx.runOnContext((none) -> ctx.fail(500, e));
 					return;
 				}
 
-				if (nl.isEmpty()) {
+				if (result.isEmpty()) {
 					vertx.runOnContext((none) -> ctx.response().setStatusCode(404).end());
 				} else {
 					vertx.runOnContext((none) -> {
 						HttpServerResponse response = ctx.response();
 						response.putHeader("content-type", "application/json");
-						response.end(nodeToJson(nl).toBuffer());
+						response.end(nodeToJson(result).toBuffer());
 					});
 				}
 			});
@@ -227,16 +231,28 @@ public class ProxyServer extends AbstractVerticle {
 		}
 	}
 
-	private JsonArray nodeToJson(List<NodeInfo> nodes) {
-		JsonArray array = new JsonArray();
-		for (NodeInfo node : nodes)
-			array.add(JsonObject.of(
-				"id", node.getId().toString(),
-				"ip", node.getInetAddress().toString(),
-				"port", node.getPort()
-			));
+	private JsonObject nodeToJson(Result<NodeInfo> nodeInfo) {
+		JsonObject json = new JsonObject();
 
-		return array;
+		NodeInfo ni = nodeInfo.getV4();
+		if (ni != null) {
+			json.put(Network.IPv4.name(), JsonObject.of(
+					"id", ni.getId().toString(),
+					"ip", ni.getInetAddress().toString(),
+					"port", ni.getPort()
+				));
+		}
+
+		ni = nodeInfo.getV6();
+		if (ni != null) {
+			json.put(Network.IPv6.name(), JsonObject.of(
+					"id", ni.getId().toString(),
+					"ip", ni.getInetAddress().toString(),
+					"port", ni.getPort()
+				));
+		}
+
+		return json;
 	}
 
 	private JsonArray peerToJson(List<PeerInfo> peers) {
