@@ -397,17 +397,29 @@ public class ProxySession implements AutoCloseable {
 		});
 
 		connection.clientCloseHandler(v -> {
-			log.trace("Session {} add connection {} to the idle connections",
-					getName(), connection.getName());
-			idleConnections.add(connection);
-			if (idleConnections.size() == connections.size()) // all connections are idle
-				idleTimestamp = System.currentTimeMillis();
+			NetSocket clientSocket = clientSocks.poll();
+			if (clientSocket != null) {
+				log.trace("Session {} connection {} <==> client {}",
+						getName(), connection.getName(), Integer.toHexString(clientSocket.hashCode()));
+
+				connection.connectClient(clientSocket);
+			} else {
+				log.trace("Session {} add connection {} to the idle connections",
+						getName(), connection.getName());
+
+				idleConnections.add(connection);
+				if (idleConnections.size() == connections.size()) // all connections are idle
+					idleTimestamp = System.currentTimeMillis();
+			}
 		});
 
 		connections.put(connection, ProxyConnection.OBJECT);
 
 		NetSocket clientSocket = clientSocks.poll();
 		if (clientSocket != null) {
+			log.trace("Session {} connection {} <==> client {}",
+					getName(), connection.getName(), Integer.toHexString(clientSocket.hashCode()));
+
 			connection.connectClient(clientSocket);
 		} else {
 			log.trace("Session {} add connection {} to the idle connections",
@@ -434,6 +446,9 @@ public class ProxySession implements AutoCloseable {
 
 		ProxyConnection connection = idleConnections.poll();
 		if (connection != null) {
+			log.trace("Session {} connection {} <==> client {}",
+					getName(), connection.getName(), Integer.toHexString(socket.hashCode()));
+
 			connection.connectClient(socket);
 		} else {
 			log.debug("Session {} no upstream connection available for the client connection {}, add it to the queue.",
