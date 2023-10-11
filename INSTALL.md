@@ -101,8 +101,8 @@ To officially launch the Carrier Service and improve the health of the Carrier n
     },
     // carrier-node2
     {
-      "id": "FRkR2NWhbSGMv3BqGui7FYAgCSAWySrz6xmTAx9Ny7zo",
-      "address": "45.76.161.175",
+      "id": "6o6LkHgLyD5sYyW9iN5LNRYnUoX29jiYauQ5cDjhCpWQ",
+      "address": "45.32.138.246",
       "port": 39001
     },
     // carrier-node3
@@ -115,12 +115,6 @@ To officially launch the Carrier Service and improve the health of the Carrier n
     {
       "id": "4A6UDpARbKBJZmW5s6CmGDgeNmTxWFoGUi2Z5C4z7E41",
       "address": "107.191.62.45",
-      "port": 39001
-    },
-    // carrier-node5
-    {
-      "id": "5BJ8SZZQ4z4izhw82W2ksyuTCQz3GwWUWBSaza4qzVT9",
-      "address": "207.148.82.19",
       "port": 39001
     }
   ] 
